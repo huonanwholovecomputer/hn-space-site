@@ -1,0 +1,38 @@
+# yaml-language-server: $schema=https://unpkg.com/@sveltia/cms/schema/sveltia-cms.json
+
+backend:
+  name: github
+  repo: huonanwholovecomputer/hn-space-site
+  branch: main
+
+# 图片存放（仓库内图床）：media_folder 是仓库内路径，public_folder 是站点 URL 路径
+media_folder: /static/posts
+public_folder: /posts
+
+# 空的可选字段不写入文件，避免给旧文章添加多余字段
+output:
+  omit_empty_optional_fields: true
+
+collections:
+  - name: posts
+    label: 文章
+    label_singular: 文章
+    icon: article
+    folder: /content/posts
+    create: true
+    delete: true
+    format: yaml-frontmatter
+    # 新文章文件名由 slug 字段决定（用英文/数字编号，避免 URL 出现中文）
+    slug: '{{fields.slug}}'
+    # 每篇文章的图片放在 static/posts/<文章名>/media 下，与现有文章保持一致
+    media_folder: '/static/posts/{{filename}}/media'
+    public_folder: '/posts/{{filename}}/media'
+    fields:
+      - { label: 标题, name: title, widget: string }
+      - { label: "URL 标识（新建文章时填写，如 03-xxx，只写英文/数字/连字符）", name: slug, widget: string, required: false }
+      - { label: 发布日期, name: date, widget: datetime, format: 'YYYY-MM-DD', date_format: 'YYYY-MM-DD', time_format: false, picker_utc: false }
+      - { label: 摘要, name: description, widget: string, required: false }
+      - { label: 标签, name: tags, widget: list, required: false, field: { label: 标签项, name: tag, widget: string } }
+      - { label: 系列, name: series, widget: list, required: false, field: { label: 系列名, name: series_name, widget: string } }
+      - { label: 草稿（勾选后不发布）, name: draft, widget: boolean, default: false, required: false }
+      - { label: 正文（Markdown）, name: body, widget: markdown }

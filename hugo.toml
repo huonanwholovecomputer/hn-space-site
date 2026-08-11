@@ -1,0 +1,149 @@
+baseURL = "https://blog.hn-space.cn/"
+locale = "zh-cn"
+defaultContentLanguage = "zh-cn"
+title = "HN Space"
+theme = "PaperMod"
+enableRobotsTXT = true
+paginate = 10
+hasCJKLanguage = true
+buildDrafts = false
+copyright = "© 2026 HN Space"
+
+[outputs]
+  home = ["HTML", "RSS", "JSON"]
+
+[taxonomies]
+  category = "categories"
+  tag = "tags"
+  series = "series"
+
+[related]
+  threshold = 80
+  includeNewer = true
+  toLower = true
+
+  [[related.indices]]
+    name = "series"
+    weight = 80
+
+  [[related.indices]]
+    name = "tags"
+    weight = 60
+
+  [[related.indices]]
+    name = "date"
+    weight = 10
+    pattern = "2006"
+
+[params]
+  env = "production"
+  title = "HN Space"
+  description = "技术向个人网站：开发环境配置、Windows 系统重装教程与编程实践。"
+  keywords = ["HN Space", "博客", "开发环境", "Windows", "教程"]
+  author = "HN"
+  DateFormat = "2006-01-02"
+  defaultTheme = "auto"
+  ShowReadingTime = true
+  ShowWordCount = true
+  ShowBreadCrumbs = true
+  ShowCodeCopyButtons = true
+  ShowPostNavLinks = true
+  ShowShareButtons = false
+  ShowRssButtonInSectionTermList = true
+  UseHugoToc = true
+  disableSpecial1stPost = false
+  disableScrollToTop = false
+  comments = false
+  hidemeta = false
+  hideSummary = false
+  showtoc = false
+  tocopen = false
+
+  [params.assets]
+    disableHLJS = true
+    favicon = "/favicon.png"
+    favicon16x16 = "/favicon-16.png"
+    favicon32x32 = "/favicon-32.png"
+    apple_touch_icon = "/apple-touch-icon.png"
+
+  [params.label]
+    text = "HN Space"
+    icon = "/avatar.png"
+    iconHeight = 30
+
+  [params.profileMode]
+    enabled = true
+    title = "你好，欢迎来到 HN Space"
+    subtitle = "技术向个人网站：记录开发环境配置、Windows 系统重装教程与编程实践。"
+    imageUrl = "/avatar.png"
+    imageTitle = "霍楠"
+    imageWidth = 150
+    imageHeight = 150
+
+    [[params.profileMode.buttons]]
+      name = "博客"
+      url = "/posts/"
+
+    [[params.profileMode.buttons]]
+      name = "项目"
+      url = "/projects/"
+
+  [[params.socialIcons]]
+    name = "github"
+    url = "https://github.com/huonanwholovecomputer"
+
+  [[params.socialIcons]]
+    name = "bilibili"
+    url = "https://space.bilibili.com/1962477025"
+
+  [[params.socialIcons]]
+    name = "email"
+    url = "mailto:2700612507@qq.com"
+
+  [params.cover]
+    hidden = true
+
+[[menu.main]]
+  identifier = "home"
+  name = "首页"
+  url = "/"
+  weight = 10
+
+[[menu.main]]
+  identifier = "posts"
+  name = "博客"
+  url = "/posts/"
+  weight = 20
+
+[[menu.main]]
+  identifier = "projects"
+  name = "项目"
+  url = "/projects/"
+  weight = 30
+
+[[menu.main]]
+  identifier = "search"
+  name = "搜索"
+  url = "/search/"
+  weight = 40
+
+[[menu.main]]
+  identifier = "friends"
+  name = "友链"
+  url = "/friends/"
+  weight = 50
+
+[[menu.main]]
+  identifier = "about"
+  name = "关于"
+  url = "/about/"
+  weight = 60
+
+[markup]
+  [markup.goldmark]
+    [markup.goldmark.renderer]
+      unsafe = true
+
+  [markup.tableOfContents]
+    startLevel = 2
+    endLevel = 4

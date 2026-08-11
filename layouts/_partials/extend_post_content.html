@@ -1,0 +1,22 @@
+{{- $related := site.RegularPages.Related . | first 5 }}
+{{- if or (.GetTerms "series") $related }}
+<section class="post-extras">
+  {{- with .GetTerms "series" }}
+  <div class="post-series">
+    <strong>所属系列：</strong>
+    {{- range $i, $s := . }}{{ if $i }} · {{ end }}<a href="{{ $s.Permalink }}">{{ $s.LinkTitle }}</a>{{ end }}
+  </div>
+  {{- end }}
+  {{- with $related }}
+  <div class="post-related">
+    <h3>相关文章</h3>
+    <ul>
+      {{- range . }}
+      <li><a href="{{ .Permalink }}">{{ .Title }}</a><span class="related-date">（{{ .Date.Format "2006-01-02" }}）</span></li>
+      {{- end }}
+    </ul>
+  </div>
+  {{- end }}
+</section>
+{{- end }}
+

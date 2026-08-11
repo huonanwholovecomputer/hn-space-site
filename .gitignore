@@ -1,0 +1,6 @@
+.tools/
+public/
+resources/
+.hugo_build.lock
+*.key
+themes/PaperMod/

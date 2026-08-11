@@ -91,6 +91,12 @@
 
   function onMove(e) {
     if (e.pointerType && e.pointerType !== 'mouse') return;
+    if (!cursor.active) {
+      // 首次移动时直接吸附到鼠标位置，避免拖影从左上角（初始坐标）扫过来
+      cursor.x = e.clientX;
+      cursor.y = e.clientY;
+      trail.length = 0;
+    }
     cursor.tx = e.clientX;
     cursor.ty = e.clientY;
     cursor.active = true;

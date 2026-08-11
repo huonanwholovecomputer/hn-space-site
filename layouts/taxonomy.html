@@ -1,0 +1,32 @@
+{{- define "main" }}
+
+{{- $label := "" }}{{ with .Data }}{{ if eq .Plural "tags" }}{{ $label = "TAGS" }}{{ else if eq .Plural "categories" }}{{ $label = "CATEGORIES" }}{{ else if eq .Plural "series" }}{{ $label = "SERIES" }}{{ end }}{{ end }}
+
+{{- if .Title }}
+<header class="page-header">
+    {{- if $label }}
+    <p class="page-eyebrow">{{ $label }}</p>
+    {{- end }}
+    <h1>{{ .Title }}</h1>
+    {{- if .Description }}
+    <div class="post-description">
+        {{ .Description }}
+    </div>
+    {{- end }}
+</header>
+{{- end }}
+
+<ul class="terms-tags">
+    {{- $type := .Type }}
+        {{- range $key, $value := .Data.Terms.Alphabetical }}
+            {{- $name := .Name }}
+            {{- $count := .Count }}
+            {{- with site.GetPage (printf "/%s/%s" $type $name) }}
+            <li>
+                <a href="{{ .Permalink }}">{{ .LinkTitle }} <sup><strong><sup>{{ $count }}</sup></strong></sup> </a>
+            </li>
+        {{- end }}
+    {{- end }}
+</ul>
+
+{{- end }}{{/* end main */ -}}

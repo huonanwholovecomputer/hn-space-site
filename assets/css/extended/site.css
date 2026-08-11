@@ -1,0 +1,328 @@
+/* =========================================================
+   全站统一样式：把首页（清爽开发者主页）的设计语言
+   通过 PaperMod 全局变量 + 关键组件覆盖，应用到所有页面。
+   浅色为默认，深色由 html[data-theme="dark"] 覆盖，
+   与首页、站点主题按钮同一套切换机制。
+   ========================================================= */
+
+/* ---------- 全局变量对齐 ---------- */
+:root {
+  --primary: rgb(17, 24, 39);            /* 标题/正文主色 → 首页 heading */
+  --secondary: rgb(92, 106, 125);        /* 次要文字 → 首页 muted */
+  --tertiary: rgb(219, 227, 238);        /* hover 边框/浅色块 */
+  --border: rgb(227, 233, 241);          /* 边框 → 首页 border */
+  --entry: rgb(248, 250, 252);           /* 卡片底色 → 首页 card */
+  --content: rgb(57, 70, 90);            /* 正文 → 首页 text */
+  --code-bg: rgb(243, 246, 251);         /* 行内代码/浅色块 */
+  --radius: 12px;
+}
+
+:root[data-theme="dark"] {
+  --primary: rgb(238, 242, 248);
+  --secondary: rgb(148, 161, 181);
+  --tertiary: rgb(58, 67, 88);
+  --border: rgb(50, 58, 76);
+  --entry: rgb(36, 39, 51);
+  --content: rgb(194, 204, 218);
+  --code-bg: rgb(28, 32, 41);
+  --radius: 12px;
+}
+
+/* 全局字体与文字色 */
+body {
+  font-family: var(--home-font-display);
+  color: var(--content);
+}
+
+::selection {
+  background: var(--home-accent);
+  color: #ffffff;
+}
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+summary:focus-visible {
+  outline: 2px solid var(--home-accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ---------- 页头 ---------- */
+.page-header,
+.post-header {
+  position: relative;
+  margin-bottom: 28px;
+}
+
+.page-header::before,
+.post-header::before {
+  content: "";
+  display: block;
+  width: 38px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--home-accent);
+  margin-bottom: 18px;
+}
+
+.page-header h1,
+.post-title {
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--home-heading);
+}
+
+.post-title {
+  font-size: clamp(1.7rem, 4vw, 2.4rem);
+}
+
+.page-header h1 {
+  font-size: clamp(1.5rem, 3.4vw, 2rem);
+}
+
+.post-description {
+  color: var(--home-muted);
+  max-width: 62ch;
+}
+
+/* 眉标：由 layouts/_partials/breadcrumbs.html 注入 */
+.page-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 10px;
+  font-family: var(--home-font-mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--home-accent);
+}
+
+.page-eyebrow::before {
+  content: "";
+  width: 24px;
+  height: 2px;
+  background: var(--home-accent);
+}
+
+/* 面包屑 */
+.breadcrumbs {
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+
+.breadcrumbs a:hover {
+  color: var(--home-accent);
+}
+
+/* ---------- 页头导航 ---------- */
+.logo a {
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.menu .active {
+  font-weight: 700;
+  text-decoration-color: var(--home-accent);
+}
+
+.theme-toggle:hover {
+  color: var(--home-accent);
+}
+
+/* ---------- 文章列表卡片 ---------- */
+.post-entry,
+.searchResults li {
+  box-shadow: var(--home-shadow);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease, background-color 0.18s ease;
+}
+
+.post-entry:hover,
+.post-entry:focus-within,
+.searchResults li:hover,
+.searchResults li:focus-within {
+  transform: translateY(-3px);
+  border-color: var(--home-accent-line);
+  box-shadow: var(--home-shadow-lg);
+}
+
+.entry-header h2 {
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--home-heading);
+}
+
+.entry-content {
+  font-size: 14.5px;
+}
+
+.entry-footer,
+.post-meta,
+.archive-meta {
+  font-family: var(--home-font-mono);
+  font-size: 12.5px;
+}
+
+/* ---------- 标签徽章（标签页 + 文章底部） ---------- */
+.terms-tags a,
+.post-tags a {
+  font-family: var(--home-font-mono);
+  font-size: 0.82rem;
+  color: var(--home-accent);
+  background: var(--home-accent-soft);
+  border: 1px solid var(--home-accent-line);
+  border-radius: 999px;
+  padding: 4px 14px;
+  transition: background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+}
+
+.terms-tags a:hover,
+.post-tags a:hover {
+  color: #ffffff;
+  background: var(--home-accent);
+  border-color: var(--home-accent);
+  transform: translateY(-1px);
+}
+
+.post-tags a {
+  line-height: 28px;
+}
+
+/* ---------- 搜索 ---------- */
+.searchbox input {
+  padding: 12px 18px;
+  font-weight: 600;
+  color: var(--home-heading);
+  background: var(--home-card);
+  border: 2px solid var(--home-border);
+  border-radius: 12px;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.searchbox input:focus {
+  border-color: var(--home-accent);
+  box-shadow: 0 0 0 3px var(--home-accent-soft);
+}
+
+/* ---------- 分页与上一篇/下一篇 ---------- */
+.pagination a {
+  background: var(--home-accent);
+  color: #ffffff;
+  border-radius: 12px;
+  font-weight: 600;
+  transition: background-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.pagination a:hover {
+  background: var(--home-accent-strong);
+  color: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: var(--home-shadow);
+}
+
+.paginav {
+  border-radius: 12px;
+  transition: border-color 0.18s ease;
+}
+
+.paginav:hover {
+  border-color: var(--home-accent-line);
+}
+
+/* ---------- 目录 ---------- */
+details.toc {
+  border-radius: 12px;
+}
+
+details.toc summary:hover {
+  color: var(--home-accent);
+}
+
+/* ---------- 返回顶部 ---------- */
+.top-link {
+  background: var(--home-accent);
+  color: #ffffff;
+}
+
+.top-link:hover {
+  background: var(--home-accent-strong);
+  color: #ffffff;
+}
+
+/* ---------- 正文排版 ---------- */
+.md-content h1,
+.md-content h2,
+.md-content h3,
+.md-content h4,
+.md-content h5,
+.md-content h6 {
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--home-heading);
+}
+
+.md-content a:not(.anchor) {
+  color: var(--home-accent);
+  text-underline-offset: 0.25rem;
+}
+
+.md-content a:not(.anchor):hover {
+  color: var(--home-accent-strong);
+}
+
+.md-content blockquote {
+  border-inline-start: 3px solid var(--home-accent);
+  background: var(--home-accent-soft);
+  border-radius: 0 12px 12px 0;
+  padding: 14px 18px;
+}
+
+.md-content blockquote p:not(:last-child) {
+  margin-bottom: 8px;
+}
+
+.post-content code:not(pre code) {
+  background: var(--home-accent-soft);
+  color: var(--home-accent-strong);
+  border: 1px solid var(--home-accent-line);
+  border-radius: 6px;
+  padding: 0.15rem 0.4rem;
+}
+
+:root[data-theme="dark"] .post-content code:not(pre code) {
+  color: var(--home-accent);
+}
+
+.md-content mark {
+  background: var(--home-accent-soft);
+  color: var(--home-accent-strong);
+  padding: 0 4px;
+}
+
+:root[data-theme="dark"] .md-content mark {
+  color: var(--home-accent);
+}
+
+/* ---------- 归档 ---------- */
+.archive-year-header,
+.archive-month-header a {
+  color: var(--home-heading);
+}
+
+.archive-entry-title {
+  font-weight: 700;
+}
+
+.archive-entry:hover .archive-entry-title {
+  color: var(--home-accent);
+}
+
+/* ---------- 页脚 ---------- */
+.footer {
+  font-size: 13px;
+}
+
+.footer a:hover {
+  color: var(--home-accent);
+}

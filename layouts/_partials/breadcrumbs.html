@@ -1,0 +1,36 @@
+{{- /* 覆盖主题面包屑：在面包屑上方注入首页同款 mono 眉标 */}}
+{{- $label := "" }}
+{{- if eq .Kind "section" }}
+  {{- if eq .Section "posts" }}{{ $label = "BLOG" }}{{ else if eq .Section "projects" }}{{ $label = "PROJECTS" }}{{ else if eq .Section "about" }}{{ $label = "ABOUT" }}{{ end }}
+{{- else if eq .Kind "taxonomy" }}
+  {{- $plural := "" }}{{ with .Data }}{{ $plural = .Plural }}{{ end }}
+  {{- if eq $plural "tags" }}{{ $label = "TAGS" }}{{ else if eq $plural "categories" }}{{ $label = "CATEGORIES" }}{{ else if eq $plural "series" }}{{ $label = "SERIES" }}{{ end }}
+{{- else if eq .Kind "term" }}
+  {{- $singular := "" }}{{ with .Data }}{{ $singular = .Singular }}{{ end }}
+  {{- if eq $singular "tag" }}{{ $label = "TAGS" }}{{ else if eq $singular "category" }}{{ $label = "CATEGORIES" }}{{ else if eq $singular "series" }}{{ $label = "SERIES" }}{{ end }}
+{{- else if eq .Kind "page" }}
+  {{- if eq .Type "posts" }}{{ $label = "BLOG" }}{{ else if eq .Title "友链" }}{{ $label = "FRIENDS" }}{{ else if eq .Title "更新日志" }}{{ $label = "UPDATES" }}{{ else if eq .Title "简历" }}{{ $label = "RESUME" }}{{ end }}
+{{- end }}
+{{- if $label }}
+<p class="page-eyebrow">{{ $label }}</p>
+{{- end }}
+{{- if (.Param "ShowBreadCrumbs") -}}
+<nav class="breadcrumbs" role="navigation" aria-label="Breadcrumb">
+    {{- $ancestors := .Ancestors.Reverse -}}
+    {{- range $i, $bc := $ancestors }}
+        {{- if eq $i 0 }}
+            <a href="{{ $bc.RelPermalink }}">{{ i18n "home" | default "Home" }}</a>
+        {{- else }}
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round" class="feather feather-chevron-right">
+                <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+            <a href="{{ $bc.RelPermalink }}">{{ $bc.Title }}</a>
+        {{- end }}
+    {{- end }}
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round" class="feather feather-chevron-right">
+        <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+</nav>
+{{- end -}}

@@ -30,7 +30,7 @@
   // ---- cursor state ----
   const cursor = { x: -200, y: -200, tx: -200, ty: -200, active: false };
   const trail = []; // recent positions for the ribbon
-  const MAX_TRAIL = 26;
+  const MAX_TRAIL = 18;
 
   // ---- effects ----
   const PALETTE = ['#8b5cf6', '#6366f1', '#22d3ee', '#e879f9', '#ffffff'];
@@ -159,7 +159,7 @@
   }
 
   function drawRibbon(now) {
-    while (trail.length && now - trail[0].t > 900) trail.shift();
+    while (trail.length && now - trail[0].t > 750) trail.shift();
     const n = trail.length;
     if (n < 2) return;
     ctx.lineCap = 'round';
@@ -171,8 +171,8 @@
       const age = (now - p1.t) / 700;
       const fade = Math.max(0, 1 - age) * k;
       if (fade <= 0.02) continue;
-      ctx.strokeStyle = 'hsla(' + (265 + k * 70).toFixed(0) + ', 85%, 65%, ' + (0.45 * fade).toFixed(3) + ')';
-      ctx.lineWidth = 1 + 4 * k * fade;
+      ctx.strokeStyle = 'hsla(' + (265 + k * 70).toFixed(0) + ', 85%, 65%, ' + (0.16 * fade).toFixed(3) + ')';
+      ctx.lineWidth = 0.8 + 2.2 * k * fade;
       ctx.beginPath();
       ctx.moveTo(p0.x, p0.y);
       ctx.lineTo(p1.x, p1.y);

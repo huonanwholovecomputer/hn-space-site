@@ -95,13 +95,19 @@
   function onMove(e) {
     if (e.pointerType && e.pointerType !== 'mouse') return;
     if (!cursor.active) {
-      // 首次移动时直接吸附到鼠标位置，避免拖影从左上角（初始坐标）扫过来
-      cursor.x = e.clientX;
-      cursor.y = e.clientY;
+      // 首次移动时直接吸附到鼠标位置，避免拖影从左上角（初始坐标）扫过来；
+      // 同时把越界坐标钳制在画布内，避免从窗口外回来时产生边缘残影
+      const nx = Math.min(W, Math.max(0, e.clientX));
+      const ny = Math.min(H, Math.max(0, e.clientY));
+      cursor.x = nx;
+      cursor.y = ny;
+      cursor.tx = nx;
+      cursor.ty = ny;
       trail.length = 0;
+    } else {
+      cursor.tx = Math.min(W, Math.max(0, e.clientX));
+      cursor.ty = Math.min(H, Math.max(0, e.clientY));
     }
-    cursor.tx = e.clientX;
-    cursor.ty = e.clientY;
     cursor.active = true;
     if (!rafId) rafId = requestAnimationFrame(tick);
   }
@@ -153,7 +159,8 @@
 
     ctx.globalCompositeOperation = 'source-over';
 
-    if (cursor.active || particles.length || rings.length) {
+    // 拖尾点未消散完时也要继续渲染，避免鼠标移出窗口后丝带被冻结在屏幕上
+    if (cursor.active || particles.length || rings.length || trail.length) {
       rafId = requestAnimationFrame(tick);
     }
   }

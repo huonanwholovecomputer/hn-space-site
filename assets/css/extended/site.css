@@ -55,6 +55,10 @@ summary:focus-visible {
 .post-header {
   position: relative;
   margin-bottom: 28px;
+  background: var(--home-hero-bg);
+  border: 1px solid var(--home-border);
+  border-radius: 18px;
+  padding: clamp(24px, 4vw, 38px) clamp(22px, 3vw, 34px);
 }
 
 .page-header::before,
@@ -89,7 +93,6 @@ summary:focus-visible {
 }
 
 /* 文章阅读栏：仅限 posts 类型的长文章；友链/简历等短页面与 section 简介保持全宽 */
-.page-posts .post-single .post-header,
 .page-posts .post-single .post-content,
 .page-posts .post-single .post-footer,
 .page-posts .post-single details.toc {

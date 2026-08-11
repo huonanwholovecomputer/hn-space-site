@@ -914,13 +914,13 @@ main.main:has(.home-page) {
 }
 
 /* ============ 入场动画 ============ */
-[data-reveal] {
+html.js .reveal-item {
   opacity: 0;
   transform: translateY(16px);
   transition: opacity 0.55s ease, transform 0.55s ease;
 }
 
-[data-reveal].is-in {
+html.js .reveal-item.is-in {
   opacity: 1;
   transform: none;
 }
@@ -1015,7 +1015,7 @@ main.main:has(.home-page) {
 
 /* ============ 无障碍：减少动态效果 ============ */
 @media (prefers-reduced-motion: reduce) {
-  [data-reveal] {
+  html.js .reveal-item {
     opacity: 1;
     transform: none;
     transition: none;

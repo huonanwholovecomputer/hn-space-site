@@ -1,0 +1,104 @@
+# 首页个人资料（单数据源）
+# 修改这里的文案即可更新首页；文章的完整列表仍以 content/posts/ 为准，
+# 项目完整列表以 content/projects/ 为准。本文件只做首页展示的精选数据。
+siteName: "HN Space"
+name: "霍楠"
+role: "计算机科学与技术本科在读"
+tagline: "记录开发环境配置、Windows 系统优化与编程实践，把想法用 AI 辅助变成能用的小工具。"
+
+bio:
+  - "我是霍楠（HN），计算机科学与技术专业在读，也是一名持续折腾开发环境、系统优化与小工具的独立开发者。"
+  - "现在专注用 AI 辅助开发把想法快速变成可运行的工具，并把踩坑过程整理成新手也能跟着做下来的教程。"
+  - "写过《开发环境安装与配置指南》和《Windows 11 精简版系统重装教程》两篇长教程，也独立开发并上线了 h_n-printer 打印计费工具。"
+  - "喜欢把复杂问题拆成清晰可复现的步骤——代码和文档都追求“照着做就能成功”。"
+
+highlights:
+  - value: "2"
+    label: "篇长教程"
+    note: "合计近万字，覆盖开发环境与系统重装"
+  - value: "6"
+    label: "个开源项目"
+    note: "GitHub 持续更新：打印计费、截图、脚本工具"
+  - value: "1"
+    label: "个线上工具"
+    note: "h_n-printer 打印计费已部署上线"
+  - value: "2026"
+    label: "年上线本站"
+    note: "Hugo 静态站，部署于 blog.hn-space.cn"
+
+skills:
+  - category: "编程与工具"
+    items:
+      - name: "Python"
+        description: "写桌面小工具、脚本与自动化：h_n-printer、cpp_format、FrameKeeper 等"
+      - name: "C / C++"
+        description: "课程与竞赛基础，理解编译原理与底层行为"
+      - name: "微信小程序"
+        description: "开发 h_n-printer 小程序端，远程提交打印任务"
+  - category: "系统与效率"
+    items:
+      - name: "Windows 系统"
+        description: "精简版重装、驱动与优化，输出完整实操教程"
+      - name: "开发环境"
+        description: "VS Code / Visual Studio / PyCharm / Dev-C++ 配置指南"
+      - name: "文档化"
+        description: "把操作流程写成可复现、可维护的长教程"
+  - category: "AI 辅助开发"
+    items:
+      - name: "编码智能体"
+        description: "用 Claude Code / DeepSeek / Codex 辅助实现需求"
+      - name: "快速原型"
+        description: "从想法到上线全流程由 AI 加速，保持代码可维护"
+      - name: "持续集成"
+        description: "GitHub Actions 自动构建与增量部署"
+
+projects:
+  - name: "h_n-printer"
+    summary: "个人打印 + 计费工具：云端记账，微信小程序远程发送打印任务。"
+    problem: "个人打印业务缺少自动计费与远程提交入口，账目易乱。"
+    role: "独立开发（AI 辅助）"
+    features: ["云端数据存储", "微信小程序远程下单", "自动计费"]
+    stack: ["Python", "微信小程序", "云端部署"]
+    link: "https://github.com/huonanwholovecomputer/h_n-printer"
+    site: "https://hn-space.cn"
+    status: "已上线"
+    featured: true
+  - name: "FrameKeeper"
+    summary: "Windows 系统托盘截图工具：按固定间隔自动截屏并导出延时视频。"
+    role: "独立开发"
+    stack: ["Python", "Windows"]
+    link: "https://github.com/huonanwholovecomputer/FrameKeeper"
+    status: "开源"
+  - name: "cpp_format"
+    summary: "格式化 C++ 代码的 Python 脚本（Claude Code + DeepSeek 编写）。"
+    role: "独立开发（AI 辅助）"
+    stack: ["Python"]
+    link: "https://github.com/huonanwholovecomputer/cpp_format"
+    status: "开源"
+  - name: "Countdown-to-College-Entrance-Examination"
+    summary: "高考倒计时 Python 程序。"
+    role: "独立开发"
+    stack: ["Python"]
+    link: "https://github.com/huonanwholovecomputer/Countdown-to-College-Entrance-Examination"
+    status: "开源"
+  - name: "Python-Random-Select"
+    summary: "随机抽取 Python 程序。"
+    role: "独立开发"
+    stack: ["Python"]
+    link: "https://github.com/huonanwholovecomputer/Python-Random-Select"
+    status: "开源"
+  - name: "Audio-Cover-Extraction-Tool"
+    summary: "音频封面提取工具。"
+    role: "独立开发"
+    stack: ["Python"]
+    link: "https://github.com/huonanwholovecomputer/Audio-Cover-Extraction-Tool"
+    status: "开源"
+
+links:
+  email: "mailto:2700612507@qq.com"
+  github: "https://github.com/huonanwholovecomputer"
+  bilibili: "https://space.bilibili.com/1962477025"
+  resume: "/resume/"
+  blog: "/posts/"
+  projects: "/projects/"
+  friends: "/friends/"

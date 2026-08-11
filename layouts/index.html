@@ -1,0 +1,235 @@
+{{- define "main" }}
+{{- $p := hugo.Data.profile }}
+{{- $posts := first 2 (where site.RegularPages "Type" "posts") }}
+<div class="home-page">
+  <noscript><style>[data-reveal]{opacity:1;transform:none}</style></noscript>
+  {{/* ================= Hero ================= */}}
+  <section class="home-hero" aria-labelledby="hero-title">
+    <div class="home-hero-inner">
+      <div class="hero-copy">
+        <p class="hero-eyebrow" data-reveal>{{ $p.siteName }} · Personal Site</p>
+        <h1 id="hero-title" class="hero-title" data-reveal>你好，我是<span class="hero-name">{{ $p.name }}</span></h1>
+        <p class="hero-role" data-reveal>{{ $p.role }} · 独立开发者 / 技术博主</p>
+        <p class="hero-tagline" data-reveal>{{ $p.tagline }}</p>
+        <div class="hero-cta" data-reveal>
+          <a class="btn btn-primary" href="{{ $p.links.blog | relURL }}">阅读博客</a>
+          <a class="btn btn-secondary" href="{{ $p.links.projects | relURL }}">查看项目</a>
+          <a class="btn btn-text" href="{{ $p.links.resume | relURL }}">简历<span class="arrow" aria-hidden="true">→</span></a>
+        </div>
+        <ul class="hero-meta" data-reveal>
+          <li><span class="dot"></span>本科在读</li>
+          <li><span class="dot"></span>6 个开源项目</li>
+          <li><span class="dot"></span>持续更新教程</li>
+        </ul>
+      </div>
+      <div class="hero-visual" data-reveal>
+        <div class="avatar-card">
+          <img src="{{ "/avatar.png" | relURL }}" alt="{{ $p.name }} 的头像" width="512" height="512" loading="eager" />
+          <span class="avatar-status">持续学习中</span>
+        </div>
+        <div class="hero-code-card" aria-hidden="true">
+          <div class="code-dots"><i></i><i></i><i></i></div>
+          <pre>~/HN
+├── posts/      2 篇长教程
+├── projects/   6 个开源项目
+└── tools/      h_n-printer 已上线</pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  {{/* ================= About ================= */}}
+  <section class="home-section home-about" id="about" aria-labelledby="about-title">
+    <div class="home-container">
+      <div class="section-head" data-reveal>
+        <p class="section-eyebrow">About</p>
+        <h2 id="about-title" class="section-title">关于我</h2>
+      </div>
+      <div class="about-grid">
+        <div class="about-copy" data-reveal>
+          {{- range $p.bio }}
+          <p>{{ . }}</p>
+          {{- end }}
+        </div>
+        <aside class="about-card" data-reveal>
+          <h3>快速事实</h3>
+          <ul>
+            <li><span>身份</span>计算机科学与技术 · 本科在读</li>
+            <li><span>专注</span>开发环境 / 系统优化 / 小工具</li>
+            <li><span>开源</span>6 个 GitHub 项目</li>
+            <li><span>站点</span>blog.hn-space.cn</li>
+          </ul>
+        </aside>
+      </div>
+    </div>
+  </section>
+
+  {{/* ================= Highlights ================= */}}
+  <section class="home-section home-highlights" id="highlights" aria-labelledby="highlights-title">
+    <div class="home-container">
+      <div class="section-head" data-reveal>
+        <p class="section-eyebrow">Highlights</p>
+        <h2 id="highlights-title" class="section-title">一些事实</h2>
+      </div>
+      <div class="highlights-grid">
+        {{- range $p.highlights }}
+        <div class="highlight-card" data-reveal>
+          <span class="highlight-value">{{ .value }}</span>
+          <span class="highlight-label">{{ .label }}</span>
+          <p class="highlight-note">{{ .note }}</p>
+        </div>
+        {{- end }}
+      </div>
+    </div>
+  </section>
+
+  {{/* ================= Skills ================= */}}
+  <section class="home-section home-skills" id="skills" aria-labelledby="skills-title">
+    <div class="home-container">
+      <div class="section-head" data-reveal>
+        <p class="section-eyebrow">Skills</p>
+        <h2 id="skills-title" class="section-title">我在做什么</h2>
+      </div>
+      <div class="skills-grid">
+        {{- range $i, $group := $p.skills }}
+        <div class="skill-card" data-reveal>
+          <h3><span class="skill-index">0{{ add $i 1 }}</span>{{ $group.category }}</h3>
+          <ul>
+            {{- range $group.items }}
+            <li>
+              <strong>{{ .name }}</strong>
+              <p>{{ .description }}</p>
+            </li>
+            {{- end }}
+          </ul>
+        </div>
+        {{- end }}
+      </div>
+    </div>
+  </section>
+
+  {{/* ================= Projects ================= */}}
+  <section class="home-section home-projects" id="projects" aria-labelledby="projects-title">
+    <div class="home-container">
+      <div class="section-head" data-reveal>
+        <p class="section-eyebrow">Projects</p>
+        <h2 id="projects-title" class="section-title">开源项目</h2>
+        <a class="section-more" href="{{ $p.links.projects | relURL }}">全部项目 <span aria-hidden="true">→</span></a>
+      </div>
+
+      {{- range $p.projects }}
+      {{- if .featured }}
+      <article class="project-featured" data-reveal>
+        <div class="project-featured-main">
+          <div class="project-title-row">
+            <h3>{{ .name }}</h3>
+            <span class="status-badge">{{ .status }}</span>
+          </div>
+          <p class="project-summary">{{ .summary }}</p>
+          <p class="project-problem"><strong>解决的问题：</strong>{{ .problem }}</p>
+          <ul class="feature-list">
+            {{- range .features }}
+            <li>{{ . }}</li>
+            {{- end }}
+          </ul>
+        </div>
+        <div class="project-featured-side">
+          <dl>
+            <dt>我的角色</dt>
+            <dd>{{ .role }}</dd>
+            <dt>技术栈</dt>
+            <dd>
+              <span class="chip-list">
+                {{- range .stack }}<span class="chip">{{ . }}</span>{{- end }}
+              </span>
+            </dd>
+          </dl>
+          <div class="project-links">
+            <a class="btn btn-primary btn-sm" href="{{ .site }}" rel="noopener" target="_blank">线上服务<span aria-hidden="true">↗</span></a>
+            <a class="btn btn-secondary btn-sm" href="{{ .link }}" rel="noopener" target="_blank">GitHub<span aria-hidden="true">↗</span></a>
+          </div>
+        </div>
+      </article>
+      {{- end }}
+      {{- end }}
+
+      <div class="projects-grid">
+        {{- range $p.projects }}
+        {{- if not .featured }}
+        <a class="project-card" href="{{ .link }}" rel="noopener" target="_blank" data-reveal>
+          <div class="project-card-head">
+            <h3>{{ .name }}</h3>
+            <span class="card-arrow" aria-hidden="true">↗</span>
+          </div>
+          <p class="project-summary">{{ .summary }}</p>
+          <div class="project-card-foot">
+            <span class="chip-list">
+              {{- range .stack }}<span class="chip">{{ . }}</span>{{- end }}
+            </span>
+            <span class="status-badge status-badge--ghost">{{ .status }}</span>
+          </div>
+        </a>
+        {{- end }}
+        {{- end }}
+      </div>
+    </div>
+  </section>
+
+  {{/* ================= Content ================= */}}
+  <section class="home-section home-content" id="content" aria-labelledby="content-title">
+    <div class="home-container">
+      <div class="section-head" data-reveal>
+        <p class="section-eyebrow">Writing</p>
+        <h2 id="content-title" class="section-title">教程与内容</h2>
+        <a class="section-more" href="{{ $p.links.blog | relURL }}">全部文章 <span aria-hidden="true">→</span></a>
+      </div>
+      <div class="content-grid">
+        {{- range $posts }}
+        <a class="content-card" href="{{ .RelPermalink }}" data-reveal>
+          <div class="content-card-meta">
+            <span class="content-tag">教程</span>
+            <time datetime="{{ .Date.Format "2006-01-02" }}">{{ .Date.Format "2006-01" }}</time>
+          </div>
+          <h3>{{ .Title }}</h3>
+          <p>{{ .Description }}</p>
+          <span class="card-more">阅读全文 <span aria-hidden="true">→</span></span>
+        </a>
+        {{- end }}
+        <a class="content-card content-card--channel" href="{{ $p.links.github }}" rel="noopener" target="_blank" data-reveal>
+          <div class="content-card-meta">
+            <span class="content-tag">GitHub</span>
+          </div>
+          <h3>开源项目主页</h3>
+          <p>6 个开源项目与更多实验，欢迎 Star 与交流。</p>
+          <span class="card-more">打开主页 <span aria-hidden="true">↗</span></span>
+        </a>
+        <a class="content-card content-card--channel" href="{{ $p.links.bilibili }}" rel="noopener" target="_blank" data-reveal>
+          <div class="content-card-meta">
+            <span class="content-tag">Bilibili</span>
+          </div>
+          <h3>B 站主页</h3>
+          <p>视频与动态，欢迎关注。</p>
+          <span class="card-more">打开主页 <span aria-hidden="true">↗</span></span>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  {{/* ================= Contact ================= */}}
+  <section class="home-section home-contact" id="contact" aria-labelledby="contact-title">
+    <div class="home-container">
+      <div class="contact-panel" data-reveal>
+        <h2 id="contact-title">一起交流技术？</h2>
+        <p>无论是教程建议、项目合作还是交换友链，都欢迎联系我。</p>
+        <div class="contact-actions">
+          <a class="btn btn-primary" href="{{ $p.links.email }}">发邮件</a>
+          <a class="btn btn-secondary" href="{{ $p.links.github }}" rel="noopener" target="_blank">GitHub</a>
+          <a class="btn btn-secondary" href="{{ $p.links.bilibili }}" rel="noopener" target="_blank">B 站</a>
+          <a class="btn btn-text" href="{{ $p.links.friends | relURL }}">交换友链<span class="arrow" aria-hidden="true">→</span></a>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+<script defer src="{{ "js/home.js" | relURL }}?v=1"></script>
+{{- end }}

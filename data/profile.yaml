@@ -9,7 +9,7 @@ tagline: "记录开发环境配置、Windows 系统优化与编程实践，把�
 bio:
   - "我是霍楠（HN），计算机科学与技术专业在读，也是一名持续折腾开发环境、系统优化与小工具的独立开发者。"
   - "现在专注用 AI 辅助开发把想法快速变成可运行的工具，并把踩坑过程整理成新手也能跟着做下来的教程。"
-  - "写过《开发环境安装与配置指南》和《Windows 11 精简版系统重装教程》两篇长教程，也独立开发并上线了 h_n-printer 打印计费工具。"
+  - "写过《开发环境安装与配置指南》和《Windows 11 精简版系统重装教程》两篇长教程，也独立开发了 h_n-printer 打印计费工具——目前处于测试阶段，供我和朋友们远程提交打印任务。"
   - "喜欢把复杂问题拆成清晰可复现的步骤——代码和文档都追求“照着做就能成功”。"
 
 highlights:
@@ -20,8 +20,8 @@ highlights:
     label: "个开源项目"
     note: "GitHub 持续更新：打印计费、截图、脚本工具"
   - value: "1"
-    label: "个线上工具"
-    note: "h_n-printer 打印计费已部署上线"
+    label: "个自用工具"
+    note: "h_n-printer 后端已部署，小程序测试中，仅供本人与朋友使用"
   - value: "2026"
     label: "年上线本站"
     note: "Hugo 静态站，部署于 blog.hn-space.cn"
@@ -54,14 +54,13 @@ skills:
 
 projects:
   - name: "h_n-printer"
-    summary: "个人打印 + 计费工具：云端记账，微信小程序远程发送打印任务。"
+    summary: "个人打印 + 计费工具：云端记账，微信小程序远程提交打印任务（测试阶段）。"
     problem: "个人打印业务缺少自动计费与远程提交入口，账目易乱。"
     role: "独立开发（AI 辅助）"
     features: ["云端数据存储", "微信小程序远程下单", "自动计费"]
     stack: ["Python", "微信小程序", "云端部署"]
     link: "https://github.com/huonanwholovecomputer/h_n-printer"
-    site: "https://hn-space.cn"
-    status: "已上线"
+    status: "测试中"
     featured: true
   - name: "FrameKeeper"
     summary: "Windows 系统托盘截图工具：按固定间隔自动截屏并导出延时视频。"

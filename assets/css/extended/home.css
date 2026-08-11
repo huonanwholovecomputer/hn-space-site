@@ -603,6 +603,16 @@ main.main:has(.home-page) {
   color: #6ee7b7;
 }
 
+.status-badge--testing {
+  color: #b45309;
+  background: rgba(245, 158, 11, 0.12);
+  border-color: rgba(245, 158, 11, 0.35);
+}
+
+:root[data-theme="dark"] .status-badge--testing {
+  color: #fbbf24;
+}
+
 .status-badge--ghost {
   color: var(--home-muted);
   background: var(--home-accent-soft);

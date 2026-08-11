@@ -88,11 +88,11 @@ summary:focus-visible {
   max-width: 62ch;
 }
 
-/* 文章阅读栏：外壳统一 1120px，正文限宽保证中文阅读节奏 */
-.post-header,
-.post-content,
-.post-footer,
-details.toc {
+/* 文章阅读栏：仅限单篇文章页；列表/项目等 section 页的简介保持全宽 */
+.post-single .post-header,
+.post-single .post-content,
+.post-single .post-footer,
+.post-single details.toc {
   max-width: 760px;
   margin-left: auto;
   margin-right: auto;

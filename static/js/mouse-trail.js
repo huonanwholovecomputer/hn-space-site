@@ -21,6 +21,9 @@
     H = window.innerHeight;
     canvas.width = Math.round(W * DPR);
     canvas.height = Math.round(H * DPR);
+    // 显式固定 CSS 尺寸，与绘制缓冲完全一致，避免百分比宽度/滚动条导致横向偏移
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   }
 

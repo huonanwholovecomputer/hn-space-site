@@ -19,6 +19,11 @@
   --radius: 12px;
 }
 
+/* 全站背景统一：浅色下所有页面与首页一致（白色），不再区分列表页/单页 */
+body.list {
+  background: var(--theme);
+}
+
 :root[data-theme="dark"] {
   --primary: rgb(238, 242, 248);
   --secondary: rgb(148, 161, 181);

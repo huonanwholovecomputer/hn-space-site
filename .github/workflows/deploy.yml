@@ -1,0 +1,48 @@
+name: Deploy Blog
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Clone PaperMod theme
+        run: git clone --depth 1 https://github.com/adityatelange/hugo-PaperMod.git themes/PaperMod
+
+      - name: Setup Hugo
+        uses: peaceiris/actions-hugo@v3
+        with:
+          hugo-version: '0.164.0'
+          extended: true
+
+      - name: Build
+        run: hugo --minify --cleanDestinationDir
+
+      - name: Package
+        run: tar -C public -cf site.tar .
+
+      - name: Install SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SERVER_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
+      - name: Upload and deploy
+        env:
+          HOST: ${{ secrets.SERVER_HOST || 'SERVER_IP_PLACEHOLDER' }}
+          USER: ${{ secrets.SERVER_USER || 'root' }}
+          REMOTE_DIR: /var/www/blog
+        run: |
+          scp -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=/dev/null -i ~/.ssh/deploy_key site.tar "${USER}@${HOST}:/tmp/site.tar"
+          ssh -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=/dev/null -i ~/.ssh/deploy_key "${USER}@${HOST}" "cd ${REMOTE_DIR} && tar -xf /tmp/site.tar && rm -f /tmp/site.tar && chown -R www-data:www-data ${REMOTE_DIR} && chmod -R a+rX ${REMOTE_DIR} && curl -s --resolve blog.hn-space.cn:443:127.0.0.1 -o /dev/null -w 'HTTP %{http_code}\n' https://blog.hn-space.cn/"

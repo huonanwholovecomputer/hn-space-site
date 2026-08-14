@@ -36,7 +36,18 @@
   })();
 
   /* 判断链接是否应走 PJAX：
-     同源、非下载、非新窗口、非纯锚点、非邮件/电话 */
+     同源、非下载、非新窗口、非纯锚点、非邮件/电话。
+     搜索页（/search/）走整页跳转：fastsearch.js 是 head 中按页面加载的
+     模块，只在整页加载时初始化搜索框事件；PJAX 替换 <main> 后新输入框
+     无事件绑定且保持 disabled，无法交互。 */
+  var NO_PJAX_PATHS = ['/search/'];
+
+  function isNoPjaxPath(url) {
+    var p = url.pathname || '/';
+    if (p.length > 1 && !/\/$/.test(p)) p += '/';
+    return NO_PJAX_PATHS.indexOf(p) !== -1;
+  }
+
   function shouldPjax(a, url) {
     if (a.target && a.target !== '_self') return false;
     if (a.hasAttribute('download')) return false;
@@ -46,6 +57,7 @@
     if (url.origin !== location.origin) return false;
     if (url.pathname === location.pathname && url.search === location.search) return false;
     if (url.hash && url.pathname === location.pathname) return false; // 同页锚点
+    if (isNoPjaxPath(url)) return false;
     return true;
   }
 
@@ -116,6 +128,13 @@
   }
 
   function navigate(url, push) {
+    /* 目标为 no-PJAX 路径（如搜索页）时直接整页跳转，
+       覆盖浏览器后退/前进（popstate）进入搜索页的场景 */
+    if (isNoPjaxPath(url)) {
+      location.href = url.href;
+      return;
+    }
+
     if (push) {
       history.pushState({ url: url.href }, '', url.href);
     }
@@ -184,6 +203,9 @@
     } catch (err) {
       return;
     }
+    /* 当前在搜索页：fastsearch.js 已初始化且绑定旧 DOM，PJAX 离开会留下
+       悬挂的搜索脚本；统一走整页跳转最干净 */
+    if (isNoPjaxPath(new URL(location.href))) return;
     if (!shouldPjax(a, url)) return;
 
     /* 移动端菜单已用 site.js 关闭；这里阻止默认跳转走 PJAX */

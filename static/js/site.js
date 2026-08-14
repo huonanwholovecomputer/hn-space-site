@@ -59,7 +59,12 @@
   window.__siteInitReveal = initReveal;
 })();
 
-/* 卡片 3D 倾斜 + 手电筒光晕：带速率限制的平滑跟随，光斑为聚焦的圆形光束 */
+/* 卡片 3D 倾斜 + 手电筒光晕：带速率限制的平滑跟随，光斑为聚焦的圆形光束。
+   实现要点：不依赖 pointerenter/pointerleave（旋转会改变视觉边界，
+   边缘移动时反复触发命中判定导致震荡），改为全局指针位置 + 磁吸扩展区：
+   - 鼠标位于「卡片 + 四周 MAGNET 像素」内 → 持续跟随倾斜（坐标钳制到卡片内）
+   - 移出扩展区 → 平滑复位
+   这样鼠标在卡片边缘来回滑动时角度稳定，无临界震荡。 */
 (function () {
   'use strict';
 
@@ -69,7 +74,112 @@
     '.about-quick-card, .about-tile, .about-dev-card, .about-exp-card, ' +
     '.about-comp-card, .about-comp-featured';
 
-  var bound = false;
+  /* 磁吸扩展区（像素）：卡片四周留出该范围，边缘滑动仍视为"在卡片上" */
+  var MAGNET = 28;
+
+  var cards = [];          // 已绑定状态对象的卡片
+  var mouseX = -9999;
+  var mouseY = -9999;
+  var mouseReady = false;
+  var globalBound = false;
+
+  function makeState(el) {
+    var maxTilt = parseFloat(
+      window.getComputedStyle(el).getPropertyValue('--tilt-max')
+    );
+    if (!isFinite(maxTilt) || maxTilt <= 0) {
+      maxTilt = 4;
+    }
+
+    var target = { rx: 0, ry: 0, gx: 50, gy: 50 };
+    var current = { rx: 0, ry: 0, gx: 50, gy: 50 };
+    var raf = null;
+
+    function apply() {
+      el.style.setProperty('--rx', current.rx.toFixed(2) + 'deg');
+      el.style.setProperty('--ry', current.ry.toFixed(2) + 'deg');
+      el.style.setProperty('--gx', current.gx.toFixed(1) + '%');
+      el.style.setProperty('--gy', current.gy.toFixed(1) + '%');
+    }
+
+    function step() {
+      current.rx += (target.rx - current.rx) * 0.16;
+      current.ry += (target.ry - current.ry) * 0.16;
+      current.gx += (target.gx - current.gx) * 0.16;
+      current.gy += (target.gy - current.gy) * 0.16;
+      apply();
+      var settled =
+        Math.abs(current.rx - target.rx) < 0.03 &&
+        Math.abs(current.ry - target.ry) < 0.03 &&
+        Math.abs(current.gx - target.gx) < 0.03 &&
+        Math.abs(current.gy - target.gy) < 0.03;
+      raf = settled ? null : window.requestAnimationFrame(step);
+    }
+
+    return {
+      el: el,
+      maxTilt: maxTilt,
+      target: target,
+      current: current,
+      active: false,
+      raf: null,
+      apply: apply,
+      start: function () {
+        if (!raf) {
+          raf = window.requestAnimationFrame(step);
+        }
+      }
+    };
+  }
+
+  /* 更新单个卡片：鼠标是否落在磁吸区内 */
+  function updateCard(st) {
+    var el = st.el;
+    if (!el.isConnected) return;
+
+    var rect = el.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+
+    var inside =
+      mouseX >= rect.left - MAGNET &&
+      mouseX <= rect.right + MAGNET &&
+      mouseY >= rect.top - MAGNET &&
+      mouseY <= rect.bottom + MAGNET;
+
+    if (inside) {
+      /* 坐标钳制到卡片内，边缘处达到最大倾斜而非无限放大 */
+      var cx = Math.min(Math.max(mouseX, rect.left), rect.right);
+      var cy = Math.min(Math.max(mouseY, rect.top), rect.bottom);
+      var x = (cx - rect.left) / rect.width;
+      var y = (cy - rect.top) / rect.height;
+      if (!st.active) {
+        st.active = true;
+        el.classList.add('is-tilting');
+        var size = Math.max(90, Math.min(rect.width, rect.height) * 0.72);
+        el.style.setProperty('--gs', size.toFixed(0) + 'px');
+      }
+      st.target.rx = (0.5 - y) * 2 * st.maxTilt;
+      st.target.ry = (x - 0.5) * 2 * st.maxTilt;
+      st.target.gx = x * 100;
+      st.target.gy = y * 100;
+      st.start();
+    } else if (st.active) {
+      st.active = false;
+      el.classList.remove('is-tilting');
+      st.target.rx = 0;
+      st.target.ry = 0;
+      st.start();
+    }
+  }
+
+  function onGlobalMove(e) {
+    mouseX = e.clientX;
+    mouseY = e.clientY;
+    mouseReady = true;
+    for (var i = 0; i < cards.length; i++) {
+      updateCard(cards[i]);
+    }
+  }
 
   function initTilt() {
     if (
@@ -80,109 +190,26 @@
       return;
     }
 
+    /* 全局 pointermove 只绑定一次（PJAX 后复用） */
+    if (!globalBound) {
+      globalBound = true;
+      window.addEventListener('pointermove', onGlobalMove, { passive: true });
+    }
+
+    /* 扫描新卡片（已绑定的跳过）；同时清理已脱离 DOM 的旧卡片 */
+    cards = cards.filter(function (st) { return st.el.isConnected; });
+
     Array.prototype.forEach.call(
       document.querySelectorAll(CARD_SELECTOR),
       function (el) {
-        /* 已绑定的卡片跳过（PJAX 后只处理新增的 main 内容） */
         if (el.__tiltBound) return;
         el.__tiltBound = true;
-
-        var maxTilt = parseFloat(
-          window.getComputedStyle(el).getPropertyValue('--tilt-max')
-        );
-        if (!isFinite(maxTilt) || maxTilt <= 0) {
-          maxTilt = 4;
+        var st = makeState(el);
+        cards.push(st);
+        /* 初始若鼠标已在卡片附近（如 PJAX 切换后），立即生效 */
+        if (mouseReady) {
+          updateCard(st);
         }
-
-        var target = { rx: 0, ry: 0, gx: 50, gy: 50 };
-        var current = { rx: 0, ry: 0, gx: 50, gy: 50 };
-        var raf = null;
-        var resetTimer = null;
-
-        function apply() {
-          el.style.setProperty('--rx', current.rx.toFixed(2) + 'deg');
-          el.style.setProperty('--ry', current.ry.toFixed(2) + 'deg');
-          el.style.setProperty('--gx', current.gx.toFixed(1) + '%');
-          el.style.setProperty('--gy', current.gy.toFixed(1) + '%');
-        }
-
-        function step() {
-          current.rx += (target.rx - current.rx) * 0.16;
-          current.ry += (target.ry - current.ry) * 0.16;
-          current.gx += (target.gx - current.gx) * 0.16;
-          current.gy += (target.gy - current.gy) * 0.16;
-          apply();
-          var settled =
-            Math.abs(current.rx - target.rx) < 0.03 &&
-            Math.abs(current.ry - target.ry) < 0.03 &&
-            Math.abs(current.gx - target.gx) < 0.03 &&
-            Math.abs(current.gy - target.gy) < 0.03;
-          raf = settled ? null : window.requestAnimationFrame(step);
-        }
-
-        function start() {
-          if (!raf) {
-            raf = window.requestAnimationFrame(step);
-          }
-        }
-
-        /* 取消挂起的复位，并立即按鼠标位置更新倾斜目标 */
-        function engage(e) {
-          if (resetTimer) {
-            window.clearTimeout(resetTimer);
-            resetTimer = null;
-          }
-          var rect = el.getBoundingClientRect();
-          var size = Math.max(90, Math.min(rect.width, rect.height) * 0.72);
-          el.style.setProperty('--gs', size.toFixed(0) + 'px');
-          if (!rect.width || !rect.height) {
-            return;
-          }
-          var x = (e.clientX - rect.left) / rect.width;
-          var y = (e.clientY - rect.top) / rect.height;
-          el.classList.add('is-tilting');
-          target.rx = (0.5 - y) * 2 * maxTilt;
-          target.ry = (x - 0.5) * 2 * maxTilt;
-          target.gx = x * 100;
-          target.gy = y * 100;
-          start();
-        }
-
-        /* 延迟复位：给边缘留出「磁吸窗口」。
-           鼠标短暂越过视觉边界（旋转导致的位移）时先不归零，
-           若延迟内重新进入则取消复位，避免卡片在临界点反复震荡。 */
-        function disengage() {
-          el.classList.remove('is-tilting');
-          if (resetTimer) {
-            window.clearTimeout(resetTimer);
-          }
-          resetTimer = window.setTimeout(function () {
-            target.rx = 0;
-            target.ry = 0;
-            start();
-          }, 140);
-        }
-
-        /* 用 pointerenter/pointermove/pointerleave 而非 mouse*，
-           pointer 事件天然包含触屏过滤（已由外层 hover 媒体查询把关） */
-        el.addEventListener('pointerenter', engage);
-
-        el.addEventListener('pointermove', function (e) {
-          var rect = el.getBoundingClientRect();
-          if (!rect.width || !rect.height) {
-            return;
-          }
-          var x = (e.clientX - rect.left) / rect.width;
-          var y = (e.clientY - rect.top) / rect.height;
-          el.classList.add('is-tilting');
-          target.rx = (0.5 - y) * 2 * maxTilt;
-          target.ry = (x - 0.5) * 2 * maxTilt;
-          target.gx = x * 100;
-          target.gy = y * 100;
-          start();
-        });
-
-        el.addEventListener('pointerleave', disengage);
       }
     );
   }

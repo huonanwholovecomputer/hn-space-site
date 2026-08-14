@@ -1,0 +1,175 @@
+/* =========================================================
+   移动端适配（≤768px 手机）：
+   1) 顶部导航简化为「左侧 logo+名字 / 右侧三条横」，
+      点击三条横向下展开下拉面板（主题切换 + 标签页列表）。
+   2) 文字类页面左右边距适当加大，改善手机阅读体验。
+   桌面端（>768px）行为与改版前完全一致。
+   ========================================================= */
+
+/* ---------- 汉堡按钮（默认桌面端隐藏） ---------- */
+.nav-toggle {
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 5px;
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  margin-left: auto;
+  border: none;
+  background: transparent;
+  border-radius: 12px;
+  cursor: pointer;
+  color: var(--home-heading);
+  transition: background-color 0.18s ease, color 0.18s ease;
+}
+
+.nav-toggle:hover {
+  background: var(--home-accent-soft);
+  color: var(--home-accent);
+}
+
+.nav-toggle-bar {
+  display: block;
+  width: 20px;
+  height: 2px;
+  border-radius: 2px;
+  background: currentColor;
+  transition:
+    transform 0.28s cubic-bezier(0.23, 1, 0.32, 1),
+    opacity 0.2s ease;
+}
+
+/* 打开时三条横 → 叉号 */
+.header.is-open .nav-toggle-bar:nth-child(1) {
+  transform: translateY(7px) rotate(45deg);
+}
+
+.header.is-open .nav-toggle-bar:nth-child(2) {
+  opacity: 0;
+}
+
+.header.is-open .nav-toggle-bar:nth-child(3) {
+  transform: translateY(-7px) rotate(-45deg);
+}
+
+/* ---------- 导航面板：桌面端作为透明容器 ---------- */
+/* display:contents 让 logo-switches 与 menu 直接参与导航 flex 布局，
+   保持与改版前相同的桌面视觉；margin-right:auto 让主题切换贴紧 logo。 */
+.nav-panel {
+  display: contents;
+}
+
+.logo-switches {
+  margin-right: auto;
+}
+
+/* =========================================================
+   手机端（≤768px）
+   ========================================================= */
+@media screen and (max-width: 768px) {
+  /* 导航容器：相对定位，供下拉面板定位 */
+  .header-nav {
+    position: relative;
+    padding: 6px 8px 6px 12px;
+  }
+
+  /* 显示汉堡按钮 */
+  .nav-toggle {
+    display: flex;
+  }
+
+  /* 下拉面板：默认收起（透明 + 不可见 + 上移），.is-open 时展开 */
+  .nav-panel {
+    position: absolute;
+    top: calc(100% + 10px);
+    left: 0;
+    right: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 8px;
+    border-radius: 18px;
+    border: 1px solid var(--home-border);
+    background: var(--home-card);
+    background: color-mix(in srgb, var(--home-card) 50%, transparent);
+    -webkit-backdrop-filter: blur(24px) saturate(1.5);
+    backdrop-filter: blur(24px) saturate(1.5);
+    box-shadow: var(--home-shadow-lg);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px);
+    pointer-events: none;
+    transition:
+      opacity 0.22s ease,
+      transform 0.3s var(--home-ease-out),
+      visibility 0.3s;
+  }
+
+  .header.is-open .nav-panel {
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+    pointer-events: auto;
+  }
+
+  /* 面板顶部：主题切换（右对齐，与下方列表分隔） */
+  .nav-panel .logo-switches {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    margin-right: 0;
+    padding: 4px 10px 10px;
+    border-bottom: 1px solid var(--home-border);
+  }
+
+  /* 面板菜单：垂直列表 */
+  .nav-panel .menu {
+    flex-direction: column;
+    align-items: stretch;
+    overflow: visible;
+    white-space: normal;
+    word-break: normal;
+    column-gap: 0;
+    row-gap: 2px;
+    padding-top: 6px;
+  }
+
+  .nav-panel .menu li {
+    display: block;
+  }
+
+  .nav-panel .menu a {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 11px 14px;
+    font-size: 16px;
+    border-radius: 10px;
+    color: var(--home-heading);
+    transition: background-color 0.16s ease, color 0.16s ease;
+  }
+
+  .nav-panel .menu a:hover {
+    background: var(--home-accent-soft);
+    color: var(--home-accent);
+  }
+
+  .nav-panel .menu .active {
+    font-weight: 700;
+    text-decoration: none;
+  }
+
+  /* 当前页标签：整行高亮 */
+  .nav-panel .menu a:has(.active) {
+    background: var(--home-accent-soft);
+    color: var(--home-accent);
+  }
+
+  /* ===== 文字类页面：左右边距从 14px 加大到 20px，阅读更舒适 =====
+     排除首页（首页有自己的容器内边距与全宽背景设计） */
+  body:not(.list:has(.home-page)) main.main {
+    padding: 18px 20px 34px;
+  }
+}

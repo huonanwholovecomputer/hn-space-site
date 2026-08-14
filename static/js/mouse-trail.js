@@ -33,7 +33,35 @@
   const MAX_TRAIL = 18;
 
   // ---- effects ----
-  const PALETTE = ['#8b5cf6', '#6366f1', '#22d3ee', '#e879f9', '#ffffff'];
+  // 站点蓝系配色（与首页 --home-accent / DeepSeek 蓝一致），跟随明暗主题实时切换
+  const THEMES = {
+    light: {
+      palette: ['#3b82f6', '#2563eb', '#60a5fa', '#22d3ee', '#ffffff'],
+      ribbonHue: 217, ribbonSat: 91, ribbonLight: 60, // 拖尾丝带：蓝 → 靛蓝
+      ring: '96, 165, 250'                              // 点击圆环
+    },
+    dark: {
+      palette: ['#60a5fa', '#3b82f6', '#93c5fd', '#38bdf8', '#ffffff'],
+      ribbonHue: 213, ribbonSat: 94, ribbonLight: 68,
+      ring: '147, 197, 253'
+    }
+  };
+
+  function detectTheme() {
+    const t = document.documentElement.dataset.theme;
+    if (t === 'dark') return 'dark';
+    if (t === 'light') return 'light';
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  let activeTheme = detectTheme();
+  const themeCfg = () => THEMES[activeTheme];
+
+  // 主题按钮切换（PaperMod 修改 <html data-theme>）与系统主题变化时即时换色
+  new MutationObserver(() => { activeTheme = detectTheme(); })
+    .observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+  window.matchMedia('(prefers-color-scheme: dark)')
+    .addEventListener('change', () => { activeTheme = detectTheme(); });
+
   const particles = [];
   const rings = [];
   const MAX_PARTICLES = 150;
@@ -64,7 +92,7 @@
       size: rand(1.2, 3.6),
       life: rand(350, 850),
       maxLife: 850,
-      color: pick(PALETTE),
+      color: pick(themeCfg().palette),
       sparkle: Math.random() < 0.12,
       rot: rand(0, Math.PI * 2)
     });
@@ -83,7 +111,7 @@
         size: rand(1.5, 4),
         life: rand(500, 1000),
         maxLife: 1000,
-        color: pick(PALETTE),
+        color: pick(themeCfg().palette),
         sparkle: i % 5 === 0,
         rot: rand(0, Math.PI * 2)
       });
@@ -178,7 +206,8 @@
       const age = (now - p1.t) / 700;
       const fade = Math.max(0, 1 - age) * k;
       if (fade <= 0.02) continue;
-      ctx.strokeStyle = 'hsla(' + (265 + k * 70).toFixed(0) + ', 85%, 65%, ' + (0.16 * fade).toFixed(3) + ')';
+      const t = themeCfg();
+      ctx.strokeStyle = 'hsla(' + (t.ribbonHue + k * 28).toFixed(0) + ', ' + t.ribbonSat + '%, ' + t.ribbonLight + '%, ' + (0.16 * fade).toFixed(3) + ')';
       ctx.lineWidth = 0.8 + 2.2 * k * fade;
       ctx.beginPath();
       ctx.moveTo(p0.x, p0.y);
@@ -236,7 +265,7 @@
         rings.splice(i, 1);
         continue;
       }
-      ctx.strokeStyle = 'rgba(180,150,255,' + r.alpha.toFixed(3) + ')';
+      ctx.strokeStyle = 'rgba(' + themeCfg().ring + ',' + r.alpha.toFixed(3) + ')';
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.arc(r.x, r.y, r.r, 0, Math.PI * 2);

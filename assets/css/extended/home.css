@@ -6,7 +6,6 @@
 
 :root {
   --home-card: #f8fafc;
-  --home-card-hover: #ffffff;
   --home-text: #39465a;
   --home-heading: #111827;
   --home-muted: #5c6a7d;
@@ -20,38 +19,50 @@
     radial-gradient(1200px 520px at 86% -12%, rgba(37, 99, 235, 0.10), transparent 62%),
     radial-gradient(900px 440px at -8% 112%, rgba(59, 130, 246, 0.08), transparent 56%),
     linear-gradient(180deg, #f7faff 0%, var(--theme) 100%);
+  /* 顶部浅蓝光晕：涂在全宽 wrap 上，让 hero 透明后仍保留 DeepSeek 式顶部蓝调 */
+  --home-hero-wash: rgba(156, 193, 231, 0.45);
   --home-grid: rgba(37, 99, 235, 0.07);
   --home-code-bg: #101827;
   --home-code-text: #dbeafe;
   --home-code-dim: #7dd3fc;
   --home-shadow: 0 10px 30px -14px rgba(15, 23, 42, 0.16);
   --home-shadow-lg: 0 28px 64px -24px rgba(15, 23, 42, 0.28);
+  --home-radius: 14px;
+  --home-radius-lg: 20px;
+  --home-glare-core: rgba(191, 219, 254, 0.5);
+  --home-glare-mid: rgba(191, 219, 254, 0.18);
+  --home-glare-edge: rgba(191, 219, 254, 0.05);
+  --home-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --home-ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
   --home-font-display: "MiSans", "HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, "Segoe UI", sans-serif;
   --home-font-mono: "Cascadia Code", "JetBrains Mono", Consolas, "Courier New", monospace;
 }
 
 :root[data-theme="dark"] {
-  --home-card: #242733;
-  --home-card-hover: #2a2e3c;
+  --home-card: #151923;
   --home-text: #c2ccda;
   --home-heading: #eef2f8;
   --home-muted: #94a1b5;
   --home-faint: #6c7a90;
-  --home-border: #323a4c;
+  --home-border: #232b3a;
   --home-accent: #6ea8fe;
   --home-accent-strong: #93c5fd;
   --home-accent-soft: rgba(110, 168, 254, 0.10);
   --home-accent-line: rgba(110, 168, 254, 0.28);
   --home-hero-bg:
-    radial-gradient(1200px 520px at 86% -12%, rgba(37, 99, 235, 0.22), transparent 62%),
-    radial-gradient(900px 440px at -8% 112%, rgba(56, 130, 246, 0.15), transparent 56%),
-    linear-gradient(180deg, #121a2b 0%, var(--theme) 100%);
+    radial-gradient(1200px 520px at 86% -12%, rgba(37, 99, 235, 0.16), transparent 62%),
+    radial-gradient(900px 440px at -8% 112%, rgba(56, 130, 246, 0.11), transparent 56%),
+    linear-gradient(180deg, #0a0d13 0%, var(--theme) 100%);
+  --home-hero-wash: rgba(46, 88, 164, 0.20);
   --home-grid: rgba(110, 168, 254, 0.06);
   --home-code-bg: #0b1220;
   --home-code-text: #dbeafe;
   --home-code-dim: #7dd3fc;
   --home-shadow: 0 10px 30px -14px rgba(0, 0, 0, 0.5);
   --home-shadow-lg: 0 28px 64px -24px rgba(0, 0, 0, 0.65);
+  --home-glare-core: rgba(255, 255, 255, 0.45);
+  --home-glare-mid: rgba(255, 255, 255, 0.2);
+  --home-glare-edge: rgba(255, 255, 255, 0.05);
 }
 
 /* 首页容器加宽，背景与页面延续，防止全宽背景产生横向滚动 */
@@ -190,9 +201,7 @@ main.main:has(.home-page) {
 /* ============ Hero ============ */
 .home-hero {
   position: relative;
-  margin-inline: calc(50% - 50vw);
-  background: var(--home-hero-bg);
-  border-bottom: 1px solid var(--home-border);
+  background: transparent; /* 让 wrap 级流体透出（底色由 .home-hero-wrap 提供） */
 }
 
 .home-hero::before {
@@ -212,7 +221,7 @@ main.main:has(.home-page) {
   position: relative;
   max-width: 1120px;
   margin: 0 auto;
-  padding: clamp(56px, 9vw, 108px) var(--gap) clamp(48px, 7vw, 84px);
+  padding: clamp(96px, 11vw, 150px) var(--gap) clamp(48px, 7vw, 84px);
   display: grid;
   grid-template-columns: minmax(0, 1.15fr) minmax(280px, 0.85fr);
   gap: clamp(32px, 5vw, 64px);
@@ -248,7 +257,35 @@ main.main:has(.home-page) {
 }
 
 .hero-name {
+  position: relative;
+  display: inline-block;
   color: var(--home-accent);
+  /* 窥视镜参数：圆形遮罩跟随鼠标（--peek-x/--peek-y 由 site.js 写入，相对名字元素坐标） */
+  --peek-r: 32px;
+  --peek-x: -9999px;
+  --peek-y: -9999px;
+}
+
+.hero-name-txt {
+  display: inline-block;
+}
+
+/* 窥视层（别名 h_n）：只在圆形遮罩内显示——即反色圆环覆盖的区域。
+   用等宽字体：中文正文字体栈里下划线 _ 极细、大字号下几乎不可见，
+   等宽字体（Cascadia/Consolas）的 _ 是清晰实线，也更像代码 handle。 */
+.hero-name-txt--peek {
+  position: absolute;
+  inset: 0;
+  text-align: center;
+  font-family: var(--home-font-mono);
+  -webkit-mask-image: radial-gradient(circle var(--peek-r) at var(--peek-x) var(--peek-y), #000 0%, #000 97%, transparent 100%);
+  mask-image: radial-gradient(circle var(--peek-r) at var(--peek-x) var(--peek-y), #000 0%, #000 97%, transparent 100%);
+}
+
+/* 基础层（原名 霍楠）：在圆形遮罩内隐藏，避免与窥视层重叠 */
+.hero-name-txt--base {
+  -webkit-mask-image: radial-gradient(circle var(--peek-r) at var(--peek-x) var(--peek-y), transparent 0%, transparent 97%, #000 100%);
+  mask-image: radial-gradient(circle var(--peek-r) at var(--peek-x) var(--peek-y), transparent 0%, transparent 97%, #000 100%);
 }
 
 .hero-role {
@@ -450,6 +487,125 @@ main.main:has(.home-page) {
   padding-top: 3px;
 }
 
+/* ============ 卡片悬浮：统一配方 ============ */
+/* 入场动画结束后 site.js 会移除 reveal-item/is-in 类，
+   否则它们会覆盖 transition、并把 transform 钉在 none（旧版 hover 上浮失效的根因）。 */
+.highlight-card,
+.skill-card,
+.project-card,
+.content-card,
+.project-featured,
+.about-card,
+.contact-panel {
+  position: relative;
+  --tilt-max: 4deg;
+  --tilt-persp: 900px;
+  --home-lift: 0px;
+  --home-press: 1;
+  transform: perspective(var(--tilt-persp)) translateY(var(--home-lift, 0px)) scale(var(--home-press, 1)) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+  transition:
+    transform var(--tilt-dur, 220ms) var(--home-ease-out),
+    box-shadow 200ms var(--home-ease-out),
+    background-color 180ms ease,
+    border-color 180ms ease;
+}
+
+/* 大卡片 / 侧栏卡片：倾斜幅度进一步收敛，避免形变过度 */
+.project-featured,
+.about-card,
+.contact-panel {
+  --tilt-max: 2.5deg;
+}
+
+.project-featured,
+.contact-panel {
+  --tilt-persp: 1200px;
+}
+
+/* 跟随指针移动时用短过渡，离开时用长过渡平滑回弹 */
+.highlight-card.is-tilting,
+.skill-card.is-tilting,
+.project-card.is-tilting,
+.content-card.is-tilting,
+.project-featured.is-tilting,
+.about-card.is-tilting,
+.contact-panel.is-tilting {
+  --tilt-dur: 90ms;
+}
+
+/* 手电筒光晕：光斑跟随指针（--gx/--gy 由 site.js 写入） */
+.highlight-card::before,
+.skill-card::before,
+.project-card::before,
+.content-card::before,
+.project-featured::before,
+.about-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(calc(var(--gs, 200px) / 2) circle at var(--gx, 50%) var(--gy, 50%), var(--home-glare-core) 0%, var(--home-glare-mid) 45%, var(--home-glare-edge) 72%, transparent 88%);
+  opacity: 0;
+  transition: opacity 200ms ease;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* 联系面板的 ::before 被网格背景占用，光晕改用 ::after */
+.contact-panel::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(calc(var(--gs, 200px) / 2) circle at var(--gx, 50%) var(--gy, 50%), var(--home-glare-core) 0%, var(--home-glare-mid) 45%, var(--home-glare-edge) 72%, transparent 88%);
+  opacity: 0;
+  transition: opacity 200ms ease;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.highlight-card:hover,
+.skill-card:hover,
+.project-card:hover,
+.content-card:hover,
+.project-featured:hover,
+.about-card:hover,
+.contact-panel:hover {
+  border-color: var(--home-accent-line);
+}
+
+/* 物理上浮 + 阴影：仅精细指针且允许动效时生效 */
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .highlight-card:hover,
+  .skill-card:hover,
+  .project-card:hover,
+  .content-card:hover,
+  .project-featured:hover,
+  .about-card:hover,
+  .contact-panel:hover {
+    --home-lift: -4px;
+    box-shadow: var(--home-shadow-lg);
+  }
+
+  .highlight-card:hover::before,
+  .skill-card:hover::before,
+  .project-card:hover::before,
+  .content-card:hover::before,
+  .project-featured:hover::before,
+  .about-card:hover::before,
+  .contact-panel:hover::after {
+    opacity: 1;
+  }
+
+  /* 可点击卡片的按压反馈 */
+  .project-card:active,
+  .content-card:active {
+    --home-lift: -1px;
+    --home-press: 0.98;
+    box-shadow: var(--home-shadow);
+  }
+}
+
 /* ============ Highlights ============ */
 .highlights-grid {
   display: grid;
@@ -463,13 +619,6 @@ main.main:has(.home-page) {
   background: var(--home-card);
   box-shadow: var(--home-shadow);
   padding: 22px 20px 18px;
-  transition: transform 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
-}
-
-.highlight-card:hover {
-  transform: translateY(-3px);
-  background: var(--home-card-hover);
-  box-shadow: var(--home-shadow-lg);
 }
 
 .highlight-value {
@@ -733,14 +882,6 @@ main.main:has(.home-page) {
   box-shadow: var(--home-shadow);
   padding: 20px 22px;
   text-decoration: none;
-  transition: transform 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease, border-color 0.18s ease;
-}
-
-.project-card:hover {
-  transform: translateY(-3px);
-  background: var(--home-card-hover);
-  border-color: var(--home-accent-line);
-  box-shadow: var(--home-shadow-lg);
 }
 
 .project-card-head {
@@ -800,14 +941,6 @@ main.main:has(.home-page) {
   box-shadow: var(--home-shadow);
   padding: 22px 24px;
   text-decoration: none;
-  transition: transform 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease, border-color 0.18s ease;
-}
-
-.content-card:hover {
-  transform: translateY(-3px);
-  background: var(--home-card-hover);
-  border-color: var(--home-accent-line);
-  box-shadow: var(--home-shadow-lg);
 }
 
 .content-card-meta {
@@ -854,6 +987,7 @@ main.main:has(.home-page) {
   font-size: 0.9rem;
   font-weight: 600;
   color: var(--home-accent);
+  transition: color 180ms ease;
 }
 
 .content-card:hover .card-more {
@@ -870,6 +1004,7 @@ main.main:has(.home-page) {
   border: 1px solid var(--home-border);
   border-radius: var(--home-radius-lg);
   background: var(--home-hero-bg);
+  box-shadow: var(--home-shadow);
   padding: clamp(36px, 6vw, 64px) clamp(20px, 4vw, 48px);
   position: relative;
   overflow: hidden;
@@ -914,15 +1049,105 @@ main.main:has(.home-page) {
 }
 
 /* ============ 入场动画 ============ */
-html.js .reveal-item {
+html.js .reveal-item,
+html.js [data-reveal] {
+  --reveal-x: 0px;
+  --reveal-y: 18px;
+  --reveal-scale: 1;
   opacity: 0;
-  transform: translateY(16px);
-  transition: opacity 0.55s ease, transform 0.55s ease;
+  transform: translateX(var(--reveal-x)) translateY(var(--reveal-y)) scale(var(--reveal-scale));
 }
 
-html.js .reveal-item.is-in {
+/* 小标题（eyebrow）：从左滑入 */
+html.js .reveal-item.hero-eyebrow,
+html.js .reveal-item.section-eyebrow {
+  --reveal-x: -18px;
+  --reveal-y: 0px;
+}
+
+/* 大标题：上浮 */
+html.js .reveal-item.hero-title,
+html.js .reveal-item.section-title {
+  --reveal-y: 20px;
+}
+
+/* 卡片：上浮 + 轻微放大 */
+html.js .reveal-item.highlight-card,
+html.js .reveal-item.skill-card,
+html.js .reveal-item.project-card,
+html.js .reveal-item.content-card,
+html.js .reveal-item.about-card,
+html.js .reveal-item.project-featured {
+  --reveal-y: 26px;
+  --reveal-scale: 0.97;
+}
+
+/* Hero 视觉区：整体浮现 */
+html.js .reveal-item.hero-visual {
+  --reveal-y: 22px;
+  --reveal-scale: 0.96;
+}
+
+/* 用 animation 而非 transition 播放入场：
+   动画自带起始关键帧，不依赖“隐藏状态先被绘制”，
+   首屏元素在加载时也能稳定播放入场，不会出现跳动或闪烁。 */
+@keyframes reveal-up {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes reveal-left {
+  from { opacity: 0; transform: translateX(-18px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes reveal-rise {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes reveal-card {
+  from { opacity: 0; transform: translateY(26px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes reveal-hero {
+  from { opacity: 0; transform: translateY(22px) scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+
+html.js .reveal-item.is-in,
+html.js [data-reveal].is-in {
   opacity: 1;
   transform: none;
+  animation: reveal-up 0.55s var(--home-ease-out) backwards;
+}
+
+html.js .reveal-item.is-in.hero-eyebrow,
+html.js .reveal-item.is-in.section-eyebrow {
+  animation-name: reveal-left;
+  animation-duration: 0.5s;
+}
+
+html.js .reveal-item.is-in.hero-title,
+html.js .reveal-item.is-in.section-title {
+  animation-name: reveal-rise;
+  animation-duration: 0.6s;
+}
+
+html.js .reveal-item.is-in.highlight-card,
+html.js .reveal-item.is-in.skill-card,
+html.js .reveal-item.is-in.project-card,
+html.js .reveal-item.is-in.content-card,
+html.js .reveal-item.is-in.about-card,
+html.js .reveal-item.is-in.project-featured {
+  animation-name: reveal-card;
+  animation-duration: 0.6s;
+}
+
+html.js .reveal-item.is-in.hero-visual {
+  animation-name: reveal-hero;
+  animation-duration: 0.65s;
 }
 
 /* ============ 响应式 ============ */
@@ -1015,10 +1240,12 @@ html.js .reveal-item.is-in {
 
 /* ============ 无障碍：减少动态效果 ============ */
 @media (prefers-reduced-motion: reduce) {
-  html.js .reveal-item {
+  html.js .reveal-item,
+  html.js [data-reveal] {
     opacity: 1;
     transform: none;
     transition: none;
+    animation: none;
   }
 
   *, *::before, *::after {

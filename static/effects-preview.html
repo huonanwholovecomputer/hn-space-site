@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DeepSeek 效果预览 · 调参工具页</title>
+<meta name="robots" content="noindex">
+<script>
+  // URL 加 ?dark 可预览深色模式配色（与本博客 html[data-theme=dark] 一致）
+  if (new URLSearchParams(location.search).has('dark')) {
+    document.documentElement.dataset.theme = 'dark';
+  }
+</script>
+<style>
+  /* 本页自包含的效果样式（与 assets/css/extended/deepseek-effects.css 一致）。
+     主题协调：画布配色由 JS 按主题设置（平静色=主题底色、强调蓝按主题分档），
+     此处只调每层强度。 */
+  :root {
+    --ds-fluid-opacity: 0.8;
+    --ds-wave-opacity: 0.5;
+    --ds-grid-rgb: 60, 100, 160;
+  }
+  :root[data-theme="dark"] {
+    --ds-fluid-opacity: 0.32;
+    --ds-wave-opacity: 0.28;
+    --ds-grid-rgb: 110, 168, 254;
+  }
+  html[data-theme="dark"] body {
+    background: #0a0d13;
+    color: #eef2f8;
+  }
+  html[data-theme="dark"] .zone {
+    background: #0d1018;
+    border-color: #232b3a;
+  }
+  html[data-theme="dark"] .zone-grid,
+  html[data-theme="dark"] .zone-blend {
+    background: linear-gradient(180deg, #0e1220, #0d1018);
+  }
+  html[data-theme="dark"] .zone-label {
+    color: #94a1b5;
+    background: rgba(13, 16, 24, 0.7);
+  }
+  html[data-theme="dark"] .note {
+    color: #94a1b5;
+  }
+  html[data-theme="dark"] .zone-blend h2 {
+    color: #eef2f8;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "MiSans", "HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: #f6f8fb;
+    color: #111827;
+    padding: 24px;
+  }
+  h1 { margin: 0 0 4px; font-size: 26px; }
+  .note { color: #6b7280; font-size: 14px; margin: 0 0 24px; }
+  .zone {
+    position: relative;
+    border-radius: 16px;
+    overflow: hidden;
+    margin-bottom: 24px;
+    border: 1px solid #e5e7eb;
+    background: #ffffff;
+  }
+  .zone-label {
+    position: absolute;
+    top: 12px; left: 14px;
+    z-index: 3;
+    font-size: 12px;
+    font-family: Consolas, monospace;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #6b7280;
+    background: rgba(255,255,255,0.7);
+    border-radius: 999px;
+    padding: 4px 12px;
+  }
+  .zone-fluid { height: 320px; }
+  .zone-wave { height: 320px; }
+  .zone-fluid canvas,
+  .zone-wave canvas {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+  }
+  .zone-fluid canvas { opacity: var(--ds-fluid-opacity); }
+  .zone-wave canvas { opacity: var(--ds-wave-opacity); }
+  .zone-grid { height: 320px; background: linear-gradient(180deg, #eef3fb, #ffffff); }
+  .zone-grid canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .zone-blend {
+    height: 220px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(180deg, #f0f4fb, #ffffff);
+  }
+  .zone-blend h2 {
+    font-size: clamp(28px, 5vw, 48px);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    width: fit-content;
+    margin: 0;
+  }
+  .ds-cursor-ring {
+    position: fixed; top: 0; left: 0; pointer-events: none; z-index: 9998;
+    will-change: transform, opacity; border-radius: 50%;
+    opacity: 0; width: 0; height: 0; border: 1px solid transparent;
+    mix-blend-mode: difference;
+    transition: width .3s cubic-bezier(.16,1,.3,1), height .3s cubic-bezier(.16,1,.3,1),
+                margin .3s cubic-bezier(.16,1,.3,1), background-color .3s ease,
+                border-color .3s ease, opacity .3s ease;
+  }
+  .ds-cursor-ring.is-blend {
+    width: 64px; height: 64px; margin-left: -32px; margin-top: -32px;
+    border-color: transparent; background: #fff; mix-blend-mode: difference;
+  }
+  .ds-cursor-ring.is-hover {
+    width: 40px; height: 40px; margin-left: -20px; margin-top: -20px;
+    background: transparent; border: 1px solid rgba(148,163,184,0.55);
+  }
+</style>
+</head>
+<body>
+  <h1>DeepSeek 效果预览 / 调参</h1>
+  <p class="note">
+    三个效果与本博客首页一致：液态渐变（自动环境流动，不响应鼠标）、网格鼠标交互
+    （圆环排挤）、文字反色光标（悬停下方标题可见）。URL 加 <code>?dark</code> 可预览
+    深色模式。参数改 <code>deepseek-effects.js</code> 与 <code>deepseek-effects.css</code>。
+  </p>
+
+  <div class="zone zone-fluid"><span class="zone-label">1 · 液态渐变 fluid（自动流动）</span>
+    <canvas data-ds-effect="fluid"></canvas>
+  </div>
+
+  <div class="zone zone-wave"><span class="zone-label">2 · 波浪扰动 wave（FBM + 旋度噪声）</span>
+    <canvas data-ds-effect="wave"></canvas>
+  </div>
+
+  <div class="zone zone-grid"><span class="zone-label">3 · 交互网格 grid</span>
+    <canvas data-ds-effect="grid"></canvas>
+  </div>
+
+  <div class="zone zone-blend"><span class="zone-label">4 · 反色光标 blend</span>
+    <h2 data-cursor="blend">把鼠标移到这里试试</h2>
+  </div>
+
+  <script src="/js/deepseek-effects.js?v=11"></script>
+</body>
+</html>

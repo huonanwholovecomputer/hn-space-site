@@ -1,0 +1,160 @@
+{{- define "main" }}
+{{- $a := hugo.Data.about }}
+<article class="about-page">
+  <header class="page-header about-header">
+    {{- partial "breadcrumbs.html" . }}
+    <h1>{{ .Title }}</h1>
+    {{- if .Description }}
+    <div class="post-description">{{ .Description }}</div>
+    {{- end }}
+  </header>
+
+  <div class="about-container">
+
+    {{/* ================= 简介 + 快速事实 ================= */}}
+    <section class="about-intro" aria-labelledby="about-intro-title">
+      <div class="about-copy">
+        <h2 id="about-intro-title" class="visually-hidden">简介</h2>
+        {{- range $a.intro }}
+        <p>{{ . }}</p>
+        {{- end }}
+      </div>
+      <div class="about-facts" data-about-row>
+        {{- $factIcons := slice "user" "monitor" "award" "globe" }}
+        {{- range $i, $f := $a.quickFacts }}
+        <div class="about-quick-card">
+          <span class="about-quick-icon" aria-hidden="true">
+            {{- partial "icon.html" (dict "name" (index $factIcons $i)) }}
+          </span>
+          <span class="about-quick-value">{{ $f.value }}</span>
+          <span class="about-quick-label">{{ $f.label }}</span>
+        </div>
+        {{- end }}
+      </div>
+    </section>
+
+    {{/* ================= 常用软件 ================= */}}
+    <section class="about-section" id="software" aria-labelledby="software-title">
+      <div class="section-head">
+        <p class="section-eyebrow">Toolbox</p>
+        <h2 id="software-title" class="section-title">常用软件</h2>
+      </div>
+      <div class="about-row office-row" data-about-row>
+        {{- range $a.office }}
+        <div class="about-tile tile-bg--{{ .icon }}">
+          <span class="about-tile-icon" aria-hidden="true">
+            {{- if .glyph }}<span class="about-tile-glyph">{{ .glyph }}</span>
+            {{- else }}{{ partial "icon.html" (dict "name" .icon) }}{{ end }}
+          </span>
+          <span class="about-tile-name">{{ .name }}</span>
+          <span class="about-tile-desc">{{ .desc }}</span>
+        </div>
+        {{- end }}
+      </div>
+    </section>
+
+    {{/* ================= 编程方向 ================= */}}
+    <section class="about-section" id="dev" aria-labelledby="dev-title">
+      <div class="section-head">
+        <p class="section-eyebrow">Coding</p>
+        <h2 id="dev-title" class="section-title">编程方向</h2>
+      </div>
+      <div class="about-row dev-row" data-about-row>
+        {{- range $a.dev }}
+        <div class="about-dev-card">
+          <span class="about-dev-icon" aria-hidden="true">{{ partial "icon.html" (dict "name" .icon) }}</span>
+          <div>
+            <h3>{{ .name }}</h3>
+            <p>{{ .desc }}</p>
+          </div>
+        </div>
+        {{- end }}
+      </div>
+    </section>
+
+    {{/* ================= 成长经历 ================= */}}
+    <section class="about-section" id="journey" aria-labelledby="journey-title">
+      <div class="section-head">
+        <p class="section-eyebrow">Journey</p>
+        <h2 id="journey-title" class="section-title">成长经历</h2>
+      </div>
+      <div class="about-row exp-row" data-about-row>
+        {{- range $a.experience }}
+        <div class="about-exp-card">
+          <span class="about-exp-icon" aria-hidden="true">{{ partial "icon.html" (dict "name" .icon) }}</span>
+          <div class="about-exp-body">
+            <span class="about-exp-period">{{ .period }}</span>
+            <h3>{{ .role }}</h3>
+            <p>{{ .desc }}</p>
+          </div>
+        </div>
+        {{- end }}
+      </div>
+    </section>
+
+    {{/* ================= 竞赛 ================= */}}
+    <section class="about-section" id="competitions" aria-labelledby="competitions-title">
+      <div class="section-head">
+        <p class="section-eyebrow">Competitions</p>
+        <h2 id="competitions-title" class="section-title">竞赛经历</h2>
+      </div>
+
+      {{- range $c := $a.competitions }}
+      {{- if $c.featured }}
+      <div data-about-row>
+        <div class="about-comp-featured">
+          <div class="comp-featured-head">
+            <span class="about-comp-icon about-comp-icon--{{ $c.icon }}" aria-hidden="true">{{ partial "icon.html" (dict "name" $c.icon) }}</span>
+            <div class="comp-featured-title">
+              <p class="comp-fullname">{{ $c.fullName }}</p>
+              <h3>{{ $c.name }}</h3>
+            </div>
+            <span class="comp-status comp-status--gold">{{ $c.status }}</span>
+          </div>
+          <p class="comp-summary">{{ $c.summary }}</p>
+          <ol class="comp-timeline">
+            {{- range $t := $c.timeline }}
+            <li class="comp-timeline-item">
+              <time datetime="2026-{{ $t.date }}">{{ $t.date }}</time>
+              <p>{{ $t.text }}</p>
+            </li>
+            {{- end }}
+          </ol>
+        </div>
+      </div>
+      {{- end }}
+      {{- end }}
+
+      <div class="about-row comp-row" data-about-row>
+        {{- range $c := $a.competitions }}
+        {{- if not $c.featured }}
+        <div class="about-comp-card">
+          <div class="comp-card-head">
+            <span class="about-comp-icon about-comp-icon--{{ $c.icon }}" aria-hidden="true">{{ partial "icon.html" (dict "name" $c.icon) }}</span>
+            <span class="comp-status">{{ $c.status }}</span>
+          </div>
+          <h3>{{ $c.name }}</h3>
+          <p class="comp-note">{{ $c.note }}</p>
+        </div>
+        {{- end }}
+        {{- end }}
+      </div>
+    </section>
+
+    {{/* ================= 联系 ================= */}}
+    <section class="about-section" id="contact" aria-labelledby="contact-title">
+      <div class="contact-panel">
+        <h2 id="contact-title">一起交流技术？</h2>
+        <p>无论是教程建议、项目合作还是交换友链，都欢迎联系我。</p>
+        <div class="contact-actions">
+          <a class="btn btn-primary" href="{{ (index site.Data.profile.links "email") | default "mailto:2700612507@qq.com" }}">发邮件</a>
+          <a class="btn btn-secondary" href="{{ index site.Data.profile.links "github" }}" rel="noopener" target="_blank">GitHub</a>
+          <a class="btn btn-secondary" href="{{ index site.Data.profile.links "bilibili" }}" rel="noopener" target="_blank">B 站</a>
+          <a class="btn btn-text" href="{{ (index site.Data.profile.links "resume") | relURL }}">在线简历<span class="arrow" aria-hidden="true">→</span></a>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</article>
+{{- end }}

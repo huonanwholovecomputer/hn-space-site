@@ -25,13 +25,14 @@ body.list {
 }
 
 :root[data-theme="dark"] {
+  --theme: rgb(10, 13, 19);          /* 深色全局底色 → 近黑带微蓝（原 #121a2b 蓝调偏显眼） */
   --primary: rgb(238, 242, 248);
   --secondary: rgb(148, 161, 181);
-  --tertiary: rgb(58, 67, 88);
-  --border: rgb(50, 58, 76);
-  --entry: rgb(36, 39, 51);
+  --tertiary: rgb(40, 47, 62);
+  --border: rgb(33, 40, 54);
+  --entry: rgb(21, 25, 35);
   --content: rgb(194, 204, 218);
-  --code-bg: rgb(28, 32, 41);
+  --code-bg: rgb(15, 18, 25);
   --radius: 12px;
 }
 
@@ -136,6 +137,73 @@ summary:focus-visible {
   color: var(--home-accent);
 }
 
+/* ---------- 悬浮灵动岛导航（DeepSeek 同款） ---------- */
+/* 固定于顶部；滚动超过 80px 收缩成玻璃胶囊（.is-scrolled 由 site.js 切换） */
+.header {
+  position: fixed;
+  top: 10px;
+  left: 0;
+  right: 0;
+  margin: 0 auto;
+  z-index: 90;
+  width: min(100% - 32px, var(--nav-width));
+  pointer-events: none;
+}
+
+.header-nav {
+  pointer-events: auto;
+  flex-wrap: nowrap;
+  width: var(--nav-width);              /* 顶部铺满（1120px 纯长度，可平滑过渡） */
+  max-width: 100%;                      /* 小屏时不超过父容器宽度 */
+  margin: 0 auto;
+  line-height: 44px;
+  padding: 4px 14px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: transparent;
+  transition:
+    width 0.5s cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 0.3s ease,
+    border-color 0.3s ease,
+    box-shadow 0.3s ease,
+    backdrop-filter 0.3s ease;
+}
+
+.header.is-scrolled .header-nav {
+  width: 960px;                         /* 纯 px，与顶部值同单位 → 平滑收缩 */
+  background: var(--home-card);            /* 降级：不支持 color-mix 时用纯色 */
+  background: color-mix(in srgb, var(--home-card) 40%, transparent);
+  -webkit-backdrop-filter: blur(26px) saturate(1.6);
+  backdrop-filter: blur(26px) saturate(1.6);
+  border-color: var(--home-border);
+  box-shadow: var(--home-shadow);
+}
+
+@media (min-width: 1560px) {
+  /* 大屏：外层容器加宽到 1280px（DeepSeek 同款），
+     导航顶部 1280px → 滚动后 1180px，保证大屏也收缩 */
+  .header {
+    width: min(100% - 160px, 1280px);
+  }
+
+  .header-nav {
+    width: 1280px;
+  }
+
+  .header.is-scrolled .header-nav {
+    width: 1180px;
+  }
+}
+
+/* 固定导航后，非首页内容向下让位；首页 hero 顶到页面顶部（背景延伸到顶） */
+main.main {
+  padding-top: 76px;
+}
+
+body.list:has(.home-page) main.main {
+  padding-top: 0;
+}
+
 /* ---------- 页头导航 ---------- */
 .logo a {
   font-weight: 800;
@@ -154,17 +222,68 @@ summary:focus-visible {
 /* ---------- 文章列表卡片 ---------- */
 .post-entry,
 .searchResults li {
+  position: relative;
   box-shadow: var(--home-shadow);
-  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease, background-color 0.18s ease;
+  --tilt-max: 4deg;
+  --tilt-persp: 900px;
+  --home-lift: 0px;
+  --home-press: 1;
+  transform: perspective(var(--tilt-persp)) translateY(var(--home-lift, 0px)) scale(var(--home-press, 1)) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+  transition:
+    transform var(--tilt-dur, 220ms) var(--home-ease-out),
+    box-shadow 200ms var(--home-ease-out),
+    background-color 180ms ease,
+    border-color 180ms ease;
+}
+
+.post-entry.is-tilting,
+.searchResults li.is-tilting {
+  --tilt-dur: 90ms;
+}
+
+/* 手电筒光晕：光斑跟随指针（--gx/--gy 由 site.js 写入） */
+.post-entry::before,
+.searchResults li::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(calc(var(--gs, 200px) / 2) circle at var(--gx, 50%) var(--gy, 50%), var(--home-glare-core) 0%, var(--home-glare-mid) 45%, var(--home-glare-edge) 72%, transparent 88%);
+  opacity: 0;
+  transition: opacity 200ms ease;
+  pointer-events: none;
+  z-index: 1;
 }
 
 .post-entry:hover,
 .post-entry:focus-within,
 .searchResults li:hover,
 .searchResults li:focus-within {
-  transform: translateY(-3px);
   border-color: var(--home-accent-line);
-  box-shadow: var(--home-shadow-lg);
+}
+
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .post-entry:hover,
+  .post-entry:focus-within,
+  .searchResults li:hover,
+  .searchResults li:focus-within {
+    --home-lift: -4px;
+    box-shadow: var(--home-shadow-lg);
+  }
+
+  .post-entry:hover::before,
+  .post-entry:focus-within::before,
+  .searchResults li:hover::before,
+  .searchResults li:focus-within::before {
+    opacity: 1;
+  }
+
+  .post-entry:active,
+  .searchResults li:active {
+    --home-lift: -1px;
+    --home-press: 0.98;
+    box-shadow: var(--home-shadow);
+  }
 }
 
 .entry-header h2 {
@@ -346,3 +465,142 @@ details.toc summary:hover {
 .footer a:hover {
   color: var(--home-accent);
 }
+
+/* =========================================================
+   风格统一补丁：把剩余 PaperMod 默认中性色/暖色细节
+   全部对齐到首页蓝系设计语言（2026 统一改版）
+   ========================================================= */
+
+/* 导航链接悬停：蓝色强调 */
+.menu a:hover,
+.logo a:hover {
+  color: var(--home-accent);
+}
+
+.menu .active {
+  color: var(--home-accent);
+}
+
+/* 社交图标悬停 */
+.social-icons a:hover {
+  color: var(--home-accent);
+}
+
+/* 页脚链接（覆盖 custom.css 的中性色） */
+.footer-links a:hover,
+.footer-beian a:hover {
+  color: var(--home-accent);
+}
+
+/* 文章系列 / 相关文章链接 */
+.post-series a:hover,
+.post-related a:hover {
+  color: var(--home-accent);
+}
+
+/* 目录锚点悬停 */
+.toc a:hover {
+  color: var(--home-accent);
+}
+
+/* 分享按钮 */
+.share-buttons a:hover {
+  color: var(--home-accent);
+  border-color: var(--home-accent-line);
+}
+
+/* 代码复制按钮 */
+.copy-code:hover {
+  background: var(--home-accent);
+  border-color: var(--home-accent);
+  color: #ffffff;
+}
+
+/* 正文表格：表头淡蓝底、边框统一 */
+.md-content table th {
+  background: var(--home-accent-soft);
+  color: var(--home-heading);
+}
+
+.md-content table {
+  border-color: var(--home-border);
+}
+
+.md-content table td,
+.md-content table th {
+  border-color: var(--home-border);
+}
+
+/* 搜索框匹配项（PaperMod 用 em 标注命中文本） */
+.searchResults li em {
+  color: var(--home-accent-strong);
+  font-style: normal;
+}
+
+:root[data-theme="dark"] .searchResults li em {
+  color: var(--home-accent);
+}
+
+/* =========================================================
+   代码语法高亮：PaperMod 默认 Catppuccin 暖色系（桃/紫/粉）
+   与站点蓝系冲突，覆盖为蓝系（浅色）与亮蓝系（深色）。
+   目前站点尚无代码块，此处为将来代码文章预置。
+   ========================================================= */
+:root .chroma .c, :root .chroma .ch, :root .chroma .cm,
+:root .chroma .c1, :root .chroma .cs { color: #6b7a90; }                    /* 注释：板岩灰 */
+
+:root .chroma .k, :root .chroma .kc, :root .chroma .kd,
+:root .chroma .kn, :root .chroma .kp, :root .chroma .kr,
+:root .chroma .kt { color: #1d4ed8; }                                       /* 关键字：蓝 */
+
+:root .chroma .s, :root .chroma .sa, :root .chroma .sb,
+:root .chroma .sc, :root .chroma .dl, :root .chroma .sd,
+:root .chroma .s2, :root .chroma .se, :root .chroma .sh,
+:root .chroma .si, :root .chroma .sx, :root .chroma .s1 { color: #0e7490; } /* 字符串：青蓝 */
+
+:root .chroma .m, :root .chroma .mb, :root .chroma .mf,
+:root .chroma .mh, :root .chroma .mi, :root .chroma .mo,
+:root .chroma .il { color: #2563eb; }                                       /* 数字：蓝 */
+
+:root .chroma .nf, :root .chroma .fm { color: #1e40af; }                    /* 函数名：深蓝 */
+:root .chroma .nc, :root .chroma .nn, :root .chroma .nt,
+:root .chroma .na { color: #0369a1; }                                       /* 类型/类名：青 */
+:root .chroma .nb, :root .chroma .bp, :root .chroma .nv,
+:root .chroma .vc, :root .chroma .vg, :root .chroma .vi { color: #0e7490; } /* 内建/变量 */
+:root .chroma .o, :root .chroma .ow, :root .chroma .p { color: #475569; }   /* 运算符/标点 */
+:root .chroma .gd { color: #dc2626; }                                       /* diff 删除 */
+:root .chroma .gi { color: #16a34a; }                                       /* diff 新增 */
+:root .chroma .gh, :root .chroma .gu { color: #0369a1; }                    /* diff 头 */
+
+:root[data-theme="dark"] .chroma .c, :root[data-theme="dark"] .chroma .ch,
+:root[data-theme="dark"] .chroma .cm, :root[data-theme="dark"] .chroma .c1,
+:root[data-theme="dark"] .chroma .cs { color: #7c8ba1; }
+
+:root[data-theme="dark"] .chroma .k, :root[data-theme="dark"] .chroma .kc,
+:root[data-theme="dark"] .chroma .kd, :root[data-theme="dark"] .chroma .kn,
+:root[data-theme="dark"] .chroma .kp, :root[data-theme="dark"] .chroma .kr,
+:root[data-theme="dark"] .chroma .kt { color: #7aa2f7; }
+
+:root[data-theme="dark"] .chroma .s, :root[data-theme="dark"] .chroma .sa,
+:root[data-theme="dark"] .chroma .sb, :root[data-theme="dark"] .chroma .sc,
+:root[data-theme="dark"] .chroma .dl, :root[data-theme="dark"] .chroma .sd,
+:root[data-theme="dark"] .chroma .s2, :root[data-theme="dark"] .chroma .se,
+:root[data-theme="dark"] .chroma .sh, :root[data-theme="dark"] .chroma .si,
+:root[data-theme="dark"] .chroma .sx, :root[data-theme="dark"] .chroma .s1 { color: #7dd3fc; }
+
+:root[data-theme="dark"] .chroma .m, :root[data-theme="dark"] .chroma .mb,
+:root[data-theme="dark"] .chroma .mf, :root[data-theme="dark"] .chroma .mh,
+:root[data-theme="dark"] .chroma .mi, :root[data-theme="dark"] .chroma .mo,
+:root[data-theme="dark"] .chroma .il { color: #60a5fa; }
+
+:root[data-theme="dark"] .chroma .nf, :root[data-theme="dark"] .chroma .fm { color: #93c5fd; }
+:root[data-theme="dark"] .chroma .nc, :root[data-theme="dark"] .chroma .nn,
+:root[data-theme="dark"] .chroma .nt, :root[data-theme="dark"] .chroma .na { color: #38bdf8; }
+:root[data-theme="dark"] .chroma .nb, :root[data-theme="dark"] .chroma .bp,
+:root[data-theme="dark"] .chroma .nv, :root[data-theme="dark"] .chroma .vc,
+:root[data-theme="dark"] .chroma .vg, :root[data-theme="dark"] .chroma .vi { color: #38bdf8; }
+:root[data-theme="dark"] .chroma .o, :root[data-theme="dark"] .chroma .ow,
+:root[data-theme="dark"] .chroma .p { color: #c2ccda; }
+:root[data-theme="dark"] .chroma .gd { color: #f87171; }
+:root[data-theme="dark"] .chroma .gi { color: #4ade80; }
+:root[data-theme="dark"] .chroma .gh, :root[data-theme="dark"] .chroma .gu { color: #7aa2f7; }

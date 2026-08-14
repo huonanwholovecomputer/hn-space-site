@@ -3,12 +3,25 @@
 {{- $posts := first 2 (where site.RegularPages "Type" "posts") }}
 <div class="home-page">
   <noscript><style>[data-reveal]{opacity:1;transform:none}</style></noscript>
-  {{/* ================= Hero ================= */}}
+  {{/* ================= Hero（含向下延伸的流体背景） ================= */}}
+  <div class="home-hero-wrap">
+    {{/* 液态渐变：覆盖 hero + About，背景延伸到页面顶部与下方（deepseek-effects.js） */}}
+    <div class="hero-fx hero-fx--fluid" aria-hidden="true">
+      <canvas class="hero-fx-fluid" data-ds-effect="fluid"></canvas>
+    </div>
+    {{/* 波浪扰动层：叠加在液态之上（FBM + 旋度噪声，官网 fluid shader 移植） */}}
+    <div class="hero-fx hero-fx--wave" aria-hidden="true">
+      <canvas class="hero-fx-wave" data-ds-effect="wave"></canvas>
+    </div>
   <section class="home-hero" aria-labelledby="hero-title">
+    {{/* 交互网格：仅覆盖 hero 区域 */}}
+    <div class="hero-fx hero-fx--grid" aria-hidden="true">
+      <canvas class="hero-fx-grid" data-ds-effect="grid"></canvas>
+    </div>
     <div class="home-hero-inner">
       <div class="hero-copy">
         <p class="hero-eyebrow" data-reveal>{{ $p.siteName }} · Personal Site</p>
-        <h1 id="hero-title" class="hero-title" data-reveal>你好，我是<span class="hero-name">{{ $p.name }}</span></h1>
+        <h1 id="hero-title" class="hero-title" data-cursor="blend" data-reveal>你好，我是<span class="hero-name"><span class="hero-name-txt hero-name-txt--base">{{ $p.name }}</span><span class="hero-name-txt hero-name-txt--peek" aria-hidden="true">{{ $p.handle }}</span></span></h1>
         <p class="hero-role" data-reveal>{{ $p.role }} · 独立开发者 / 技术博主</p>
         <p class="hero-tagline" data-reveal>{{ $p.tagline }}</p>
         <div class="hero-cta" data-reveal>
@@ -18,8 +31,8 @@
         </div>
         <ul class="hero-meta" data-reveal>
           <li><span class="dot"></span>本科在读</li>
-          <li><span class="dot"></span>6 个开源项目</li>
-          <li><span class="dot"></span>持续更新教程</li>
+          <li><span class="dot"></span>6 年班级网管</li>
+          <li><span class="dot"></span>机器人省一 · 国一</li>
         </ul>
       </div>
       <div class="hero-visual" data-reveal>
@@ -41,9 +54,9 @@
   {{/* ================= About ================= */}}
   <section class="home-section home-about" id="about" aria-labelledby="about-title">
     <div class="home-container">
-      <div class="section-head" data-reveal>
-        <p class="section-eyebrow">About</p>
-        <h2 id="about-title" class="section-title">关于我</h2>
+      <div class="section-head">
+        <p class="section-eyebrow" data-reveal>About</p>
+        <h2 id="about-title" class="section-title" data-reveal>关于我</h2>
       </div>
       <div class="about-grid">
         <div class="about-copy" data-reveal>
@@ -55,21 +68,22 @@
           <h3>快速事实</h3>
           <ul>
             <li><span>身份</span>计算机科学与技术 · 本科在读</li>
-            <li><span>专注</span>开发环境 / 系统优化 / 小工具</li>
-            <li><span>开源</span>6 个 GitHub 项目</li>
+            <li><span>网管</span>初中 + 高中 · 6 年班级网管</li>
+            <li><span>竞赛</span>机器人省一 · 国一</li>
             <li><span>站点</span>blog.hn-space.cn</li>
           </ul>
         </aside>
       </div>
     </div>
   </section>
+  </div>
 
   {{/* ================= Highlights ================= */}}
   <section class="home-section home-highlights" id="highlights" aria-labelledby="highlights-title">
     <div class="home-container">
-      <div class="section-head" data-reveal>
-        <p class="section-eyebrow">Highlights</p>
-        <h2 id="highlights-title" class="section-title">一些事实</h2>
+      <div class="section-head">
+        <p class="section-eyebrow" data-reveal>Highlights</p>
+        <h2 id="highlights-title" class="section-title" data-reveal>一些事实</h2>
       </div>
       <div class="highlights-grid">
         {{- range $p.highlights }}
@@ -86,9 +100,9 @@
   {{/* ================= Skills ================= */}}
   <section class="home-section home-skills" id="skills" aria-labelledby="skills-title">
     <div class="home-container">
-      <div class="section-head" data-reveal>
-        <p class="section-eyebrow">Skills</p>
-        <h2 id="skills-title" class="section-title">我在做什么</h2>
+      <div class="section-head">
+        <p class="section-eyebrow" data-reveal>Skills</p>
+        <h2 id="skills-title" class="section-title" data-reveal>我在做什么</h2>
       </div>
       <div class="skills-grid">
         {{- range $i, $group := $p.skills }}
@@ -111,10 +125,10 @@
   {{/* ================= Projects ================= */}}
   <section class="home-section home-projects" id="projects" aria-labelledby="projects-title">
     <div class="home-container">
-      <div class="section-head" data-reveal>
-        <p class="section-eyebrow">Projects</p>
-        <h2 id="projects-title" class="section-title">开源项目</h2>
-        <a class="section-more" href="{{ $p.links.projects | relURL }}">全部项目 <span aria-hidden="true">→</span></a>
+      <div class="section-head">
+        <p class="section-eyebrow" data-reveal>Projects</p>
+        <h2 id="projects-title" class="section-title" data-reveal>开源项目</h2>
+        <a class="section-more" href="{{ $p.links.projects | relURL }}" data-reveal>全部项目 <span aria-hidden="true">→</span></a>
       </div>
 
       {{- range $p.projects }}
@@ -180,10 +194,10 @@
   {{/* ================= Content ================= */}}
   <section class="home-section home-content" id="content" aria-labelledby="content-title">
     <div class="home-container">
-      <div class="section-head" data-reveal>
-        <p class="section-eyebrow">Writing</p>
-        <h2 id="content-title" class="section-title">教程与内容</h2>
-        <a class="section-more" href="{{ $p.links.blog | relURL }}">全部文章 <span aria-hidden="true">→</span></a>
+      <div class="section-head">
+        <p class="section-eyebrow" data-reveal>Writing</p>
+        <h2 id="content-title" class="section-title" data-reveal>教程与内容</h2>
+        <a class="section-more" href="{{ $p.links.blog | relURL }}" data-reveal>全部文章 <span aria-hidden="true">→</span></a>
       </div>
       <div class="content-grid">
         {{- range $posts }}

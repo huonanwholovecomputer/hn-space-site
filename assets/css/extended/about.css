@@ -1,0 +1,614 @@
+/* =========================================================
+   关于页（/about/）：个人信息卡片页
+   - 简介 + 快速事实行
+   - 常用软件（9 个图标卡片一行）
+   - 编程方向（3 卡片一行）
+   - 成长经历（2 卡片一行）
+   - 竞赛经历（主卡片 + 3 卡片一行）
+   交互：每行卡片进入视口后，从左到右逐个「磁吸」入位
+   （translateX 入场 + back-out 回弹），全部展示完继续滚动。
+   主题变量沿用 home.css 的 --home-* 系列。
+   ========================================================= */
+
+/* ---------- 容器与页头 ---------- */
+.about-page {
+  color: var(--home-text);
+  font-family: var(--home-font-display);
+  line-height: 1.75;
+}
+
+.about-container {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0 var(--gap);
+}
+
+.about-header h1 {
+  font-size: clamp(1.8rem, 4vw, 2.6rem);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---------- 简介 + 快速事实 ---------- */
+.about-intro {
+  padding: clamp(28px, 5vw, 48px) 0 8px;
+}
+
+.about-copy p {
+  font-size: 1.02rem;
+  color: var(--home-text);
+  max-width: 62ch;
+  margin: 0 0 14px;
+}
+
+.about-copy p:first-child {
+  font-size: 1.08rem;
+  color: var(--home-heading);
+}
+
+.about-facts {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-top: 26px;
+}
+
+.about-quick-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  border: 1px solid var(--home-border);
+  border-radius: var(--home-radius);
+  background: var(--home-card);
+  box-shadow: var(--home-shadow);
+  padding: 18px 20px 16px;
+  overflow: hidden;
+}
+
+.about-quick-icon {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  color: var(--home-accent);
+  background: var(--home-accent-soft);
+  border: 1px solid var(--home-accent-line);
+  margin-bottom: 4px;
+}
+
+.about-quick-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.about-quick-value {
+  font-size: 1.02rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--home-heading);
+  line-height: 1.35;
+}
+
+.about-quick-label {
+  font-size: 0.8rem;
+  color: var(--home-muted);
+}
+
+/* ---------- 区块 ---------- */
+.about-section {
+  padding: clamp(40px, 6vw, 64px) 0;
+}
+
+.about-section .section-head {
+  margin-bottom: 26px;
+}
+
+/* ---------- 行级入场：从左到右逐个磁吸入位 ---------- */
+/* 隐藏态只挂在 [data-about-row] 上；动画结束后 JS 移除该属性，
+   隐藏规则不再匹配 → 卡片回到默认样式，hover 上浮可正常工作。 */
+html.js [data-about-row] > * {
+  opacity: 0;
+  transform: translateX(64px) scale(0.96);
+  transition:
+    transform 0.55s cubic-bezier(0.34, 1.56, 0.64, 1),
+    opacity 0.42s ease-out;
+  transition-delay: var(--snap-delay, 0ms);
+  will-change: transform, opacity;
+}
+
+html.js [data-about-row] > *.is-in {
+  opacity: 1;
+  transform: translateX(0) scale(1);
+}
+
+/* 无 JS / 减少动态：直接显示 */
+@media (prefers-reduced-motion: reduce) {
+  html.js [data-about-row] > * {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
+
+/* ---------- 卡片通用悬浮：上浮 + 阴影 + 边框 ---------- */
+.about-tile,
+.about-dev-card,
+.about-exp-card,
+.about-comp-card,
+.about-comp-featured,
+.about-quick-card {
+  transition:
+    transform 200ms var(--home-ease-out),
+    box-shadow 200ms var(--home-ease-out),
+    border-color 180ms ease,
+    background-color 180ms ease;
+}
+
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .about-tile:hover,
+  .about-dev-card:hover,
+  .about-exp-card:hover,
+  .about-comp-card:hover,
+  .about-comp-featured:hover,
+  .about-quick-card:hover {
+    transform: translateY(-4px);
+    border-color: var(--home-accent-line);
+    box-shadow: var(--home-shadow-lg);
+  }
+}
+
+/* ---------- 常用软件：图标卡片行 ---------- */
+.office-row {
+  display: grid;
+  grid-template-columns: repeat(9, 1fr);
+  gap: 14px;
+}
+
+.about-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+  border: 1px solid var(--home-border);
+  border-radius: var(--home-radius);
+  background: var(--home-card);
+  box-shadow: var(--home-shadow);
+  padding: 18px 8px 14px;
+}
+
+.about-tile-icon {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 13px;
+  color: #ffffff;
+  background: var(--tile-bg, var(--home-accent));
+  box-shadow: inset 0 -3px 6px rgba(0, 0, 0, 0.12), 0 4px 10px rgba(15, 23, 42, 0.14);
+  flex-shrink: 0;
+}
+
+.about-tile-icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.about-tile-glyph {
+  font-family: var(--home-font-display);
+  font-size: 1.15rem;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.about-tile-name {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--home-heading);
+  line-height: 1.3;
+}
+
+.about-tile-desc {
+  font-size: 0.7rem;
+  color: var(--home-muted);
+  line-height: 1.35;
+}
+
+/* 各软件品牌色（tile 背景） */
+.tile-bg--wps { --tile-bg: linear-gradient(135deg, #ff8a3d 0%, #e5484d 100%); }
+.tile-bg--ppt { --tile-bg: linear-gradient(135deg, #ff8f6b 0%, #d24726 100%); }
+.tile-bg--word { --tile-bg: linear-gradient(135deg, #41a5ee 0%, #2b579a 100%); }
+.tile-bg--excel { --tile-bg: linear-gradient(135deg, #33c481 0%, #217346 100%); }
+.tile-bg--pr { --tile-bg: linear-gradient(135deg, #b39dfa 0%, #7c5cf0 100%); }
+.tile-bg--an { --tile-bg: linear-gradient(135deg, #ffd21f 0%, #f5a623 100%); }
+.tile-bg--an .about-tile-glyph { color: #3a2c00; }
+.tile-bg--ps { --tile-bg: linear-gradient(135deg, #0a3358 0%, #001e36 100%); }
+.tile-bg--jianying { --tile-bg: linear-gradient(135deg, #2f2f3a 0%, #12121a 100%); }
+.tile-bg--bijian { --tile-bg: linear-gradient(135deg, #00aeec 0%, #fb7299 100%); }
+.tile-bg--python { --tile-bg: linear-gradient(135deg, #4b8bbe 0%, #306998 100%); }
+.tile-bg--cpp { --tile-bg: linear-gradient(135deg, #2a9dd6 0%, #00599c 100%); }
+
+/* ---------- 编程方向：3 卡片一行 ---------- */
+.dev-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.about-dev-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  border: 1px solid var(--home-border);
+  border-radius: var(--home-radius-lg);
+  background: var(--home-card);
+  box-shadow: var(--home-shadow);
+  padding: 20px 22px;
+}
+
+.about-dev-icon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  color: var(--home-accent);
+  background: var(--home-accent-soft);
+  border: 1px solid var(--home-accent-line);
+  flex-shrink: 0;
+}
+
+.about-dev-icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.about-dev-card h3 {
+  font-size: 1.04rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--home-heading);
+  margin: 0 0 4px;
+}
+
+.about-dev-card p {
+  font-size: 0.88rem;
+  color: var(--home-muted);
+  margin: 0;
+}
+
+/* ---------- 成长经历：2 卡片一行 ---------- */
+.exp-row {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.about-exp-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  border: 1px solid var(--home-border);
+  border-radius: var(--home-radius-lg);
+  background: var(--home-card);
+  box-shadow: var(--home-shadow);
+  padding: 22px 24px;
+}
+
+.about-exp-icon {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 13px;
+  color: #ffffff;
+  background: linear-gradient(135deg, var(--home-accent), var(--home-accent-strong));
+  box-shadow: 0 6px 14px -6px rgba(37, 99, 235, 0.5);
+  flex-shrink: 0;
+}
+
+.about-exp-icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.about-exp-period {
+  display: inline-block;
+  font-family: var(--home-font-mono);
+  font-size: 0.76rem;
+  letter-spacing: 0.06em;
+  color: var(--home-accent);
+  background: var(--home-accent-soft);
+  border: 1px solid var(--home-accent-line);
+  border-radius: 999px;
+  padding: 2px 10px;
+  margin-bottom: 8px;
+}
+
+.about-exp-card h3 {
+  font-size: 1.08rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--home-heading);
+  margin: 0 0 6px;
+}
+
+.about-exp-card p {
+  font-size: 0.9rem;
+  color: var(--home-muted);
+  margin: 0;
+}
+
+/* ---------- 竞赛：主卡片 ---------- */
+.about-comp-featured {
+  border: 1px solid var(--home-border);
+  border-radius: var(--home-radius-lg);
+  background: var(--home-card);
+  box-shadow: var(--home-shadow);
+  padding: clamp(22px, 3.4vw, 34px);
+  margin-bottom: 16px;
+}
+
+.comp-featured-head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.about-comp-icon {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 15px;
+  color: #ffffff;
+  background: linear-gradient(135deg, #f6a94c 0%, #e5731f 100%);
+  box-shadow: 0 8px 18px -8px rgba(229, 115, 31, 0.55);
+  flex-shrink: 0;
+}
+
+/* 每个竞赛独立的图标配色 */
+.about-comp-icon--robot {
+  background: linear-gradient(135deg, #f6a94c 0%, #e5731f 100%);
+  box-shadow: 0 8px 18px -8px rgba(229, 115, 31, 0.55);
+}
+
+.about-comp-icon--robocup {
+  background: linear-gradient(135deg, #a78bfa 0%, #7c3aed 100%);
+  box-shadow: 0 8px 18px -8px rgba(124, 58, 237, 0.5);
+}
+
+.about-comp-icon--math {
+  background: linear-gradient(135deg, #60a5fa 0%, #2563eb 100%);
+  box-shadow: 0 8px 18px -8px rgba(37, 99, 235, 0.55);
+}
+
+.about-comp-icon--icpc {
+  background: linear-gradient(135deg, #34d399 0%, #059669 100%);
+  box-shadow: 0 8px 18px -8px rgba(5, 150, 105, 0.5);
+}
+
+.about-comp-icon svg {
+  width: 28px;
+  height: 28px;
+}
+
+.comp-featured-title {
+  flex: 1;
+  min-width: 220px;
+}
+
+.comp-fullname {
+  font-size: 0.82rem;
+  color: var(--home-muted);
+  margin: 0 0 3px;
+}
+
+.comp-featured-title h3 {
+  font-size: clamp(1.2rem, 2.4vw, 1.5rem);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--home-heading);
+  margin: 0;
+}
+
+.comp-status {
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--home-muted);
+  background: var(--home-accent-soft);
+  border: 1px solid var(--home-border);
+  border-radius: 999px;
+  padding: 4px 13px;
+  white-space: nowrap;
+}
+
+.comp-status--gold {
+  color: #92610a;
+  background: rgba(245, 158, 11, 0.12);
+  border-color: rgba(245, 158, 11, 0.35);
+}
+
+:root[data-theme="dark"] .comp-status--gold {
+  color: #fbbf24;
+}
+
+.comp-summary {
+  font-size: 0.96rem;
+  color: var(--home-text);
+  max-width: 64ch;
+  margin: 16px 0 22px;
+}
+
+/* 时间线：桌面端一行 5 步 */
+.comp-timeline {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 14px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  counter-reset: comp-step;
+}
+
+.comp-timeline-item {
+  position: relative;
+  padding: 24px 14px 0;
+  border-top: 2px solid var(--home-accent-line);
+}
+
+.comp-timeline-item::before {
+  content: "";
+  position: absolute;
+  top: -6px;
+  left: 14px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--home-accent);
+  border: 2px solid var(--theme);
+  box-shadow: 0 0 0 3px var(--home-accent-soft);
+}
+
+.comp-timeline-item time {
+  display: block;
+  font-family: var(--home-font-mono);
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--home-accent);
+  margin-bottom: 6px;
+  counter-increment: comp-step;
+}
+
+.comp-timeline-item time::before {
+  content: "STEP " counter(comp-step) " · ";
+  font-weight: 600;
+  color: var(--home-faint);
+}
+
+.comp-timeline-item p {
+  font-size: 0.84rem;
+  color: var(--home-muted);
+  margin: 0;
+  line-height: 1.6;
+}
+
+/* ---------- 竞赛：其余 3 卡片一行 ---------- */
+.comp-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.about-comp-card {
+  border: 1px solid var(--home-border);
+  border-radius: var(--home-radius-lg);
+  background: var(--home-card);
+  box-shadow: var(--home-shadow);
+  padding: 20px 22px;
+}
+
+.comp-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.about-comp-card .about-comp-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+}
+
+.about-comp-card .about-comp-icon svg {
+  width: 23px;
+  height: 23px;
+}
+
+.about-comp-card h3 {
+  font-size: 1.04rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--home-heading);
+  margin: 0 0 6px;
+}
+
+.comp-note {
+  font-size: 0.88rem;
+  color: var(--home-muted);
+  margin: 0;
+}
+
+/* ---------- 响应式 ---------- */
+@media screen and (max-width: 980px) {
+  .office-row {
+    grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  }
+}
+
+@media screen and (max-width: 900px) {
+  .about-facts,
+  .dev-row,
+  .comp-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .exp-row {
+    grid-template-columns: 1fr;
+  }
+
+  /* 时间线改纵向 */
+  .comp-timeline {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  .comp-timeline-item {
+    padding: 0 0 20px 26px;
+    border-top: none;
+    border-left: 2px solid var(--home-accent-line);
+  }
+
+  .comp-timeline-item::before {
+    top: 4px;
+    left: -6px;
+  }
+}
+
+@media screen and (max-width: 560px) {
+  .about-facts {
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .dev-row,
+  .comp-row {
+    grid-template-columns: 1fr;
+  }
+
+  .comp-featured-head {
+    align-items: flex-start;
+  }
+
+  .comp-status {
+    margin-left: 68px;
+  }
+}

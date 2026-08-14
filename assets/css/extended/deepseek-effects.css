@@ -1,0 +1,172 @@
+/* =========================================================
+   DeepSeek 官网效果移植（借鉴实现）
+   1. 液态渐变背景  WebGL2 canvas —— .hero-fx-fluid
+   2. 网格鼠标交互  Canvas 2D   —— .hero-fx-grid
+   3. 文字反色光标  mix-blend-mode: difference —— .ds-cursor-ring
+
+   原站实现：
+   - 液态渐变：WebGL2 双缓冲 flowmap 流体模拟（fragment shader）
+   - 网格：每 90px 一个节点，弹簧物理 + 140px 鼠标斥力
+   - 反色：白色圆环 mix-blend-mode: difference + lerp 跟随
+   JS 入口：static/js/deepseek-effects.js
+   ========================================================= */
+
+/* ---------- 可调参数（JS 每帧读取，改这里即可） ---------- */
+/* 主题协调方案（v4）：画布配色由 JS 按主题设置——
+   "平静色" = 当前主题底色 --theme（与页面背景无缝融合，不依赖 CSS blend），
+   "强调蓝" = 浅/深各一档（JS 常量，深色档用中亮蓝，近黑底上也能看清流动）。
+   主题切换由 JS MutationObserver 监听 html[data-theme] 即时更新，无延迟。
+   此处只需调节每层的"强度"（作用于彩色区域；平静区域始终=背景色）。 */
+:root {
+  --ds-fluid-opacity: 0.8;       /* 浅色：液态层强度（低调） */
+  --ds-wave-opacity: 0.5;        /* 浅色：波浪层强度（低调） */
+  /* 网格线与点的颜色（r,g,b） */
+  --ds-grid-rgb: 37, 99, 235;
+  /* 波浪扰动层参数（与主题无关） */
+  --ds-wave-scale: 2.4;          /* 噪声尺度（越大波浪越宽大） */
+  --ds-wave-speed: 35;           /* 流动速度：极慢（原版 60 的一半） */
+  --ds-wave-grain: 0.002;        /* 电影颗粒强度（官网为 0.003） */
+}
+
+:root[data-theme="dark"] {
+  /* 深色：近黑底 + 中暗蓝，强度调低 → 液体低调不抢眼 */
+  --ds-fluid-opacity: 0.32;
+  --ds-wave-opacity: 0.28;
+  --ds-grid-rgb: 110, 168, 254;
+}
+
+/* ---------- Hero 效果层 ---------- */
+/* 全宽容器：包裹 hero + About，让流体背景延伸到页面顶部与下方。
+   自身带一层顶部浅蓝光晕（DeepSeek 首页 #9cc1e7→透明 同款思路），
+   hero/About 背景透明，让底下的流体透出。 */
+.home-hero-wrap {
+  position: relative;
+  margin-inline: calc(50% - 50vw);
+  background: linear-gradient(180deg, var(--home-hero-wash) 0%, transparent 100%);
+}
+
+.hero-fx {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* 液态渐变 + 波浪扰动层：覆盖整个容器（hero + About），向下淡出。
+   画布不透明绘制（平静色=主题底色 → 与页面背景一致），
+   mask 淡出区露出纯背景，同样无缝。 */
+.hero-fx-fluid {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: var(--ds-fluid-opacity);
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 58%, transparent 95%);
+  mask-image: linear-gradient(180deg, #000 0%, #000 58%, transparent 95%);
+}
+
+.hero-fx-wave {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: var(--ds-wave-opacity);
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 58%, transparent 95%);
+  mask-image: linear-gradient(180deg, #000 0%, #000 58%, transparent 95%);
+}
+
+/* 交互网格：仅覆盖 hero（放在 .home-hero 内），向下淡出 */
+.hero-fx--grid {
+  /* 无需额外样式 */
+}
+
+.hero-fx-grid {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 70%, transparent 100%);
+  mask-image: linear-gradient(180deg, #000 0%, #000 70%, transparent 100%);
+}
+
+/* 交互网格启用后，隐藏原来的静态 CSS 网格，避免双重网格 */
+html.js .home-hero.has-ds-grid::before {
+  opacity: 0;
+}
+
+/* 内容浮在效果层之上（流体层会盖住静态流内容，须显式提升层级） */
+.home-hero {
+  z-index: 1;
+}
+
+.home-hero-inner {
+  z-index: 1;
+}
+
+.home-hero-wrap > .home-section {
+  position: relative;
+  z-index: 1;
+}
+
+/* 反色光标生效时，把标题限制为文字宽度（原站 w-fit 的做法） */
+.hero-title {
+  width: fit-content;
+}
+
+/* ---------- 反色光标环（原站 .ds-cursor-ring 移植） ---------- */
+.ds-cursor-ring {
+  position: fixed;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 9998; /* 位于鼠标拖尾 canvas（9999）之下，避免遮住拖尾 */
+  will-change: transform, opacity;
+  border-radius: 50%;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  border: 1px solid transparent;
+  mix-blend-mode: difference;
+  transition:
+    width 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+    height 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+    margin 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 0.3s ease,
+    border-color 0.3s ease,
+    opacity 0.3s ease;
+}
+
+/* 悬停在 [data-cursor="blend"] 元素上：64px 白色圆，difference 反色 */
+.ds-cursor-ring.is-blend {
+  width: 64px;
+  height: 64px;
+  margin-left: -32px;
+  margin-top: -32px;
+  border-color: transparent;
+  background: #fff;
+  mix-blend-mode: difference;
+}
+
+/* 悬停在链接/按钮上：细圆环（博客侧的补充，原站 is-hover 未公开样式） */
+.ds-cursor-ring.is-hover {
+  width: 40px;
+  height: 40px;
+  margin-left: -20px;
+  margin-top: -20px;
+  background: transparent;
+  border: 1px solid rgba(148, 163, 184, 0.55);
+}
+
+/* 触屏 / 无悬停设备不显示光标环（原站同款媒体查询） */
+@media (hover: none), (pointer: coarse) {
+  .ds-cursor-ring {
+    display: none;
+  }
+}
+
+/* 减少动态：关掉反色环（网格/流体由 JS 直接停用） */
+@media (prefers-reduced-motion: reduce) {
+  .ds-cursor-ring {
+    display: none;
+  }
+}

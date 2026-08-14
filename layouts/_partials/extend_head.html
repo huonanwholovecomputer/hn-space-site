@@ -1,6 +1,24 @@
 <script>document.documentElement.classList.add('js');</script>
 {{- /* URL 加 ?dark 可强制深色主题预览（theme 脚本在 head.html 先执行，这里覆盖） */}}
 <script>if (new URLSearchParams(location.search).has('dark')) document.documentElement.dataset.theme = 'dark';</script>
+{{- /* 实时跟随系统主题变化（auto 模式）：仅在用户未手动指定主题时生效，
+      手动点过主题按钮（localStorage 有 pref-theme）则尊重用户选择 */}}
+<script>
+  (function () {
+    try {
+      var mql = window.matchMedia('(prefers-color-scheme: dark)');
+      var apply = function (e) {
+        if (localStorage.getItem('pref-theme')) return;
+        document.documentElement.dataset.theme = e.matches ? 'dark' : 'light';
+      };
+      if (mql.addEventListener) {
+        mql.addEventListener('change', apply);
+      } else if (mql.addListener) {
+        mql.addListener(apply);
+      }
+    } catch (err) { /* 静默降级 */ }
+  })();
+</script>
 <script defer src="{{ "js/mouse-trail.js" | relURL }}?v=9"></script>
 <script defer src="{{ "js/site.js" | relURL }}?v=17"></script>
 <script defer src="{{ "js/pjax.js" | relURL }}?v=1"></script>

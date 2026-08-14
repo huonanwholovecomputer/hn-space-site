@@ -1,10 +1,9 @@
-﻿<script>document.documentElement.classList.add('js');</script>
-{{- /* URL 鍔??dark 鍙己鍒舵繁鑹蹭富棰橀瑙堬紙theme 鑴氭湰鍦?head.html 鍏堟墽琛岋紝杩欓噷瑕嗙洊锛?*/}}
+<script>document.documentElement.classList.add('js');</script>
+{{- /* URL 加 ?dark 可强制深色主题预览（theme 脚本在 head.html 先执行，这里覆盖） */}}
 <script>if (new URLSearchParams(location.search).has('dark')) document.documentElement.dataset.theme = 'dark';</script>
 <script defer src="{{ "js/mouse-trail.js" | relURL }}?v=9"></script>
-<script defer src="{{ "js/site.js" | relURL }}?v=16"></script>
+<script defer src="{{ "js/site.js" | relURL }}?v=17"></script>
 <script defer src="{{ "js/pjax.js" | relURL }}?v=1"></script>
 <script defer src="{{ "js/deepseek-effects.js" | relURL }}?v=15"></script>
-{{- /* Umami 璁块棶缁熻锛堣嚜鎵樼鐪嬫澘锛歛nalytics.hn-space.cn锛?*/}}
+{{- /* Umami 访问统计（自托管看板：analytics.hn-space.cn） */}}
 <script defer src="https://analytics.hn-space.cn/script.js" data-website-id="73653f50-bcb9-4154-8fa4-7a0894f7718b"></script>
-

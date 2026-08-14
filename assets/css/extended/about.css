@@ -149,17 +149,62 @@ html.js [data-about-row] > *.is-in {
 }
 
 /* ---------- 卡片通用悬浮：上浮 + 阴影 + 边框 ---------- */
+/* 3D 倾斜配方（与 home.css 一致）：transform 由 JS 写入 --rx/--ry，
+   hover 上浮通过 --home-lift 叠加，避免两套 transform 互相覆盖 */
 .about-tile,
 .about-dev-card,
 .about-exp-card,
 .about-comp-card,
 .about-comp-featured,
 .about-quick-card {
+  position: relative;
+  --tilt-max: 4deg;
+  --tilt-persp: 900px;
+  --home-lift: 0px;
+  --home-press: 1;
+  transform: perspective(var(--tilt-persp)) translateY(var(--home-lift, 0px)) scale(var(--home-press, 1)) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
   transition:
-    transform 200ms var(--home-ease-out),
+    transform var(--tilt-dur, 220ms) var(--home-ease-out),
     box-shadow 200ms var(--home-ease-out),
     border-color 180ms ease,
     background-color 180ms ease;
+}
+
+/* 大卡片 / 侧栏卡片：倾斜幅度进一步收敛 */
+.about-comp-featured,
+.about-exp-card {
+  --tilt-max: 2.5deg;
+}
+
+.about-comp-featured {
+  --tilt-persp: 1200px;
+}
+
+.about-tile.is-tilting,
+.about-dev-card.is-tilting,
+.about-exp-card.is-tilting,
+.about-comp-card.is-tilting,
+.about-comp-featured.is-tilting,
+.about-quick-card.is-tilting {
+  --tilt-dur: 90ms;
+}
+
+/* 手电筒光晕（指针跟随） */
+.about-tile::before,
+.about-dev-card::before,
+.about-exp-card::before,
+.about-comp-card::before,
+.about-comp-featured::before,
+.about-quick-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(calc(var(--gs, 200px) / 2) circle at var(--gx, 50%) var(--gy, 50%), var(--home-glare-core) 0%, var(--home-glare-mid) 45%, var(--home-glare-edge) 72%, transparent 88%);
+  opacity: 0;
+  transition: opacity 200ms ease;
+  pointer-events: none;
+  z-index: 1;
 }
 
 @media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
@@ -169,9 +214,18 @@ html.js [data-about-row] > *.is-in {
   .about-comp-card:hover,
   .about-comp-featured:hover,
   .about-quick-card:hover {
-    transform: translateY(-4px);
+    --home-lift: -4px;
     border-color: var(--home-accent-line);
     box-shadow: var(--home-shadow-lg);
+  }
+
+  .about-tile:hover::before,
+  .about-dev-card:hover::before,
+  .about-exp-card:hover::before,
+  .about-comp-card:hover::before,
+  .about-comp-featured:hover::before,
+  .about-quick-card:hover::before {
+    opacity: 1;
   }
 }
 

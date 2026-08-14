@@ -65,7 +65,9 @@
 
   var CARD_SELECTOR =
     '.highlight-card, .skill-card, .project-card, .content-card, ' +
-    '.project-featured, .about-card, .contact-panel, .post-entry, .searchResults li';
+    '.project-featured, .about-card, .contact-panel, .post-entry, .searchResults li, ' +
+    '.about-quick-card, .about-tile, .about-dev-card, .about-exp-card, ' +
+    '.about-comp-card, .about-comp-featured';
 
   var bound = false;
 
@@ -95,6 +97,7 @@
         var target = { rx: 0, ry: 0, gx: 50, gy: 50 };
         var current = { rx: 0, ry: 0, gx: 50, gy: 50 };
         var raf = null;
+        var resetTimer = null;
 
         function apply() {
           el.style.setProperty('--rx', current.rx.toFixed(2) + 'deg');
@@ -123,11 +126,46 @@
           }
         }
 
-        el.addEventListener('pointerenter', function () {
+        /* 取消挂起的复位，并立即按鼠标位置更新倾斜目标 */
+        function engage(e) {
+          if (resetTimer) {
+            window.clearTimeout(resetTimer);
+            resetTimer = null;
+          }
           var rect = el.getBoundingClientRect();
           var size = Math.max(90, Math.min(rect.width, rect.height) * 0.72);
           el.style.setProperty('--gs', size.toFixed(0) + 'px');
-        });
+          if (!rect.width || !rect.height) {
+            return;
+          }
+          var x = (e.clientX - rect.left) / rect.width;
+          var y = (e.clientY - rect.top) / rect.height;
+          el.classList.add('is-tilting');
+          target.rx = (0.5 - y) * 2 * maxTilt;
+          target.ry = (x - 0.5) * 2 * maxTilt;
+          target.gx = x * 100;
+          target.gy = y * 100;
+          start();
+        }
+
+        /* 延迟复位：给边缘留出「磁吸窗口」。
+           鼠标短暂越过视觉边界（旋转导致的位移）时先不归零，
+           若延迟内重新进入则取消复位，避免卡片在临界点反复震荡。 */
+        function disengage() {
+          el.classList.remove('is-tilting');
+          if (resetTimer) {
+            window.clearTimeout(resetTimer);
+          }
+          resetTimer = window.setTimeout(function () {
+            target.rx = 0;
+            target.ry = 0;
+            start();
+          }, 140);
+        }
+
+        /* 用 pointerenter/pointermove/pointerleave 而非 mouse*，
+           pointer 事件天然包含触屏过滤（已由外层 hover 媒体查询把关） */
+        el.addEventListener('pointerenter', engage);
 
         el.addEventListener('pointermove', function (e) {
           var rect = el.getBoundingClientRect();
@@ -144,12 +182,7 @@
           start();
         });
 
-        el.addEventListener('pointerleave', function () {
-          el.classList.remove('is-tilting');
-          target.rx = 0;
-          target.ry = 0;
-          start();
-        });
+        el.addEventListener('pointerleave', disengage);
       }
     );
   }

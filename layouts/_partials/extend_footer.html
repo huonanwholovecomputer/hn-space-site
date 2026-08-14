@@ -30,12 +30,31 @@
       btn.parentNode.replaceChild(fresh, btn);
 
       var label = { light: '浅色', dark: '深色', auto: '跟随系统' };
+      var tipLabel = { light: '浅色模式', dark: '深色模式', auto: '跟随系统' };
 
       function currentLabel() {
         var html = document.documentElement;
         var hasPref = !!localStorage.getItem('pref-theme');
         if (!hasPref) return '跟随系统';
         return html.dataset.theme === 'dark' ? '深色' : '浅色';
+      }
+
+      /* 当前模式提示气泡：设置文字并弹出，短暂停留后收回 */
+      var tipTimer = null;
+      function showModeTip(mode) {
+        var tip = fresh.parentNode.querySelector('.theme-mode-tip');
+        if (!tip) return;
+        if (tipTimer) {
+          window.clearTimeout(tipTimer);
+        }
+        tip.textContent = tipLabel[mode] || '跟随系统';
+        /* 强制重排以重触发过渡 */
+        tip.classList.remove('is-visible');
+        void tip.offsetWidth;
+        tip.classList.add('is-visible');
+        tipTimer = window.setTimeout(function () {
+          tip.classList.remove('is-visible');
+        }, 1600);
       }
 
       fresh.addEventListener('click', function () {
@@ -59,8 +78,9 @@
           localStorage.setItem('pref-theme', next);
           html.dataset.theme = next;
         }
-        /* 提示显示「当前模式」（切换后已生效） */
+        /* 提示显示「当前模式」（切换后已生效）+ 弹出气泡 */
         fresh.title = '主题：' + label[next] + '（点击切换）';
+        showModeTip(next);
       });
 
       fresh.title = '主题：' + currentLabel() + '（点击切换）';

@@ -242,6 +242,69 @@ html:not([data-theme]) .theme-toggle .sun {
   display: inline;
 }
 
+/* ---------- 主题模式提示气泡 ---------- */
+/* 点击主题按钮后，从按钮右侧弹出当前模式名（浅色模式/深色模式/跟随系统），
+   短暂停留后收回。绝对定位在按钮右侧，随主题深浅配色。 */
+.theme-toggle-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.theme-mode-tip {
+  position: absolute;
+  left: calc(100% + 12px);
+  top: 50%;
+  transform: translateY(-50%) translateX(-10px) scale(0.96);
+  opacity: 0;
+  pointer-events: none;
+  white-space: nowrap;
+  font-family: var(--home-font-display);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  color: var(--home-accent);
+  background: var(--home-card);
+  border: 1px solid var(--home-accent-line);
+  border-radius: 8px;
+  padding: 6px 11px;
+  box-shadow: var(--home-shadow);
+  z-index: 100;
+  transition:
+    transform 220ms var(--home-ease-out),
+    opacity 180ms ease-out;
+}
+
+/* 弹出态：向右滑出并淡入（从按钮方向伸出，transform-origin 贴近按钮） */
+.theme-mode-tip.is-visible {
+  transform: translateY(-50%) translateX(0) scale(1);
+  opacity: 1;
+}
+
+/* 小箭头：指向左侧的主题按钮 */
+.theme-mode-tip::before {
+  content: "";
+  position: absolute;
+  left: -5px;
+  top: 50%;
+  margin-top: -4px;
+  width: 8px;
+  height: 8px;
+  background: var(--home-card);
+  border-left: 1px solid var(--home-accent-line);
+  border-bottom: 1px solid var(--home-accent-line);
+  transform: rotate(45deg);
+}
+
+/* 深色模式下气泡配色自动跟随 --home-* 变量，无需额外覆盖 */
+
+@media (prefers-reduced-motion: reduce) {
+  .theme-mode-tip {
+    transition: none;
+  }
+}
+
 /* ---------- 文章列表卡片 ---------- */
 .post-entry,
 .searchResults li {

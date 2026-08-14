@@ -17,6 +17,11 @@
   line-height: 1.75;
 }
 
+/* 防止移动端 main 的左右内边距使内容超出视口产生横向滚动（与首页 .home-page 一致） */
+body.list:has(.about-page) {
+  overflow-x: clip;
+}
+
 .about-container {
   max-width: 1120px;
   margin: 0 auto;

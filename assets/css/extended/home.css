@@ -132,7 +132,8 @@ main.main:has(.home-page) {
 }
 
 /* ============ 按钮 ============ */
-.home-page .btn {
+/* 基础布局样式全局化：首页（.home-page）与关于页（.about-page）共用同一套按钮 */
+.btn {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -145,7 +146,7 @@ main.main:has(.home-page) {
   transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
 }
 
-.home-page .btn:focus-visible {
+.btn:focus-visible {
   outline: 2px solid var(--home-accent);
   outline-offset: 3px;
 }

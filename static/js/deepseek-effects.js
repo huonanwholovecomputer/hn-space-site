@@ -1039,15 +1039,27 @@
   function initAll() {
     initCursorBlend();
     var grids = document.querySelectorAll('canvas[data-ds-effect="grid"]');
-    for (var i = 0; i < grids.length; i++) initDotGrid(grids[i]);
+    for (var i = 0; i < grids.length; i++) {
+      if (!grids[i].__dsInit) initDotGrid(grids[i]);
+      grids[i].__dsInit = true;
+    }
     var fluids = document.querySelectorAll('canvas[data-ds-effect="fluid"]');
-    for (var i = 0; i < fluids.length; i++) initFluid(fluids[i]);
+    for (var i = 0; i < fluids.length; i++) {
+      if (!fluids[i].__dsInit) initFluid(fluids[i]);
+      fluids[i].__dsInit = true;
+    }
     var waves = document.querySelectorAll('canvas[data-ds-effect="wave"]');
-    for (var i = 0; i < waves.length; i++) initWave(waves[i]);
+    for (var i = 0; i < waves.length; i++) {
+      if (!waves[i].__dsInit) initWave(waves[i]);
+      waves[i].__dsInit = true;
+    }
     /* 主题配色初始化 + 切换监听（即时更新，无节流延迟） */
     applyThemeToEffects();
     initThemeObserver();
   }
+
+  /* 供 PJAX 复用：新页面内容替换后重新扫描 canvas（防重复初始化） */
+  window.__dsInitAll = initAll;
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initAll);

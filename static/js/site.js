@@ -4,140 +4,158 @@
   document.documentElement.classList.add('js');
 
   var selector = '[data-reveal], .post-entry, .searchResults li, .archive-entry, .page-header, .post-header';
-  var els = Array.prototype.slice.call(document.querySelectorAll(selector));
-  if (!els.length) {
-    return;
+
+  function initReveal() {
+    var els = Array.prototype.slice.call(document.querySelectorAll(selector));
+    if (!els.length) {
+      return;
+    }
+
+    var show = function (el) {
+      el.classList.add('is-in');
+    };
+
+    var reduce =
+      window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    if (reduce || !('IntersectionObserver' in window)) {
+      els.forEach(show);
+      return;
+    }
+
+    var io = new IntersectionObserver(
+      function (entries) {
+        entries.forEach(function (entry) {
+          if (!entry.isIntersecting) {
+            return;
+          }
+          var el = entry.target;
+          var siblings = el.parentElement.children;
+          var index = Array.prototype.indexOf.call(siblings, el);
+          var delay = Math.min(index, 5) * 70;
+          el.style.animationDelay = delay + 'ms';
+          show(el);
+          io.unobserve(el);
+          // 入场完成后移除 reveal 类与内联延迟：
+          // 否则 .reveal-item 会覆盖卡片自身的 hover 过渡，transform 也被钉住，上浮效果永远不生效。
+          // data-reveal 属性同时移除，让 html.js [data-reveal] 的隐藏不再匹配。
+          window.setTimeout(function () {
+            el.classList.remove('reveal-item', 'is-in');
+            el.style.animationDelay = '';
+            el.removeAttribute('data-reveal');
+          }, delay + 750);
+        });
+      },
+      { threshold: 0.1, rootMargin: '0px 0px -36px 0px' }
+    );
+
+    els.forEach(function (el) {
+      el.classList.add('reveal-item');
+      io.observe(el);
+    });
   }
 
-  var show = function (el) {
-    el.classList.add('is-in');
-  };
-
-  var reduce =
-    window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-  if (reduce || !('IntersectionObserver' in window)) {
-    els.forEach(show);
-    return;
-  }
-
-  var io = new IntersectionObserver(
-    function (entries) {
-      entries.forEach(function (entry) {
-        if (!entry.isIntersecting) {
-          return;
-        }
-        var el = entry.target;
-        var siblings = el.parentElement.children;
-        var index = Array.prototype.indexOf.call(siblings, el);
-        var delay = Math.min(index, 5) * 70;
-        el.style.animationDelay = delay + 'ms';
-        show(el);
-        io.unobserve(el);
-        // 入场完成后移除 reveal 类与内联延迟：
-        // 否则 .reveal-item 会覆盖卡片自身的 hover 过渡，transform 也被钉住，上浮效果永远不生效。
-        // data-reveal 属性同时移除，让 html.js [data-reveal] 的隐藏不再匹配。
-        window.setTimeout(function () {
-          el.classList.remove('reveal-item', 'is-in');
-          el.style.animationDelay = '';
-          el.removeAttribute('data-reveal');
-        }, delay + 750);
-      });
-    },
-    { threshold: 0.1, rootMargin: '0px 0px -36px 0px' }
-  );
-
-  els.forEach(function (el) {
-    el.classList.add('reveal-item');
-    io.observe(el);
-  });
+  initReveal();
+  window.__siteInitReveal = initReveal;
 })();
 
 /* 卡片 3D 倾斜 + 手电筒光晕：带速率限制的平滑跟随，光斑为聚焦的圆形光束 */
 (function () {
   'use strict';
-  if (
-    !window.matchMedia ||
-    !window.matchMedia('(hover: hover) and (pointer: fine)').matches ||
-    window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  ) {
-    return;
-  }
 
   var CARD_SELECTOR =
     '.highlight-card, .skill-card, .project-card, .content-card, ' +
     '.project-featured, .about-card, .contact-panel, .post-entry, .searchResults li';
 
-  Array.prototype.forEach.call(
-    document.querySelectorAll(CARD_SELECTOR),
-    function (el) {
-      var maxTilt = parseFloat(
-        window.getComputedStyle(el).getPropertyValue('--tilt-max')
-      );
-      if (!isFinite(maxTilt) || maxTilt <= 0) {
-        maxTilt = 4;
-      }
+  var bound = false;
 
-      var target = { rx: 0, ry: 0, gx: 50, gy: 50 };
-      var current = { rx: 0, ry: 0, gx: 50, gy: 50 };
-      var raf = null;
-
-      function apply() {
-        el.style.setProperty('--rx', current.rx.toFixed(2) + 'deg');
-        el.style.setProperty('--ry', current.ry.toFixed(2) + 'deg');
-        el.style.setProperty('--gx', current.gx.toFixed(1) + '%');
-        el.style.setProperty('--gy', current.gy.toFixed(1) + '%');
-      }
-
-      function step() {
-        current.rx += (target.rx - current.rx) * 0.16;
-        current.ry += (target.ry - current.ry) * 0.16;
-        current.gx += (target.gx - current.gx) * 0.16;
-        current.gy += (target.gy - current.gy) * 0.16;
-        apply();
-        var settled =
-          Math.abs(current.rx - target.rx) < 0.03 &&
-          Math.abs(current.ry - target.ry) < 0.03 &&
-          Math.abs(current.gx - target.gx) < 0.03 &&
-          Math.abs(current.gy - target.gy) < 0.03;
-        raf = settled ? null : window.requestAnimationFrame(step);
-      }
-
-      function start() {
-        if (!raf) {
-          raf = window.requestAnimationFrame(step);
-        }
-      }
-
-      el.addEventListener('pointerenter', function () {
-        var rect = el.getBoundingClientRect();
-        var size = Math.max(90, Math.min(rect.width, rect.height) * 0.72);
-        el.style.setProperty('--gs', size.toFixed(0) + 'px');
-      });
-
-      el.addEventListener('pointermove', function (e) {
-        var rect = el.getBoundingClientRect();
-        if (!rect.width || !rect.height) {
-          return;
-        }
-        var x = (e.clientX - rect.left) / rect.width;
-        var y = (e.clientY - rect.top) / rect.height;
-        el.classList.add('is-tilting');
-        target.rx = (0.5 - y) * 2 * maxTilt;
-        target.ry = (x - 0.5) * 2 * maxTilt;
-        target.gx = x * 100;
-        target.gy = y * 100;
-        start();
-      });
-
-      el.addEventListener('pointerleave', function () {
-        el.classList.remove('is-tilting');
-        target.rx = 0;
-        target.ry = 0;
-        start();
-      });
+  function initTilt() {
+    if (
+      !window.matchMedia ||
+      !window.matchMedia('(hover: hover) and (pointer: fine)').matches ||
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    ) {
+      return;
     }
-  );
+
+    Array.prototype.forEach.call(
+      document.querySelectorAll(CARD_SELECTOR),
+      function (el) {
+        /* 已绑定的卡片跳过（PJAX 后只处理新增的 main 内容） */
+        if (el.__tiltBound) return;
+        el.__tiltBound = true;
+
+        var maxTilt = parseFloat(
+          window.getComputedStyle(el).getPropertyValue('--tilt-max')
+        );
+        if (!isFinite(maxTilt) || maxTilt <= 0) {
+          maxTilt = 4;
+        }
+
+        var target = { rx: 0, ry: 0, gx: 50, gy: 50 };
+        var current = { rx: 0, ry: 0, gx: 50, gy: 50 };
+        var raf = null;
+
+        function apply() {
+          el.style.setProperty('--rx', current.rx.toFixed(2) + 'deg');
+          el.style.setProperty('--ry', current.ry.toFixed(2) + 'deg');
+          el.style.setProperty('--gx', current.gx.toFixed(1) + '%');
+          el.style.setProperty('--gy', current.gy.toFixed(1) + '%');
+        }
+
+        function step() {
+          current.rx += (target.rx - current.rx) * 0.16;
+          current.ry += (target.ry - current.ry) * 0.16;
+          current.gx += (target.gx - current.gx) * 0.16;
+          current.gy += (target.gy - current.gy) * 0.16;
+          apply();
+          var settled =
+            Math.abs(current.rx - target.rx) < 0.03 &&
+            Math.abs(current.ry - target.ry) < 0.03 &&
+            Math.abs(current.gx - target.gx) < 0.03 &&
+            Math.abs(current.gy - target.gy) < 0.03;
+          raf = settled ? null : window.requestAnimationFrame(step);
+        }
+
+        function start() {
+          if (!raf) {
+            raf = window.requestAnimationFrame(step);
+          }
+        }
+
+        el.addEventListener('pointerenter', function () {
+          var rect = el.getBoundingClientRect();
+          var size = Math.max(90, Math.min(rect.width, rect.height) * 0.72);
+          el.style.setProperty('--gs', size.toFixed(0) + 'px');
+        });
+
+        el.addEventListener('pointermove', function (e) {
+          var rect = el.getBoundingClientRect();
+          if (!rect.width || !rect.height) {
+            return;
+          }
+          var x = (e.clientX - rect.left) / rect.width;
+          var y = (e.clientY - rect.top) / rect.height;
+          el.classList.add('is-tilting');
+          target.rx = (0.5 - y) * 2 * maxTilt;
+          target.ry = (x - 0.5) * 2 * maxTilt;
+          target.gx = x * 100;
+          target.gy = y * 100;
+          start();
+        });
+
+        el.addEventListener('pointerleave', function () {
+          el.classList.remove('is-tilting');
+          target.rx = 0;
+          target.ry = 0;
+          start();
+        });
+      }
+    );
+  }
+
+  initTilt();
+  window.__siteInitTilt = initTilt;
 })();
 
 /* 关于页行级入场：整行进入视口后，子卡片从左到右逐个「磁吸」入位。
@@ -145,10 +163,10 @@
    动画结束后移除该属性，隐藏规则不再匹配 → 卡片回到默认样式，hover 上浮正常。 */
 (function () {
   'use strict';
-  var rows = document.querySelectorAll('[data-about-row]');
-  if (!rows.length) {
-    return;
-  }
+
+  var rows = [];
+  var io = null;
+  var guard = null;
 
   var reduce =
     window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -166,35 +184,116 @@
       Array.prototype.forEach.call(kids, function (el) {
         el.classList.remove('is-in');
         el.style.removeProperty('--snap-delay');
+        /* 保险：清除可能残留的内联 transform/opacity，
+           确保离屏未播放动画的卡片也回到默认样式 */
+        el.style.opacity = '';
+        el.style.transform = '';
       });
       row.removeAttribute('data-about-row');
     }, lastDelay + 40);
   };
 
-  if (reduce || !('IntersectionObserver' in window)) {
-    rows.forEach(show);
-    return;
-  }
+  /* 强制展示：不清除动画类，直接移除隐藏态。
+     用于行已离开视口（无法播放动画）时的兜底。 */
+  var forceShow = function (row) {
+    var kids = row.children;
+    Array.prototype.forEach.call(kids, function (el) {
+      el.classList.remove('is-in');
+      el.style.removeProperty('--snap-delay');
+      el.style.opacity = '';
+      el.style.transform = '';
+    });
+    row.removeAttribute('data-about-row');
+  };
 
-  var io = new IntersectionObserver(
-    function (entries) {
-      entries.forEach(function (entry) {
-        if (!entry.isIntersecting) {
+  function startGuard() {
+    if (guard) {
+      window.clearInterval(guard);
+      guard = null;
+    }
+    guard = window.setInterval(function () {
+      var anyPending = false;
+      rows.forEach(function (row) {
+        if (!row.hasAttribute('data-about-row')) {
           return;
         }
-        show(entry.target);
-        io.unobserve(entry.target);
+        anyPending = true;
+        var rect = row.getBoundingClientRect();
+        var vh = window.innerHeight || document.documentElement.clientHeight;
+        if (rect.top < vh + 60 && rect.bottom > -60) {
+          show(row);
+          if (io) io.unobserve(row);
+        } else if (rect.bottom < 0 || rect.top > vh) {
+          /* 已完全离开视口且从未播放动画 → 强制显示，不留隐藏态 */
+          forceShow(row);
+          if (io) io.unobserve(row);
+        }
       });
-    },
-    { threshold: 0.12, rootMargin: '0px 0px -36px 0px' }
-  );
+      if (!anyPending) {
+        window.clearInterval(guard);
+        guard = null;
+      }
+    }, 1200);
+  }
 
-  rows.forEach(function (row) {
-    io.observe(row);
-  });
+  function initAboutRow() {
+    /* 重扫：PJAX 后 rows 包含新旧所有（旧行已移除 data-about-row 属性，
+       重扫仅保留仍带属性的行） */
+    rows = Array.prototype.slice.call(document.querySelectorAll('[data-about-row]'));
+    if (!rows.length) {
+      return;
+    }
+
+    if (reduce || !('IntersectionObserver' in window)) {
+      rows.forEach(show);
+      return;
+    }
+
+    if (!io) {
+      io = new IntersectionObserver(
+        function (entries) {
+          entries.forEach(function (entry) {
+            if (!entry.isIntersecting) {
+              return;
+            }
+            show(entry.target);
+            io.unobserve(entry.target);
+          });
+        },
+        /* rootMargin 上下各扩 120px：行在进入视口前后都会被观测到，
+           即使快速滚动也不会漏触发 */
+        { threshold: 0, rootMargin: '120px 0px 120px 0px' }
+      );
+    }
+
+    rows.forEach(function (row) {
+      io.observe(row);
+    });
+
+    /* 兜底 A：页面加载后，已在视口内的行立即展示 */
+    window.setTimeout(function () {
+      rows.forEach(function (row) {
+        if (!row.hasAttribute('data-about-row')) {
+          return;
+        }
+        var rect = row.getBoundingClientRect();
+        var vh = window.innerHeight || document.documentElement.clientHeight;
+        if (rect.top < vh && rect.bottom > 0) {
+          show(row);
+          if (io) io.unobserve(row);
+        }
+      });
+    }, 300);
+
+    startGuard();
+  }
+
+  initAboutRow();
+  window.__siteInitAboutRow = initAboutRow;
 })();
 
-/* 悬浮导航：滚动超过 80px 收缩成"灵动岛"胶囊（DeepSeek 同款阈值与交互） */
+/* 悬浮导航：滚动超过 80px 收缩成"灵动岛"胶囊（DeepSeek 同款阈值与交互）。
+   header 是 body 级元素，PJAX 不替换 → 只需初始化一次。 */
 (function () {
   'use strict';
   var header = document.querySelector('.header');
@@ -211,24 +310,33 @@
    圆环的 mix-blend-mode: difference 反色正好落在窥视窗口上。 */
 (function () {
   'use strict';
-  var name = document.querySelector('.hero-name');
-  if (!name) return;
-  if (window.matchMedia && window.matchMedia('(hover: none), (pointer: coarse)').matches) return;
 
-  var last = { x: -9999, y: -9999 };
-  function update() {
-    var rect = name.getBoundingClientRect();
-    name.style.setProperty('--peek-x', (last.x - rect.left).toFixed(1) + 'px');
-    name.style.setProperty('--peek-y', (last.y - rect.top).toFixed(1) + 'px');
+  function initPeek() {
+    var name = document.querySelector('.hero-name');
+    if (!name) return;
+    if (window.matchMedia && window.matchMedia('(hover: none), (pointer: coarse)').matches) return;
+    /* PJAX 后重复调用时避免重复绑定 */
+    if (name.__peekBound) return;
+    name.__peekBound = true;
+
+    var last = { x: -9999, y: -9999 };
+    function update() {
+      var rect = name.getBoundingClientRect();
+      name.style.setProperty('--peek-x', (last.x - rect.left).toFixed(1) + 'px');
+      name.style.setProperty('--peek-y', (last.y - rect.top).toFixed(1) + 'px');
+    }
+    window.addEventListener('mousemove', function (e) {
+      last.x = e.clientX;
+      last.y = e.clientY;
+      update();
+    }, { passive: true });
+    /* 滚动时名字相对坐标变化，同步刷新，避免窥视镜错位 */
+    window.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update, { passive: true });
   }
-  window.addEventListener('mousemove', function (e) {
-    last.x = e.clientX;
-    last.y = e.clientY;
-    update();
-  }, { passive: true });
-  /* 滚动时名字相对坐标变化，同步刷新，避免窥视镜错位 */
-  window.addEventListener('scroll', update, { passive: true });
-  window.addEventListener('resize', update, { passive: true });
+
+  initPeek();
+  window.__siteInitPeek = initPeek;
 })();
 
 /* 移动端导航：汉堡按钮开合下拉菜单。
@@ -284,4 +392,20 @@
   } else if (mq.addListener) {
     mq.addListener(onMq);
   }
+})();
+
+/* =========================================================
+   PJAX 联动：新页面内容替换完成后，重新初始化页面级效果。
+   在 pjax.js 之后加载（extend_head 中 pjax.js 排在 site.js 后），
+   但 pjax:done 事件由 pjax.js 触发，这里只需监听。
+   ========================================================= */
+(function () {
+  'use strict';
+  document.addEventListener('pjax:done', function () {
+    if (window.__siteInitReveal) window.__siteInitReveal();
+    if (window.__siteInitTilt) window.__siteInitTilt();
+    if (window.__siteInitAboutRow) window.__siteInitAboutRow();
+    if (window.__siteInitPeek) window.__siteInitPeek();
+    if (window.__dsInitAll) window.__dsInitAll();
+  });
 })();

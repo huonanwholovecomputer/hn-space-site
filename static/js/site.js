@@ -102,6 +102,15 @@
       el.style.setProperty('--gy', current.gy.toFixed(1) + '%');
     }
 
+    /* 复位到中性：清掉内联样式，避免 PJAX 后光效停在旧位置（如十字中心） */
+    function resetInline() {
+      el.style.removeProperty('--rx');
+      el.style.removeProperty('--ry');
+      el.style.removeProperty('--gx');
+      el.style.removeProperty('--gy');
+      el.style.removeProperty('--gs');
+    }
+
     function step() {
       current.rx += (target.rx - current.rx) * 0.16;
       current.ry += (target.ry - current.ry) * 0.16;
@@ -124,6 +133,7 @@
       active: false,
       raf: null,
       apply: apply,
+      resetInline: resetInline,
       start: function () {
         if (!raf) {
           raf = window.requestAnimationFrame(step);
@@ -157,6 +167,14 @@
         el.classList.add('is-tilting');
         var size = Math.max(90, Math.min(rect.width, rect.height) * 0.72);
         el.style.setProperty('--gs', size.toFixed(0) + 'px');
+        /* 进入时立即写入一次目标值，避免 rAF 未启动时光效停留在旧位置 */
+        st.target.rx = (0.5 - y) * 2 * st.maxTilt;
+        st.target.ry = (x - 0.5) * 2 * st.maxTilt;
+        st.target.gx = x * 100;
+        st.target.gy = y * 100;
+        st.apply();
+        st.start();
+        return;
       }
       st.target.rx = (0.5 - y) * 2 * st.maxTilt;
       st.target.ry = (x - 0.5) * 2 * st.maxTilt;
@@ -196,6 +214,17 @@
       window.addEventListener('pointermove', onGlobalMove, { passive: true });
     }
 
+    /* PJAX 换页后：清除所有卡片的激活态（is-tilting 类 + 内联光效样式），
+       并把鼠标坐标重置为无效值，避免用旧页面坐标对新卡片误触发光效。 */
+    cards.forEach(function (st) {
+      st.active = false;
+      st.el.classList.remove('is-tilting');
+      st.resetInline();
+    });
+    mouseX = -9999;
+    mouseY = -9999;
+    mouseReady = false;
+
     /* 扫描新卡片（已绑定的跳过）；同时清理已脱离 DOM 的旧卡片 */
     cards = cards.filter(function (st) { return st.el.isConnected; });
 
@@ -205,11 +234,10 @@
         if (el.__tiltBound) return;
         el.__tiltBound = true;
         var st = makeState(el);
+        /* PJAX 换页后新卡片可能带旧的内联光效样式，先复位，
+           避免光效卡在十字中心或残留旧位置 */
+        st.resetInline();
         cards.push(st);
-        /* 初始若鼠标已在卡片附近（如 PJAX 切换后），立即生效 */
-        if (mouseReady) {
-          updateCard(st);
-        }
       }
     );
   }

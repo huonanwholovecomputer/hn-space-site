@@ -45,6 +45,29 @@
     document.body.id = doc.body.id || 'top';
   }
 
+  /* 更新导航菜单高亮：根据新 URL 匹配 .menu 链接，切换 .active。
+     PJAX 只替换 main，header 里的 active 类需手动同步。 */
+  function applyNavActive(url) {
+    var menuLinks = document.querySelectorAll('#menu a');
+    Array.prototype.forEach.call(menuLinks, function (a) {
+      var linkUrl;
+      try {
+        linkUrl = new URL(a.href, location.href);
+      } catch (err) {
+        return;
+      }
+      /* 与 Hugo 端一致的匹配规则：URL（含尾斜杠）精确相等即高亮 */
+      var target = (linkUrl.pathname || '/');
+      if (target.length > 1 && !/\/$/.test(target)) target += '/';
+      var current = (url.pathname || '/');
+      if (current.length > 1 && !/\/$/.test(current)) current += '/';
+      var span = a.querySelector('span');
+      if (span) {
+        span.classList.toggle('active', target === current);
+      }
+    });
+  }
+
   function navigate(url, push) {
     if (push) {
       history.pushState({ url: url.href }, '', url.href);
@@ -69,6 +92,7 @@
 
         applyHead(doc, url);
         applyBodyClass(doc);
+        applyNavActive(url);
         /* 替换 main 内容：header/footer/拖尾 canvas 等 body 全局元素不动 */
         mainEl.innerHTML = newMain.innerHTML;
 

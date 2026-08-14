@@ -299,6 +299,30 @@ html:not([data-theme]) .theme-toggle .sun {
 
 /* 深色模式下气泡配色自动跟随 --home-* 变量，无需额外覆盖 */
 
+/* 移动端：主题按钮在导航面板最右侧，气泡改为「位于图标左侧、开口朝右」，
+   避免超出屏幕右侧。 */
+@media screen and (max-width: 768px) {
+  .theme-mode-tip {
+    left: auto;
+    right: calc(100% + 12px);
+    transform: translateY(-50%) translateX(10px) scale(0.96);
+  }
+
+  .theme-mode-tip.is-visible {
+    transform: translateY(-50%) translateX(0) scale(1);
+  }
+
+  /* 小箭头：开口朝右，指向右侧的主题按钮 */
+  .theme-mode-tip::before {
+    left: auto;
+    right: -5px;
+    border-left: none;
+    border-bottom: none;
+    border-right: 1px solid var(--home-accent-line);
+    border-top: 1px solid var(--home-accent-line);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .theme-mode-tip {
     transition: none;

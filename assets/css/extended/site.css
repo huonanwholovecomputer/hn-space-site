@@ -219,6 +219,29 @@ body.list:has(.home-page) main.main {
   color: var(--home-accent);
 }
 
+/* 主题按钮图标：显示「当前模式」而非「下一个模式」。
+   覆盖 PaperMod 默认逻辑（深色隐藏月亮、浅色隐藏太阳，
+   即图标始终指向可切换到的模式）。
+   改为：当前深色 → 显示月亮；当前浅色 → 显示太阳；
+   跟随系统时按实际生效主题显示。 */
+.theme-toggle .moon,
+.theme-toggle .sun {
+  display: none;
+}
+
+html[data-theme="dark"] .theme-toggle .moon {
+  display: inline;
+}
+
+html[data-theme="light"] .theme-toggle .sun {
+  display: inline;
+}
+
+/* 兼容无 data-theme 的兜底（理论上不会出现，auto 模式 JS 总会设置） */
+html:not([data-theme]) .theme-toggle .sun {
+  display: inline;
+}
+
 /* ---------- 文章列表卡片 ---------- */
 .post-entry,
 .searchResults li {

@@ -59,6 +59,7 @@
           localStorage.setItem('pref-theme', next);
           html.dataset.theme = next;
         }
+        /* 提示显示「当前模式」（切换后已生效） */
         fresh.title = '主题：' + label[next] + '（点击切换）';
       });
 

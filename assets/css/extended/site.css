@@ -591,6 +591,41 @@ details.toc summary:hover {
   color: var(--home-accent);
 }
 
+/* ---------- 导航激活项滑动下划线 ---------- */
+/* #menu 作为定位上下文；.menu-indicator 是绝对定位的滑动条，
+   由 pjax.js 的 applyNavActive 计算激活项位置并移动（CSS transition 平滑过渡）。
+   桌面端生效；移动端菜单为纵向折叠，保持激活项背景色即可。 */
+#menu {
+  position: relative;
+}
+
+.menu-indicator {
+  position: absolute;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--home-accent);
+  bottom: 4px;
+  left: 0;
+  width: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    left 320ms var(--home-ease-in-out),
+    width 320ms var(--home-ease-in-out),
+    opacity 200ms ease;
+}
+
+.menu-indicator.is-active {
+  opacity: 1;
+}
+
+/* 移动端：菜单折叠为纵向，隐藏滑动指示条（激活项用背景高亮） */
+@media screen and (max-width: 768px) {
+  .menu-indicator {
+    display: none;
+  }
+}
+
 /* 社交图标悬停 */
 .social-icons a:hover {
   color: var(--home-accent);

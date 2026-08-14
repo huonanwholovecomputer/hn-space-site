@@ -15,6 +15,26 @@
   var mainEl = document.querySelector('main.main');
   if (!mainEl) return;
 
+  /* 首次加载：初始化导航高亮指示条位置（.active 由 Hugo 服务端渲染） */
+  (function initNavActive() {
+    var menu = document.getElementById('menu');
+    if (!menu) return;
+    /* 兜底创建指示条（绝对定位，不参与 flex 布局） */
+    if (!menu.querySelector('.menu-indicator')) {
+      var indicator = document.createElement('span');
+      indicator.className = 'menu-indicator';
+      menu.appendChild(indicator);
+    }
+    var activeSpan = menu.querySelector('.active');
+    moveMenuIndicator(activeSpan);
+    /* 等字体/布局稳定后校正一次位置 */
+    window.addEventListener('load', function () {
+      window.setTimeout(function () {
+        moveMenuIndicator(menu.querySelector('.active'));
+      }, 300);
+    });
+  })();
+
   /* 判断链接是否应走 PJAX：
      同源、非下载、非新窗口、非纯锚点、非邮件/电话 */
   function shouldPjax(a, url) {
@@ -45,10 +65,11 @@
     document.body.id = doc.body.id || 'top';
   }
 
-  /* 更新导航菜单高亮：根据新 URL 匹配 .menu 链接，切换 .active。
-     PJAX 只替换 main，header 里的 active 类需手动同步。 */
+  /* 更新导航菜单高亮：根据新 URL 匹配 .menu 链接，切换 .active，
+     并滑动下划线指示条到激活项。 */
   function applyNavActive(url) {
     var menuLinks = document.querySelectorAll('#menu a');
+    var activeSpan = null;
     Array.prototype.forEach.call(menuLinks, function (a) {
       var linkUrl;
       try {
@@ -63,9 +84,35 @@
       if (current.length > 1 && !/\/$/.test(current)) current += '/';
       var span = a.querySelector('span');
       if (span) {
-        span.classList.toggle('active', target === current);
+        var isActive = target === current;
+        span.classList.toggle('active', isActive);
+        if (isActive) activeSpan = span;
       }
     });
+    moveMenuIndicator(activeSpan);
+  }
+
+  /* 滑动下划线指示条到激活项（或隐藏） */
+  function moveMenuIndicator(activeSpan) {
+    var menu = document.getElementById('menu');
+    if (!menu) return;
+    var indicator = menu.querySelector('.menu-indicator');
+    /* 桌面端才有 indicator 元素（模板里已加，JS 兜底创建） */
+    if (!indicator) {
+      indicator = document.createElement('span');
+      indicator.className = 'menu-indicator';
+      menu.appendChild(indicator);
+    }
+    if (!activeSpan) {
+      indicator.classList.remove('is-active');
+      return;
+    }
+    var menuRect = menu.getBoundingClientRect();
+    var spanRect = activeSpan.getBoundingClientRect();
+    var left = spanRect.left - menuRect.left + menu.scrollLeft;
+    indicator.style.left = left + 'px';
+    indicator.style.width = spanRect.width + 'px';
+    indicator.classList.add('is-active');
   }
 
   function navigate(url, push) {

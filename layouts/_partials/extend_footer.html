@@ -12,3 +12,63 @@
   <span>·</span>
   <a href="{{ "index.xml" | relURL }}">RSS</a>
 </div>
+
+{{- /* 三态主题切换：浅色 → 深色 → 跟随系统 → 循环。
+      覆盖 PaperMod 默认的「手动选择后永久固定」行为，
+      让用户随时可以切回「跟随系统」，解决手动选过后系统主题变化被忽略的问题。
+      本脚本在主题 footer 脚本之后渲染执行（主题脚本是内联同步的，
+      我们在其后注入；并用 DOMContentLoaded 兜底确保按钮已存在）。 */}}
+<script>
+  (function () {
+    function setup() {
+      var btn = document.getElementById('theme-toggle');
+      if (!btn || btn.__triStateBound) return;
+      btn.__triStateBound = true;
+
+      /* 克隆替换按钮，清除 PaperMod 已绑定的 2 态 click 监听器 */
+      var fresh = btn.cloneNode(true);
+      btn.parentNode.replaceChild(fresh, btn);
+
+      var label = { light: '浅色', dark: '深色', auto: '跟随系统' };
+
+      function currentLabel() {
+        var html = document.documentElement;
+        var hasPref = !!localStorage.getItem('pref-theme');
+        if (!hasPref) return '跟随系统';
+        return html.dataset.theme === 'dark' ? '深色' : '浅色';
+      }
+
+      fresh.addEventListener('click', function () {
+        var html = document.documentElement;
+        var current = html.dataset.theme === 'dark' ? 'dark' : 'light';
+        var hasPref = !!localStorage.getItem('pref-theme');
+        /* 三态推进：浅(手动) → 深(手动) → 跟随系统 → 浅… */
+        var next;
+        if (!hasPref) {
+          next = 'light';
+        } else if (current === 'light') {
+          next = 'dark';
+        } else {
+          next = 'auto';
+        }
+
+        if (next === 'auto') {
+          localStorage.removeItem('pref-theme');
+          html.dataset.theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        } else {
+          localStorage.setItem('pref-theme', next);
+          html.dataset.theme = next;
+        }
+        fresh.title = '主题：' + label[next] + '（点击切换）';
+      });
+
+      fresh.title = '主题：' + currentLabel() + '（点击切换）';
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', setup);
+    } else {
+      setup();
+    }
+  })();
+</script>

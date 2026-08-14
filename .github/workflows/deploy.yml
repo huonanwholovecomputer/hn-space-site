@@ -37,7 +37,7 @@ jobs:
 
       - name: Deploy via rsync
         env:
-          HOST: ${{ secrets.SERVER_HOST || 'SERVER_IP_PLACEHOLDER' }}
+          HOST: ${{ secrets.SERVER_HOST }}
           USER: ${{ secrets.SERVER_USER || 'root' }}
           REMOTE_DIR: /var/www/blog
         run: |

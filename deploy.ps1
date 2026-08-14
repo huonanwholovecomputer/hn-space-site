@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 HN Space 一键发布脚本：新建文章 / 本地预览 / 构建 / 部署到服务器
 
@@ -16,7 +16,8 @@ param(
 
     [string]$Slug,
     [string]$Title,
-    [string]$ServerHost = 'root@SERVER_IP_PLACEHOLDER',
+    # 服务器地址从环境变量读取（避免敏感信息入库）；也可用 -ServerHost 显式传入
+    [string]$ServerHost = $env:HN_SERVER_HOST,
     [string]$RemoteDir = '/var/www/blog'
 )
 
@@ -63,6 +64,10 @@ function Build-Site {
 }
 
 function Deploy-Site {
+    if ([string]::IsNullOrWhiteSpace($ServerHost)) {
+        throw '未配置服务器地址：请设置环境变量 $env:HN_SERVER_HOST（如 root@你的服务器IP），或用 -ServerHost 参数传入'
+    }
+
     Build-Site
 
     Write-Host '打包构建产物...' -ForegroundColor Cyan

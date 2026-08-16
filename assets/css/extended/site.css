@@ -56,6 +56,15 @@ summary:focus-visible {
   border-radius: 4px;
 }
 
+/* 导航菜单链接的键盘焦点：不套直角矩形描边（其左右边框在灵动岛胶囊内
+   看起来像游离的蓝色竖条），改用圆角软底高亮，贴合胶囊设计语言，
+   同时保留可见焦点指示（无障碍） */
+.menu a:focus-visible {
+  outline: none;
+  background: var(--home-accent-soft);
+  border-radius: 999px;
+}
+
 /* ---------- 页头 ---------- */
 .page-header,
 .post-header {
@@ -212,7 +221,9 @@ body.list:has(.home-page) main.main {
 
 .menu .active {
   font-weight: 700;
-  text-decoration-color: var(--home-accent);
+  /* 覆盖 PaperMod 主题的文字下划线：激活高亮统一由 .menu-indicator 滑动条承担，
+     避免激活项同时出现两条横线 */
+  text-decoration: none;
 }
 
 .theme-toggle:hover {

@@ -29,6 +29,20 @@
   color: var(--primary);
 }
 
+.footer-open {
+  margin: 0.35em 0 0.5em;
+  font-size: 0.8em;
+  text-align: center;
+}
+
+.footer-open a {
+  color: var(--secondary);
+}
+
+.footer-open a:hover {
+  color: var(--primary);
+}
+
 #mouse-trail {
   position: fixed;
   top: 0;

@@ -266,6 +266,22 @@ html.js [data-about-row] > *.is-in {
   height: 24px;
 }
 
+/* 真实应用图标（本地软件提取的 PNG）：无底板，直接显示图标本体 */
+.about-tile-icon:has(.icon-img) {
+  background: transparent;
+  padding: 0;
+  overflow: visible;
+  border: none;
+  box-shadow: none;
+}
+
+.about-tile-icon .icon-img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+}
+
 .about-tile-glyph {
   font-family: var(--home-font-display);
   font-size: 1.15rem;
@@ -301,10 +317,10 @@ html.js [data-about-row] > *.is-in {
 .tile-bg--python { --tile-bg: linear-gradient(135deg, #4b8bbe 0%, #306998 100%); }
 .tile-bg--cpp { --tile-bg: linear-gradient(135deg, #2a9dd6 0%, #00599c 100%); }
 
-/* ---------- 编程方向：3 卡片一行 ---------- */
+/* ---------- 编程方向：卡片自适应行 ---------- */
 .dev-row {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 16px;
 }
 

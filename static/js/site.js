@@ -1,3 +1,22 @@
+/* 共享的可见性判定（首页 data-reveal 与 about 行级入场共用）：
+   - 'wait' ：元素仍在视口下方 / 仅露出一角 → 保持隐藏，等滚动到足够可见再播
+   - 'show' ：元素基本完全进入视口（常规 ≥90% 可见，超一屏 ≥60%）→ 播放入场动画
+   - 'force'：元素已滚过视口上方 → 直接显示，不再播动画，只保证不残留隐藏态 */
+var revealClassify = function (rect, vh) {
+  if (rect.top >= vh) {
+    return 'wait';
+  }
+  if (rect.bottom <= 0 || rect.top < 0) {
+    return 'force';
+  }
+  var visible = Math.min(rect.bottom, vh) - rect.top;
+  var ratio = visible / (rect.height || 1);
+  if (rect.height > vh) {
+    return ratio >= 0.6 ? 'show' : 'wait';
+  }
+  return ratio >= 0.9 ? 'show' : 'wait';
+};
+
 /* 全站滚动入场动画：渐进增强，无 JS 或减少动态时直接显示 */
 (function () {
   'use strict';
@@ -5,54 +24,100 @@
 
   var selector = '[data-reveal], .post-entry, .searchResults li, .archive-entry, .page-header, .post-header';
 
+  var guardTimer = null;
+
+  /* 播放入场动画（带同级错峰延迟），动画结束后清理隐藏态 */
+  var revealEl = function (el) {
+    var siblings = el.parentElement.children;
+    var index = Array.prototype.indexOf.call(siblings, el);
+    var delay = Math.min(index, 5) * 70;
+    el.style.animationDelay = delay + 'ms';
+    el.classList.add('is-in');
+    // 入场完成后移除 reveal 类与内联延迟：
+    // 否则 .reveal-item 会覆盖卡片自身的 hover 过渡，transform 也被钉住，上浮效果永远不生效。
+    // data-reveal 属性同时移除，让 html.js [data-reveal] 的隐藏不再匹配。
+    window.setTimeout(function () {
+      el.classList.remove('reveal-item', 'is-in');
+      el.style.animationDelay = '';
+      el.removeAttribute('data-reveal');
+    }, delay + 750);
+  };
+
+  /* 直接显示（已滚过视口、无法再播动画）：清掉隐藏态 */
+  var forceReveal = function (el) {
+    el.classList.remove('reveal-item', 'is-in');
+    el.style.animationDelay = '';
+    el.removeAttribute('data-reveal');
+  };
+
   function initReveal() {
     var els = Array.prototype.slice.call(document.querySelectorAll(selector));
     if (!els.length) {
       return;
     }
 
-    var show = function (el) {
-      el.classList.add('is-in');
-    };
-
     var reduce =
       window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     if (reduce || !('IntersectionObserver' in window)) {
-      els.forEach(show);
+      els.forEach(revealEl);
       return;
     }
 
     var io = new IntersectionObserver(
       function (entries) {
         entries.forEach(function (entry) {
-          if (!entry.isIntersecting) {
-            return;
-          }
           var el = entry.target;
-          var siblings = el.parentElement.children;
-          var index = Array.prototype.indexOf.call(siblings, el);
-          var delay = Math.min(index, 5) * 70;
-          el.style.animationDelay = delay + 'ms';
-          show(el);
-          io.unobserve(el);
-          // 入场完成后移除 reveal 类与内联延迟：
-          // 否则 .reveal-item 会覆盖卡片自身的 hover 过渡，transform 也被钉住，上浮效果永远不生效。
-          // data-reveal 属性同时移除，让 html.js [data-reveal] 的隐藏不再匹配。
-          window.setTimeout(function () {
-            el.classList.remove('reveal-item', 'is-in');
-            el.style.animationDelay = '';
-            el.removeAttribute('data-reveal');
-          }, delay + 750);
+          var rect = entry.boundingClientRect;
+          var vh = window.innerHeight || document.documentElement.clientHeight;
+          var action = revealClassify(rect, vh);
+          if (entry.isIntersecting && action === 'show') {
+            /* 足够可见：播放入场动画 */
+            revealEl(el);
+            io.unobserve(el);
+          } else if (action === 'force') {
+            /* 已滚过视口：直接显示，不留隐藏态 */
+            forceReveal(el);
+            io.unobserve(el);
+          }
         });
       },
-      { threshold: 0.1, rootMargin: '0px 0px -36px 0px' }
+      /* 与 about 页一致的触发口径：元素基本完全进入视口
+         （≥90%，超一屏 ≥60%）才播放，避免在显示范围外提前播 */
+      { threshold: [0, 0.3, 0.6, 0.9, 1] }
     );
 
     els.forEach(function (el) {
       el.classList.add('reveal-item');
       io.observe(el);
     });
+
+    /* 兜底轮询：IO 只在交集状态变化时回调——若瞬间滚动跳过某些元素
+       （从未进入视口就到了视口上方），IO 不会触发，这里兜底强制显示 */
+    if (guardTimer) {
+      window.clearInterval(guardTimer);
+    }
+    guardTimer = window.setInterval(function () {
+      var anyPending = false;
+      Array.prototype.forEach.call(document.querySelectorAll(selector), function (el) {
+        var rect = el.getBoundingClientRect();
+        var vh = window.innerHeight || document.documentElement.clientHeight;
+        var action = revealClassify(rect, vh);
+        if (action === 'show') {
+          revealEl(el);
+          io.unobserve(el);
+        } else if (action === 'force') {
+          forceReveal(el);
+          io.unobserve(el);
+        } else {
+          anyPending = true;
+        }
+      });
+      if (!anyPending) {
+        window.clearInterval(guardTimer);
+        guardTimer = null;
+      }
+    }, 1200);
   }
 
   initReveal();
@@ -282,7 +347,7 @@
   };
 
   /* 强制展示：不清除动画类，直接移除隐藏态。
-     用于行已离开视口（无法播放动画）时的兜底。 */
+     用于行已滚过视口上方（无法再播放入场动画）时的兜底。 */
   var forceShow = function (row) {
     var kids = row.children;
     Array.prototype.forEach.call(kids, function (el) {
@@ -293,6 +358,9 @@
     });
     row.removeAttribute('data-about-row');
   };
+
+  /* 行当前的处理方式由文件顶部的 revealClassify 统一判定
+     （与首页 data-reveal 共用同一套 ≥90% / 超一屏 ≥60% 触发口径） */
 
   function startGuard() {
     if (guard) {
@@ -308,14 +376,15 @@
         anyPending = true;
         var rect = row.getBoundingClientRect();
         var vh = window.innerHeight || document.documentElement.clientHeight;
-        if (rect.top < vh + 60 && rect.bottom > -60) {
+        var action = revealClassify(rect, vh);
+        if (action === 'show') {
           show(row);
           if (io) io.unobserve(row);
-        } else if (rect.bottom < 0 || rect.top > vh) {
-          /* 已完全离开视口且从未播放动画 → 强制显示，不留隐藏态 */
+        } else if (action === 'force') {
           forceShow(row);
           if (io) io.unobserve(row);
         }
+        /* 'wait'：保持隐藏，等用户滚动到后再触发 */
       });
       if (!anyPending) {
         window.clearInterval(guard);
@@ -344,13 +413,22 @@
             if (!entry.isIntersecting) {
               return;
             }
-            show(entry.target);
-            io.unobserve(entry.target);
+            var rect = entry.boundingClientRect;
+            var vh = window.innerHeight || document.documentElement.clientHeight;
+            var action = revealClassify(rect, vh);
+            if (action === 'show') {
+              show(entry.target);
+              io.unobserve(entry.target);
+            } else if (action === 'force') {
+              /* 快速滚过：行横跨视口顶部时才走到这里 */
+              forceShow(entry.target);
+              io.unobserve(entry.target);
+            }
           });
         },
-        /* rootMargin 上下各扩 120px：行在进入视口前后都会被观测到，
-           即使快速滚动也不会漏触发 */
-        { threshold: 0, rootMargin: '120px 0px 120px 0px' }
+        /* 只按可见比例触发：行基本完全进入视口（≥90%，超一屏 ≥60%）
+           才播放入场动画，避免在显示范围外/只露出一角时提前播放 */
+        { threshold: [0, 0.3, 0.6, 0.9, 1] }
       );
     }
 
@@ -358,7 +436,8 @@
       io.observe(row);
     });
 
-    /* 兜底 A：页面加载后，已在视口内的行立即展示 */
+    /* 兜底 A：页面加载后，已完全/基本进入视口的行立即展示，
+       已滚过的行直接显示 */
     window.setTimeout(function () {
       rows.forEach(function (row) {
         if (!row.hasAttribute('data-about-row')) {
@@ -366,8 +445,12 @@
         }
         var rect = row.getBoundingClientRect();
         var vh = window.innerHeight || document.documentElement.clientHeight;
-        if (rect.top < vh && rect.bottom > 0) {
+        var action = revealClassify(rect, vh);
+        if (action === 'show') {
           show(row);
+          if (io) io.unobserve(row);
+        } else if (action === 'force') {
+          forceShow(row);
           if (io) io.unobserve(row);
         }
       });

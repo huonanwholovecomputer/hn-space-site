@@ -19,7 +19,6 @@ quickFacts:
 office:
   - name: "WPS Office"
     icon: "wps"
-    glyph: "W"
     desc: "文档 / 表格 / 演示"
   - name: "PowerPoint"
     icon: "ppt"
@@ -35,7 +34,6 @@ office:
     desc: "视频剪辑"
   - name: "An"
     icon: "an"
-    glyph: "An"
     desc: "矢量动画"
   - name: "Ps"
     icon: "ps"
@@ -57,6 +55,9 @@ dev:
   - name: "全栈项目"
     icon: "stack"
     desc: "前端 + 后端 + 部署"
+  - name: "本站（开源）"
+    icon: "globe"
+    desc: "Hugo 静态站 · MIT 开源"
 
 experience:
   - period: "初中 — 高中 · 6 年"

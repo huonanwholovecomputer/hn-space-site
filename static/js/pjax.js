@@ -25,8 +25,16 @@
       indicator.className = 'menu-indicator';
       menu.appendChild(indicator);
     }
+    indicator = menu.querySelector('.menu-indicator');
     var activeSpan = menu.querySelector('.active');
+    /* 初始定位不带动画：指示条 CSS 初始态是 left:0（菜单最左 = 首页位置），
+       若直接带 transition 设置位置，整页加载（如搜索页）时会从「首页」
+       一路滑到激活项，显得突兀。先临时禁用 transition 直接就位，
+       再恢复，后续 PJAX 切换仍保持平滑滑动。 */
+    indicator.style.transition = 'none';
     moveMenuIndicator(activeSpan);
+    void indicator.offsetWidth; /* 强制 reflow，让上一步的位置样式生效 */
+    indicator.style.transition = '';
     /* 等字体/布局稳定后校正一次位置 */
     window.addEventListener('load', function () {
       window.setTimeout(function () {
@@ -37,16 +45,8 @@
 
   /* 判断链接是否应走 PJAX：
      同源、非下载、非新窗口、非纯锚点、非邮件/电话。
-     搜索页（/search/）走整页跳转：fastsearch.js 是 head 中按页面加载的
-     模块，只在整页加载时初始化搜索框事件；PJAX 替换 <main> 后新输入框
-     无事件绑定且保持 disabled，无法交互。 */
-  var NO_PJAX_PATHS = ['/search/'];
-
-  function isNoPjaxPath(url) {
-    var p = url.pathname || '/';
-    if (p.length > 1 && !/\/$/.test(p)) p += '/';
-    return NO_PJAX_PATHS.indexOf(p) !== -1;
-  }
+     搜索页也已接入 PJAX：fastsearch.js 站点版暴露 window.initFastSearch，
+     PJAX 进入 /search/ 后由 ensureSearchReady 重新初始化搜索框。 */
 
   function shouldPjax(a, url) {
     if (a.target && a.target !== '_self') return false;
@@ -57,7 +57,6 @@
     if (url.origin !== location.origin) return false;
     if (url.pathname === location.pathname && url.search === location.search) return false;
     if (url.hash && url.pathname === location.pathname) return false; // 同页锚点
-    if (isNoPjaxPath(url)) return false;
     return true;
   }
 
@@ -127,14 +126,33 @@
     indicator.classList.add('is-active');
   }
 
-  function navigate(url, push) {
-    /* 目标为 no-PJAX 路径（如搜索页）时直接整页跳转，
-       覆盖浏览器后退/前进（popstate）进入搜索页的场景 */
-    if (isNoPjaxPath(url)) {
-      location.href = url.href;
+  /* 搜索页支持 PJAX：页面 head 里的 search.js（fuse + fastsearch）只在整页加载时
+     由浏览器执行；PJAX 进入 /search/ 后这里手动补加载/调用初始化，
+     让输入框启用并可交互（fastsearch.js 站点版暴露 window.initFastSearch）。 */
+  function isSearchUrl(url) {
+    var p = url.pathname || '/';
+    if (p.length > 1 && !/\/$/.test(p)) p += '/';
+    return p === '/search/';
+  }
+
+  function ensureSearchReady(doc) {
+    if (!document.getElementById('searchInput')) return;
+    if (typeof window.initFastSearch === 'function') {
+      window.initFastSearch();
       return;
     }
+    /* 首次进入：从新文档 head 取 search.js 地址并注入（脚本执行时会立即初始化） */
+    var srcEl = doc.querySelector('script[src*="/assets/js/search."]');
+    if (!srcEl) return;
+    var s = document.createElement('script');
+    s.src = new URL(srcEl.getAttribute('src'), location.href).href;
+    s.onload = function () {
+      if (typeof window.initFastSearch === 'function') window.initFastSearch();
+    };
+    document.head.appendChild(s);
+  }
 
+  function navigate(url, push) {
     if (push) {
       history.pushState({ url: url.href }, '', url.href);
     }
@@ -161,6 +179,11 @@
         applyNavActive(url);
         /* 替换 main 内容：header/footer/拖尾 canvas 等 body 全局元素不动 */
         mainEl.innerHTML = newMain.innerHTML;
+
+        /* 进入搜索页：重新初始化搜索框（启用输入框 + 绑定事件 + 重建索引） */
+        if (isSearchUrl(url)) {
+          ensureSearchReady(doc);
+        }
 
         /* 新页面高度可能更短：尝试恢复到原滚动位置，超界则由浏览器收紧。
            在替换后立即执行（此时浏览器尚未因内容变更自动跳顶）。 */
@@ -203,9 +226,7 @@
     } catch (err) {
       return;
     }
-    /* 当前在搜索页：fastsearch.js 已初始化且绑定旧 DOM，PJAX 离开会留下
-       悬挂的搜索脚本；统一走整页跳转最干净 */
-    if (isNoPjaxPath(new URL(location.href))) return;
+    /* 当前页面为普通页面：直接走 PJAX */
     if (!shouldPjax(a, url)) return;
 
     /* 移动端菜单已用 site.js 关闭；这里阻止默认跳转走 PJAX */

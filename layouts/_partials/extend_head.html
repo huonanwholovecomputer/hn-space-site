@@ -23,5 +23,34 @@
 <script defer src="{{ "js/site.js" | relURL }}?v=20"></script>
 <script defer src="{{ "js/pjax.js" | relURL }}?v=5"></script>
 <script defer src="{{ "js/deepseek-effects.js" | relURL }}?v=15"></script>
+{{- /* ===== LaTeX 数学公式（KaTeX）+ 文章图片增强 ===== */}}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+<script defer src="{{ "js/math-image.js" | relURL }}?v=1"></script>
+<style>
+  /* 公式在深色主题下用亮色，避免黑字看不清 */
+  html[data-theme="dark"] .katex { color: #e6edf3; }
+  html[data-theme="dark"] .katex-display { color: #e6edf3; }
+
+  /* 块级公式居中、边界，避免溢出窄屏 */
+  .katex-display { overflow-x: auto; overflow-y: hidden; padding: 0.4em 0; }
+
+  /* 文章内图片：默认不超出容器，垂直对齐基线 */
+  .post-content img { max-width: 100%; height: auto; border-radius: 6px; margin: 0.2em 0; }
+  .math-img-box { display: block; max-width: 100%; text-align: center; margin: 0.8em auto; }
+  .math-img-box img { display: inline-block; cursor: zoom-in; }
+
+  /* Lightbox：全屏遮罩 + 居中大图 */
+  .math-lightbox { position: fixed; inset: 0; z-index: 9999; display: flex;
+    align-items: center; justify-content: center; }
+  .math-lightbox-mask { position: absolute; inset: 0; background: rgba(0,0,0,0.82); }
+  .math-lightbox-img { position: relative; max-width: 92%; max-height: 90%; object-fit: contain;
+    border-radius: 8px; box-shadow: 0 12px 48px rgba(0,0,0,.6); }
+  .math-lightbox-close { position: absolute; top: 16px; right: 20px; z-index: 2;
+    width: 44px; height: 44px; font-size: 30px; line-height: 1; border: none; border-radius: 50%;
+    background: rgba(255,255,255,.14); color: #fff; cursor: pointer; }
+  .math-lightbox-close:hover { background: rgba(255,255,255,.3); }
+</style>
 {{- /* Umami 访问统计（自托管看板：analytics.hn-space.cn） */}}
 <script defer src="https://analytics.hn-space.cn/script.js" data-website-id="73653f50-bcb9-4154-8fa4-7a0894f7718b"></script>

@@ -143,6 +143,13 @@ copyright = "© 2026 HN Space"
   [markup.goldmark]
     [markup.goldmark.renderer]
       unsafe = true
+    # LaTeX 公式传透：让 $ / $$ 包裹的数学内容原样输出，不经 Guldmark 改写，
+    # 否则矩阵等多物理行含 \\ 与 & 的公式会被压行/转义破坏。
+    [markup.goldmark.extensions.passthrough]
+      enable = true
+      [markup.goldmark.extensions.passthrough.delimiters]
+        block = [['\[', '\]'], ['$$', '$$']]
+        inline = [['\(', '\)'], ['$', '$']]
 
   [markup.tableOfContents]
     startLevel = 2

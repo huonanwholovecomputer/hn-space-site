@@ -36,10 +36,25 @@
   /* 块级公式居中、边界，避免溢出窄屏 */
   .katex-display { overflow-x: auto; overflow-y: hidden; padding: 0.4em 0; }
 
-  /* 文章内图片：默认不超出容器，垂直对齐基线 */
-  .post-content img { max-width: 100%; height: auto; border-radius: 6px; margin: 0.2em 0; }
-  .math-img-box { display: block; max-width: 100%; text-align: center; margin: 0.8em auto; }
-  .math-img-box img { display: inline-block; cursor: zoom-in; }
+  /* 文章内图片：默认限制显示宽度为内容区 ~88%，居中，避免大图撑满。
+     点击图片可放大查看原图（lightbox 位于本文件底部）。竖长图按高度适配。 */
+  .post-content img { max-width: 88%; height: auto; border-radius: 6px; margin: 0.2em auto; }
+  .math-img-box { display: block; max-width: 88%; text-align: center; margin: 0.8em auto; }
+  .math-img-box img { display: inline-block; cursor: zoom-in; max-width: 100%; max-height: 80vh; }
+
+  /* 深色主题下图片边框更柔和 */
+  html[data-theme="dark"] .post-content img { box-shadow: 0 1px 6px rgba(255,255,255,0.08); }
+
+  /* 中文正文首行缩进两字符：只作用正文直接段落；
+     列表整体右移 2em（圆点+文字一起），圆点与正文首行对齐，列表内文字不再二次缩进；
+     块引用 / 表格 / 图片行 内的段落不缩进，保持正常排版 */
+  .post-content > p { text-indent: 2em; }
+  .post-content > p:has(img) { text-indent: 0; }
+  .post-content ul,
+  .post-content ol { padding-inline-start: 2em; }
+  .post-content li p { text-indent: 0; }
+  .post-content blockquote p,
+  .post-content .math-img-box * { text-indent: 0; }
 
   /* Lightbox：全屏遮罩 + 居中大图 */
   .math-lightbox { position: fixed; inset: 0; z-index: 9999; display: flex;

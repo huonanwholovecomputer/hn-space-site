@@ -107,11 +107,13 @@ summary:focus-visible {
   max-width: 62ch;
 }
 
-/* 文章阅读栏：仅限 posts 类型的长文章；友链/简历等短页面与 section 简介保持全宽 */
+/* 文章阅读栏：仅限 posts 类型的长文章；友链/简历等短页面与 section 简介保持全宽。
+   文字流比顶部标题卡片（.post-header 全宽 1120px）略窄一些（960px），
+   居中于卡片内，兼顾层次与阅读舒适度。 */
 .page-posts .post-single .post-content,
 .page-posts .post-single .post-footer,
 .page-posts .post-single details.toc {
-  max-width: 760px;
+  max-width: 960px;
   margin-left: auto;
   margin-right: auto;
 }

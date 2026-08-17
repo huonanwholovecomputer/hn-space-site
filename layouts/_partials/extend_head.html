@@ -27,7 +27,7 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
-<script defer src="{{ "js/math-image.js" | relURL }}?v=5"></script>
+<script defer src="{{ "js/math-image.js" | relURL }}?v=6"></script>
 <style>
   /* 公式在深色主题下用亮色，避免黑字看不清 */
   html[data-theme="dark"] .katex { color: #e6edf3; }
@@ -69,6 +69,58 @@
   .post-content li p { text-indent: 0; }
   .post-content blockquote p,
   .post-content .math-img-box * { text-indent: 0; }
+
+  /* 标题锚点跳转时避开顶部悬浮导航栏（导航 44px + 顶部 10px，main 让位 76px） */
+  .post-content h1[id], .post-content h2[id], .post-content h3[id],
+  .post-content h4[id], .post-content h5[id], .post-content h6[id] {
+    scroll-margin-top: 84px;
+  }
+  /* 目录块里锚点跳转目的（即各标题）同样适用上面规则 */
+
+  /* 正文开头可跳转目录块（shortcode: toc，类似 Word 目录） */
+  .post-content .post-toc {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--code-bg);
+    padding: 16px 20px;
+    margin: 8px 0 28px;
+  }
+  .post-toc-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--home-heading);
+    margin-bottom: 10px;
+    letter-spacing: 0.02em;
+  }
+  /* 抵消正文对目录列表/段落的缩进干扰 */
+  .post-content .post-toc,
+  .post-content .post-toc > * { text-indent: 0; }
+  .post-content .post-toc #TableOfContents ul {
+    padding-inline-start: 1.1em;
+    list-style: none;
+    margin-bottom: 0;
+  }
+  .post-content .post-toc #TableOfContents > ul { padding-inline-start: 0; }
+  .post-content .post-toc #TableOfContents li {
+    line-height: 1.8;
+    position: relative;
+  }
+  .post-content .post-toc #TableOfContents ul ul li::before {
+    content: "·";
+    position: absolute;
+    left: -0.9em;
+    color: var(--home-faint);
+  }
+  .post-content .post-toc a {
+    color: var(--home-text);
+    text-decoration: none;
+    transition: color 160ms ease;
+  }
+  .post-content .post-toc a:hover {
+    color: var(--home-accent);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
 
   /* 悬浮看图（Lightbox）：全屏遮罩 + 居中画布 + 可缩放平移 */
   .math-lightbox { position: fixed; inset: 0; z-index: 9999; display: flex;

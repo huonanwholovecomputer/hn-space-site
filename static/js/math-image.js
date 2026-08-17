@@ -255,4 +255,32 @@
   if (document.readyState === 'interactive' || document.readyState === 'complete') {
     init();
   }
+
+  /* ---------- 4. 目录锚点跳转（避免 PJAX 与原生 hash 跳转冲突） ----------
+     效果：点击目录链接用 scrollIntoView 定位，浏览器会应用标题上的
+     scroll-margin-top（避开顶部悬浮导航栏），并更新 URL 的 hash。
+     用「捕获阶段 + preventDefault」彻底绕开 PJAX 对 hash 链接的干扰，
+     保证直链打开和 PJAX 进入后都稳定跳转。 */
+  document.addEventListener('click', function (e) {
+    var a = e.target.closest ? e.target.closest('a[href]') : null;
+    if (!a) return;
+    var href = a.getAttribute('href') || '';
+    /* 只处理站内纯锚点链接（如 #一前言），不处理外部/完整 URL */
+    if (href.charAt(0) !== '#') return;
+    e.preventDefault();
+
+    var target = null;
+    try {
+      target = document.getElementById(decodeURIComponent(href.slice(1)));
+    } catch (err) {
+      target = document.getElementById(href.slice(1));
+    }
+    if (!target) return;
+    /* 浏览器自动应用标题的 scroll-margin-top 缓冲导航栏；平滑滚动 */
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    /* 更新地址栏 hash（不触发滚动/不产生历史记录，避免反向干扰） */
+    if (history.replaceState) {
+      try { history.replaceState(null, '', href); } catch (err) { /* 忽略 */ }
+    }
+  }, true);
 })();

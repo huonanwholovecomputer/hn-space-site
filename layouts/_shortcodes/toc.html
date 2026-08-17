@@ -1,0 +1,12 @@
+{{- /* 正文开头可跳转目录块（类似 Word 目录）
+  用法：在文章 Markdown 里需要的位置写 {{< toc >}}
+  依赖：hugo.toml 的 [markup.tableOfContents] startLevel/endLevel 控制层级
+  输出：带样式的目录卡片，每项是锚点链接，点击跳转到对应标题。
+*/ -}}
+{{- $toc := .Page.TableOfContents -}}
+{{- if $toc -}}
+<nav class="post-toc" aria-label="目录">
+  <div class="post-toc-title">目录</div>
+  {{- $toc | safeHTML -}}
+</nav>
+{{- end -}}

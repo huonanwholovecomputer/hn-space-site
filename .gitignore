@@ -12,3 +12,9 @@ nginx-hardening/
 
 # 本地环境变量（部署服务器地址等）
 .env
+
+# 本地 VSCode 图片预览用 junction（posts -> static/posts），不进仓库
+posts/
+
+# 本地 VSCode 配置
+.vscode/

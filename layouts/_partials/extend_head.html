@@ -27,7 +27,7 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
-<script defer src="{{ "js/math-image.js" | relURL }}?v=1"></script>
+<script defer src="{{ "js/math-image.js" | relURL }}?v=5"></script>
 <style>
   /* 公式在深色主题下用亮色，避免黑字看不清 */
   html[data-theme="dark"] .katex { color: #e6edf3; }
@@ -38,12 +38,26 @@
 
   /* 文章内图片：默认限制显示宽度为内容区 ~88%，居中，避免大图撑满。
      点击图片可放大查看原图（lightbox 位于本文件底部）。竖长图按高度适配。 */
-  .post-content img { max-width: 88%; height: auto; border-radius: 6px; margin: 0.2em auto; }
-  .math-img-box { display: block; max-width: 88%; text-align: center; margin: 0.8em auto; }
-  .math-img-box img { display: inline-block; cursor: zoom-in; max-width: 100%; max-height: 80vh; }
+  .post-content img { max-width: 80%; height: auto; border-radius: 6px; margin: 0.2em auto; }
+  .math-img-box { display: block; max-width: 80%; text-align: center; margin: 0.8em auto; }
+  .math-img-box img { display: inline-block; cursor: zoom-in; max-width: 80%; max-height: 50vh; }
+
+  /* 手动控制单张图片宽度：在 Markdown 里写 <img src="..." style="width:XX%"> 时，
+     容器不套用全局 max-width（80%），完全尊重手动指定宽度。
+     用法示例（单行）：<img src="/posts/03-xxx/media/a.png" style="width:70%" alt="说明"> */
+  .math-img-box:has(> a > img[style*="width"]) { max-width: none; }
+  .math-img-box img[style*="width"] { max-width: none; }
+  .math-img-box:has(> a > img[style*="width"]) img { max-height: none; }
 
   /* 深色主题下图片边框更柔和 */
   html[data-theme="dark"] .post-content img { box-shadow: 0 1px 6px rgba(255,255,255,0.08); }
+
+  /* 表格居中：文章内 Markdown 表格在页面里水平居中显示，不左对齐 */
+  .post-content table { margin-left: auto; margin-right: auto; }
+
+  /* 独立成段的链接居中：段落里只有一个链接（如单独一行的 URL）时水平居中；
+     正文里嵌在句子中的行内链接（p 里还有文字）不受影响。 */
+  .post-content > p:has(> a:only-child) { text-align: center; text-indent: 0; }
 
   /* 中文正文首行缩进两字符：只作用正文直接段落；
      列表整体右移 2em（圆点+文字一起），圆点与正文首行对齐，列表内文字不再二次缩进；
@@ -56,16 +70,73 @@
   .post-content blockquote p,
   .post-content .math-img-box * { text-indent: 0; }
 
-  /* Lightbox：全屏遮罩 + 居中大图 */
+  /* 悬浮看图（Lightbox）：全屏遮罩 + 居中画布 + 可缩放平移 */
   .math-lightbox { position: fixed; inset: 0; z-index: 9999; display: flex;
-    align-items: center; justify-content: center; }
-  .math-lightbox-mask { position: absolute; inset: 0; background: rgba(0,0,0,0.82); }
-  .math-lightbox-img { position: relative; max-width: 92%; max-height: 90%; object-fit: contain;
-    border-radius: 8px; box-shadow: 0 12px 48px rgba(0,0,0,.6); }
-  .math-lightbox-close { position: absolute; top: 16px; right: 20px; z-index: 2;
+    align-items: center; justify-content: center; overflow: hidden;
+    animation: mathLbFadeIn 0.22s ease-out; }
+  @keyframes mathLbFadeIn { from { opacity: 0; } to { opacity: 1; } }
+  .math-lightbox-mask { position: absolute; inset: 0; background: rgba(0,0,0,0.85);
+    transition: opacity 180ms ease; }
+
+  /* 打开时的弹入动画：图片从 0.96 放大到 1 并淡入 */
+  .math-lightbox.is-opening .math-lightbox-img { animation: mathLbPop 0.26s cubic-bezier(0.22, 1, 0.36, 1); }
+  @keyframes mathLbPop {
+    from { opacity: 0; transform: scale(0.96); }
+    to   { opacity: 1; transform: scale(1); }
+  }
+
+  /* 关闭时的淡出动画：整层淡出 + 图片缩小 */
+  .math-lightbox.is-closing .math-lightbox-mask { opacity: 0; }
+  .math-lightbox.is-closing .math-lightbox-img {
+    transform: scale(0.94);
+    opacity: 0;
+    transition: transform 180ms ease, opacity 180ms ease;
+  }
+  .math-lightbox.is-closing .math-lb-toolbar,
+  .math-lightbox.is-closing .math-lightbox-close { opacity: 0; transition: opacity 140ms ease; }
+
+  /* 画布：占满视口，图片在画布内用 transform 缩放/平移 */
+  .math-lb-stage { position: relative; width: 100%; height: 100%;
+    display: flex; align-items: center; justify-content: center;
+    cursor: grab; touch-action: none; }
+  .math-lb-stage:active { cursor: grabbing; }
+  .math-lightbox-img { position: relative; max-width: 92%; max-height: 90%;
+    object-fit: contain; border-radius: 8px;
+    box-shadow: 0 12px 48px rgba(0,0,0,.6);
+    transform-origin: center center;
+    transition: transform 120ms cubic-bezier(0.22, 1, 0.36, 1), opacity 200ms ease;
+    user-select: none; -webkit-user-drag: none; }
+  /* 拖拽时关闭过渡，避免跟手迟滞 */
+  .math-lb-stage.is-dragging .math-lightbox-img { transition: none; }
+
+  /* 打开时的弹入动画：图片从 0.96 放大到 1 并淡入 */
+  .math-lightbox.is-opening .math-lightbox-img { animation: mathLbPop 0.26s cubic-bezier(0.22, 1, 0.36, 1); }
+  @keyframes mathLbPop {
+    from { opacity: 0; transform: scale(0.96); }
+    to   { opacity: 1; transform: scale(1); }
+  }
+
+  /* 缩放工具栏：左下角 */
+  .math-lb-toolbar { position: absolute; bottom: 28px; left: 50%;
+    transform: translateX(-50%);
+    display: flex; gap: 8px;
+    background: rgba(0,0,0,0.55); border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 999px; padding: 8px 14px; backdrop-filter: blur(8px); z-index: 2; }
+  .math-lb-btn { width: 40px; height: 40px; font-size: 22px; line-height: 1;
+    display: inline-flex; align-items: center; justify-content: center;
+    border: none; border-radius: 50%;
+    background: rgba(255,255,255,0.12); color: #fff; cursor: pointer;
+    transition: background-color 150ms ease, transform 150ms ease; }
+  .math-lb-btn:hover { background: rgba(255,255,255,0.3); transform: scale(1.06); }
+  .math-lb-reset { font-size: 13px; font-weight: 600; letter-spacing: 0.02em;
+    background: rgba(255,255,255,0.18); }
+
+  /* 右上角关闭按钮 */
+  .math-lightbox-close { position: absolute; top: 18px; right: 20px; z-index: 3;
     width: 44px; height: 44px; font-size: 30px; line-height: 1; border: none; border-radius: 50%;
-    background: rgba(255,255,255,.14); color: #fff; cursor: pointer; }
-  .math-lightbox-close:hover { background: rgba(255,255,255,.3); }
+    background: rgba(255,255,255,0.14); color: #fff; cursor: pointer;
+    transition: background-color 150ms ease, transform 150ms ease; }
+  .math-lightbox-close:hover { background: rgba(255,255,255,0.3); transform: scale(1.08); }
 </style>
 {{- /* Umami 访问统计（自托管看板：analytics.hn-space.cn） */}}
 <script defer src="https://analytics.hn-space.cn/script.js" data-website-id="73653f50-bcb9-4154-8fa4-7a0894f7718b"></script>

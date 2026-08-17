@@ -276,8 +276,22 @@
       target = document.getElementById(href.slice(1));
     }
     if (!target) return;
-    /* 浏览器自动应用标题的 scroll-margin-top 缓冲导航栏；平滑滚动 */
-    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    /* —— 精准锚点定位，避开懒加载图片导致的高度变化 ——
+       用「手动计算绝对位置 + 直接跳转」而非平滑滚动（平滑动画长，期间图
+       片加载会改变高度导致停偏）。跳转后再多次校正，等懒加载图片陆续
+       加载完、高度稳定后，最终把目标对准在导航栏下方。 */
+    var NAV_OFFSET = 92; /* 顶部悬浮导航高度 + 余量 */
+    function scrollToTarget() {
+      var top = target.getBoundingClientRect().top + (window.scrollY || window.pageYOffset);
+      window.scrollTo(0, Math.max(0, top - NAV_OFFSET));
+    }
+    scrollToTarget();
+    /* 多次延迟校正：覆盖懒加载图片逐步加载带来的高度变化（由近到远分散） */
+    window.setTimeout(scrollToTarget, 120);
+    window.setTimeout(scrollToTarget, 400);
+    window.setTimeout(scrollToTarget, 900);
+
     /* 更新地址栏 hash（不触发滚动/不产生历史记录，避免反向干扰） */
     if (history.replaceState) {
       try { history.replaceState(null, '', href); } catch (err) { /* 忽略 */ }

@@ -90,8 +90,6 @@ draft: false
 
 ![](/posts/02-windows11-reinstall/media/image10.jpeg)
 
-下载完成之后，打开刚下载的文件：
-
 ![](/posts/02-windows11-reinstall/media/image11.jpeg)
 
 这样，你的U盘就成功安装了PE系统，此时，你可以打开此电脑，你会发现你的U盘现在显示“微PE工具箱”，你可以在这里存放任何文件，包括Windows系统的ISO、GHO、WIN、ESD系统镜像文件、个人文件等。
@@ -152,9 +150,9 @@ draft: false
 
 Microsoft Edge官方网站：
 
-![](/posts/02-windows11-reinstall/media/image17.jpeg)
-
 [**https://www.microsoft.com/zh-cn/edge/**](https://www.microsoft.com/zh-cn/edge/)
+
+![](/posts/02-windows11-reinstall/media/image17.jpeg)
 
 如果你需要使用其他浏览器，比如Firefox，也可以提前下载好其安装程序备用。
 
@@ -166,7 +164,7 @@ Microsoft Edge官方网站：
 
 关于如何调整BIOS设置从而通过U盘启动进入微PE，我这里不想做过多赘述。一方面，你的电脑的主板型号只有你自己知道，你需要根据你的电脑的主板型号使用快捷键进入BIOS或者单次修改启动方式。另一方面，不同型号的主板的BIOS界面和快捷键天差地别，我没法给你一个准确的描述。
 
-比如联想电脑是F2进入BIOS，F12进入启动菜单，如果不需要调整启动方式之外的设置（比如从Windows 7及以下的传统BIOS启动 (Legacy BIOS + MBR) 切换到Windows 8及以上的UEFI启动 (UEFI + GPT）启动方式），则建议使用启动菜单（Boot Menu）。前提是你的电脑支持启动菜单。
+比如联想电脑是F2进入BIOS，F12进入启动菜单，如果不需要调整启动方式之外的设置（比如从Windows 7及以下的传统BIOS启动 (Legacy BIOS + MBR) 切换到Windows 8及以上的UEFI启动 （UEFI + GPT）启动方式），则建议使用启动菜单（Boot Menu）。前提是你的电脑支持启动菜单。
 
 |     品牌类型      | 进入 BIOS 快捷键 |      Boot Menu 快捷键       |
 |:-----------------:|:----------------:|:---------------------------:|
@@ -182,29 +180,29 @@ Microsoft Edge官方网站：
 
 或者直接把F12、F2、Del、ESC一个个试一遍也行。如果进了Boot Menu，那就看看哪个是你的 U盘，选上就行；如果进了BIOS，那就找BOOT/启动-启动顺序，调整为你的U盘，然后按F10，保存并退出。（啥，不知道哪个是你的U盘？拍照问AI去）。
 
-![](/posts/02-windows11-reinstall/media/image18.jpeg)
-
 如图，这是微PE系统界面。
+
+![](/posts/02-windows11-reinstall/media/image18.jpeg)
 
 此时要分情况讨论。
 
-\- 情况1：你的电脑在此之前安装的系统是Windows 7；
+- 情况1：你的电脑在此之前安装的系统是Windows 7；
 
-\- 情况2：你的电脑在此之前安装的系统是Windows 10/11，我想保留C盘之外的其他盘的所有内容；
+- 情况2：你的电脑在此之前安装的系统是Windows 10/11，我想保留C盘之外的其他盘的所有内容；
 
-\- 情况3：你的电脑在此之前安装的系统是Windows10/11，且我不需要保留电脑上的任何内容。
+- 情况3：你的电脑在此之前安装的系统是Windows10/11，且我不需要保留电脑上的任何内容。
 
 ### 1. 对于情况1
 
-：首先，对于安装了Windows 7的老电脑，Windows10和Windows11精简版确实均可安装。但是，由于启动方式不同，你需要确定你的BIOS中是否有关于UEFI启动的选项，通常位于选项卡BOOT/启动之中。如果有，你需要将启动方式切换为“仅UEFI”之类的选项，然后，你可以按照**情况3**的流程进行操作。
+首先，对于安装了Windows 7的老电脑，Windows10和Windows11精简版确实均可安装。但是，由于启动方式不同，你需要确定你的BIOS中是否有关于UEFI启动的选项，通常位于选项卡BOOT/启动之中。如果有，你需要将启动方式切换为“仅UEFI”之类的选项，然后，你可以按照**情况3**的流程进行操作。
 
 ### 2. 对于情况2
 
-：你可以格式化C盘然后安装系统到C盘即可。步骤如下：
+你可以格式化C盘然后安装系统到C盘即可。步骤如下：
 
 打开Windows安装器，你会看到这个界面，
 
-第一步：选择安装镜像文件位置：找到你之前下载的系统文件的位置，***<u>必须保证系统文件在U盘或者C盘之外的盘！</u>***你需要点击右侧的“选择…”来寻找和选择你的系统文件。
+第一步：选择安装镜像文件位置：找到你之前下载的系统文件的位置，<u>必须保证系统文件在U盘或者C盘之外的盘！</u>你需要点击右侧的“选择…”来寻找和选择你的系统文件。
 
 ![](/posts/02-windows11-reinstall/media/image19.png)
 
@@ -232,9 +230,9 @@ Microsoft Edge官方网站：
 
 ![](/posts/02-windows11-reinstall/media/image26.jpeg)
 
-然后，你可以选择系统的版本，比如对于这个系统，作者提供了两个选项，一个是Admin（A），一个是User（U），二者的差别体现在：Admin版本会自动创建一个高级管理员账户（Administrator），安装过程全自动，无需进行人工干预，并且你拥有此计算机的最高权限。而User版本在安装过程中需要![](/posts/02-windows11-reinstall/media/image27.jpeg)
+![](/posts/02-windows11-reinstall/media/image27.jpeg)
 
-你自己去设置一些设置：地区、键盘布局、用户名、密码(可选)
+然后，你可以选择系统的版本，比如对于这个系统，作者提供了两个选项，一个是Admin（A），一个是User（U），二者的差别体现在：Admin版本会自动创建一个高级管理员账户（Administrator），安装过程全自动，无需进行人工干预，并且你拥有此计算机的最高权限。而User版本在安装过程中需要你自己去设置一些设置：地区、键盘布局、用户名、密码(可选)
 
 ![](/posts/02-windows11-reinstall/media/image28.jpeg)
 
@@ -258,11 +256,11 @@ Microsoft Edge官方网站：
 
 **右键单击此处**
 
-![](/posts/02-windows11-reinstall/media/image32.jpeg)
-
 ![](/posts/02-windows11-reinstall/media/image33.jpeg)
 
-首先，打开“傲梅分区助手”（即“分区助手(无损）”）。
+![](/posts/02-windows11-reinstall/media/image32.jpeg)
+
+首先，打开“傲梅分区助手”（即“分区助手（无损）”）。
 
 如上图，右键单击你之前安装了系统的硬盘前面绿色的区域，选择“删除所有分区”。
 
@@ -284,13 +282,13 @@ Microsoft Edge官方网站：
 
 如上图，右键单击硬盘0，然后点击“快速分区”。
 
-![](/posts/02-windows11-reinstall/media/image41.jpeg)
-
 下图中，**①**区域用于设置分区个数，比如设置1个分区，那么你的电脑只有一个C盘，没有D盘，如果设置2两个分区，那么你的电脑有C、D两个磁盘，以此类推，根据个人使用习惯进行设置；**②**区域中，由于你需要安装的系统是Windows 11/Windows 10，所以需要像此截图这样进行设置（选择“GPT”类型）。右侧是调整各个分区的大小和分区的名字（卷标），可以根据个人喜好和使用习惯进行设置。
+
+![](/posts/02-windows11-reinstall/media/image41.jpeg)
 
 设置完毕之后，点击执行。
 
-***<u>此步骤完成之后，回到上面的“对于情况2”，完成系统的安装。（可忽略其中的格式化步骤）</u>***
+<u>此步骤完成之后，回到上面的“对于情况2”，完成系统的安装。（可忽略其中的格式化步骤）</u>
 
 ## 四、后续的优化
 
@@ -306,9 +304,9 @@ Microsoft Edge官方网站：
 
 我的建议是使用驱动总裁OL在线版。
 
-![](/posts/02-windows11-reinstall/media/image42.jpeg)
-
 [https://www.sysceo.com/dc](https://www.sysceo.com/dc)
+
+![](/posts/02-windows11-reinstall/media/image42.jpeg)
 
 ![](/posts/02-windows11-reinstall/media/image43.jpeg)
 
@@ -316,7 +314,7 @@ Microsoft Edge官方网站：
 
 ![](/posts/02-windows11-reinstall/media/image45.jpeg)
 
-这是一个较小的安装程序，安装之后，扫描驱动，安装/更新驱动（需要微信扫码关注公众号进行授权）安装完成之后，***<u>务必</u>取消勾选<u>下方捆绑软件选项！</u>*** 然后关闭该程序，重启电脑。
+这是一个较小的安装程序，安装之后，扫描驱动，安装/更新驱动（需要微信扫码关注公众号进行授权）安装完成之后，<u>务必取消勾选下方捆绑软件选项！</u> 然后关闭该程序，重启电脑。
 
 ![](/posts/02-windows11-reinstall/media/image46.jpeg)
 
@@ -326,13 +324,15 @@ Microsoft Edge官方网站：
 
 没什么好说的，直接上链接：
 
-![](/posts/02-windows11-reinstall/media/image47.jpeg)
-
 [**https://github.com/zbezj/HEU_KMS_Activator/releases**](https://github.com/zbezj/HEU_KMS_Activator/releases)
+
+![](/posts/02-windows11-reinstall/media/image47.jpeg)
 
 ### 4. 安装Microsoft Store
 
 此精简版系统已经将微软应用商店（Microsoft Store）以及从微软应用商店下载的软件都一并删除，如果你想使用系统自带的一些应用，比如“Windows 照片”、新版记事本、“Windows 媒体播放器”等应用，你需要自行安装Microsoft Store。
+
+[https://apps.microsoft.com/detail/9wzdncrfjbmp?hl=zh-CN&gl=CN](https://apps.microsoft.com/detail/9wzdncrfjbmp?hl=zh-CN&gl=CN)
 
 ![](/posts/02-windows11-reinstall/media/image48.jpeg)
 
@@ -342,17 +342,15 @@ Microsoft Edge官方网站：
 
 ![](/posts/02-windows11-reinstall/media/image51.jpeg)
 
-[**https://apps.microsoft.com/detail/9wzdncrfjbmp?hl=zh-CN&gl=CN**](https://apps.microsoft.com/detail/9wzdncrfjbmp?hl=zh-CN&gl=CN)
-
 ### 5. 注册表优化
 
 我比较喜欢用那么一款软件来优化我的电脑的注册表，它叫：Wise Registry Cleaner。
 
+[https://www.wisecleaner.com/wise-registry-cleaner.html](https://www.wisecleaner.com/wise-registry-cleaner.html)
+
 ![](/posts/02-windows11-reinstall/media/image52.png)
 
 ![](/posts/02-windows11-reinstall/media/image53.jpeg)
-
-[https://www.wisecleaner.com/wise-registry-cleaner.html](https://www.wisecleaner.com/wise-registry-cleaner.html)
 
 ![](/posts/02-windows11-reinstall/media/image54.jpeg)
 

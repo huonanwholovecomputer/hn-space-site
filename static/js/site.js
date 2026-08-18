@@ -255,13 +255,31 @@ var revealClassify = function (rect, vh) {
     }
   }
 
+  /* 遍历所有卡片并更新光效（鼠标/滚动共用） */
+  function updateAll() {
+    for (var i = 0; i < cards.length; i++) {
+      updateCard(cards[i]);
+    }
+  }
+
   function onGlobalMove(e) {
     mouseX = e.clientX;
     mouseY = e.clientY;
     mouseReady = true;
-    for (var i = 0; i < cards.length; i++) {
-      updateCard(cards[i]);
-    }
+    updateAll();
+  }
+
+  /* 滚动时（滚轮/惯性/滚动条/跳转）卡片相对鼠标的位置会变，
+     但 pointermove 不会因滚动触发——若不重算，光斑会停留在滚动前
+     的最后坐标，看起来「卡在十字中心」。这里用 rAF 节流按最新
+     getBoundingClientRect 重算，让光斑始终跟随鼠标的视觉位置。 */
+  var scrollRaf = null;
+  function onScroll() {
+    if (scrollRaf) return;
+    scrollRaf = window.requestAnimationFrame(function () {
+      scrollRaf = null;
+      if (mouseReady) updateAll();
+    });
   }
 
   function initTilt() {
@@ -273,10 +291,12 @@ var revealClassify = function (rect, vh) {
       return;
     }
 
-    /* 全局 pointermove 只绑定一次（PJAX 后复用） */
+    /* 全局 pointermove + scroll 只绑定一次（PJAX 后复用） */
     if (!globalBound) {
       globalBound = true;
       window.addEventListener('pointermove', onGlobalMove, { passive: true });
+      /* capture：捕获任意滚动容器（window / 内部滚动区）的滚动 */
+      window.addEventListener('scroll', onScroll, { passive: true, capture: true });
     }
 
     /* PJAX 换页后：清除所有卡片的激活态（is-tilting 类 + 内联光效样式），

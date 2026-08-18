@@ -482,6 +482,7 @@
   ].join('\n');
 
   function initFluid(canvas) {
+    if (coarse) { canvas.style.display = 'none'; return; } // 触屏/移动端：放弃液态 WebGL，避免渲染失败只露灰遮罩
     var gl = null;
     try {
       gl = canvas.getContext('webgl2', {
@@ -889,6 +890,7 @@
   ].join('\n');
 
   function initWave(canvas) {
+    if (coarse) { canvas.style.display = 'none'; return; } // 触屏/移动端：放弃波浪 WebGL
     var gl = null;
     try {
       gl = canvas.getContext('webgl2', {

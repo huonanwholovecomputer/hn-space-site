@@ -81,7 +81,9 @@
     display: flex;
   }
 
-  /* 下拉面板：默认收起（透明 + 不可见 + 上移），.is-open 时展开 */
+  /* 下拉面板：默认收起（透明 + 不可见 + 上移），.is-open 时展开。
+     背景用「实色兜底 + 可选毛玻璃」：优先不透明实色，保证手机端
+     （尤其 Safari backdrop-filter 支持差、滚动变 is-scrolled 瞬间）绝不会透明。 */
   .nav-panel {
     position: absolute;
     top: calc(100% + 10px);
@@ -92,8 +94,7 @@
     padding: 8px;
     border-radius: 18px;
     border: 1px solid var(--home-border);
-    background: var(--home-card);
-    background: color-mix(in srgb, var(--home-card) 50%, transparent);
+    background: var(--home-card);                 /* 实色兜底：永不透明 */
     -webkit-backdrop-filter: blur(24px) saturate(1.5);
     backdrop-filter: blur(24px) saturate(1.5);
     box-shadow: var(--home-shadow-lg);

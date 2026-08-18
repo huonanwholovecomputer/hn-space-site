@@ -206,32 +206,87 @@
       zoomBy(factor);
     }, { passive: false });
 
-    /* 拖拽平移 */
+    /* 指针跟踪：同时支持单指平移与双指捏合缩放（移动端 pinch zoom） */
+    var lbPointers = {};      /* pointerId -> {x,y} */
+    var lbPinchDist = 0;      /* 最近一次两指距离 */
+    var lbPinchScale = 1;     /* 进入 pinch 时的基准 scale */
+
     document.addEventListener('pointerdown', function (e) {
       if (!lightboxEl || lightboxEl.style.display === 'none') return;
       if (!e.target.closest('.math-lb-stage')) return;
-      if (lbState.scale <= 1) return; /* 100% 以下无需平移 */
-      lbDrag = { x: e.clientX, y: e.clientY, tx: lbState.tx, ty: lbState.ty };
+      var id = e.pointerId;
+      lbPointers[id] = { x: e.clientX, y: e.clientY };
       lbStage.classList.add('is-dragging');
+
+      var ids = Object.keys(lbPointers);
+      if (ids.length === 2) {
+        /* 进入双指捏合：记录距离与基准缩放，暂停单指平移 */
+        lbPinchDist = dist2Pointer(ids[0], ids[1]);
+        lbPinchScale = lbState.scale;
+        lbDrag = null;
+      } else {
+        /* 单指：记录平移起点（放大 / 两指中剩一指时也能拖） */
+        if (lbState.scale > 1) {
+          lbDrag = { x: e.clientX, y: e.clientY, tx: lbState.tx, ty: lbState.ty };
+        }
+      }
       lightboxEl.setPointerCapture && lightboxEl.setPointerCapture(e.pointerId);
     });
+
     document.addEventListener('pointermove', function (e) {
-      if (!lbDrag) return;
-      lbState.tx = lbDrag.tx + (e.clientX - lbDrag.x);
-      lbState.ty = lbDrag.ty + (e.clientY - lbDrag.y);
-      applyView();
-    });
-    document.addEventListener('pointerup', function () {
-      if (lbStage) lbStage.classList.remove('is-dragging');
-      if (lbDrag) { wasDragging = true; }  /* 刚拖完：抑制随后触发的 click，避免误关 */
-      lbDrag = null;
-      if (wasDragging) {
-        window.setTimeout(function () { wasDragging = false; }, 50);
+      if (!lightboxEl || lightboxEl.style.display === 'none') return;
+      var pt = lbPointers[e.pointerId];
+      if (!pt) return;
+      pt.x = e.clientX; pt.y = e.clientY;
+
+      var ids = Object.keys(lbPointers);
+      if (ids.length >= 2) {
+        /* 双指捏合缩放：以两指距离比例改变缩放倍率 */
+        var d = dist2Pointer(ids[0], ids[1]);
+        if (lbPinchDist > 0) {
+          var next = Math.min(8, Math.max(0.2, lbPinchScale * (d / lbPinchDist)));
+          lbState.scale = next;
+          applyView();
+        }
+        return;
+      }
+      /* 单指平移 */
+      if (lbDrag && lbState.scale > 1) {
+        lbState.tx = lbDrag.tx + (e.clientX - lbDrag.x);
+        lbState.ty = lbDrag.ty + (e.clientY - lbDrag.y);
+        applyView();
       }
     });
-    document.addEventListener('pointercancel', function () {
+
+    function dist2Pointer(a, b) {
+      var p1 = lbPointers[a], p2 = lbPointers[b];
+      var dx = p1.x - p2.x, dy = p1.y - p2.y;
+      return Math.sqrt(dx * dx + dy * dy);
+    }
+
+    document.addEventListener('pointerup', function (e) {
+      delete lbPointers[e.pointerId];
       if (lbStage) lbStage.classList.remove('is-dragging');
-      lbDrag = null;
+      /* 若双指变单指：让剩余那根接管平移，并抑制随后 click 防误关 */
+      var ids = Object.keys(lbPointers);
+      if (ids.length === 1) {
+        var p = lbPointers[ids[0]];
+        lbDrag = { x: p.x, y: p.y, tx: lbState.tx, ty: lbState.ty };
+        wasDragging = true;
+        window.setTimeout(function () { wasDragging = false; }, 60);
+      } else if (ids.length === 0) {
+        if (lbDrag) { wasDragging = true; }
+        lbDrag = null;
+        if (wasDragging) {
+          window.setTimeout(function () { wasDragging = false; }, 50);
+        }
+      }
+    });
+    document.addEventListener('pointercancel', function (e) {
+      delete lbPointers[e.pointerId];
+      if (lbStage) lbStage.classList.remove('is-dragging');
+      var ids = Object.keys(lbPointers);
+      if (ids.length === 0) lbDrag = null;
     });
 
     /* 双击还原 */

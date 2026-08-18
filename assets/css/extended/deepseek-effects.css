@@ -164,6 +164,25 @@ html.js .home-hero.has-ds-grid::before {
   }
 }
 
+/* 触屏 / 移动端：主动放弃液态流动与波浪、网格效果层。
+   手机端 WebGL 液态往往渲染失败（画布透明），但 CSS mask 遮罩层
+   仍会显示半透明渐变色块 → 那块区域发灰。故在触屏上把这几个效果
+   层全部隐藏，让该区域露出纯页面背景（.home-hero-wrap 的 wash 底色）。 */
+@media (hover: none), (pointer: coarse) {
+  .hero-fx-fluid,
+  .hero-fx-wave,
+  .hero-fx-grid {
+    display: none !important;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero-fx-fluid,
+  .hero-fx-wave,
+  .hero-fx-grid {
+    display: none !important;
+  }
+}
+
 /* 减少动态：关掉反色环（网格/流体由 JS 直接停用） */
 @media (prefers-reduced-motion: reduce) {
   .ds-cursor-ring {

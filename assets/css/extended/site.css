@@ -364,6 +364,20 @@ html:not([data-theme]) .theme-toggle .sun {
   --tilt-dur: 90ms;
 }
 
+/* 覆盖 PaperMod 主题 .post-entry:hover 的 transform（translateY(-2px)）。
+   主题该规则 specificity 为 (0,2,0)，会压住上面 .post-entry 的 3D 倾斜配方，
+   导致鼠标一进入卡片本体，JS 写入的 --rx/--ry 旋转被 translateY 顶掉、3D 立即失效；
+   而在卡片外的磁吸区（无 hover）配方正常，于是表现为"外围旋转、进卡片就归零"。
+   这里用同 specificity 且更后加载（assets/css/extended 在主题 CSS 之后）的规则，
+   让 hover 时仍走完整的 3D 倾斜 transform；上浮由 --home-lift 提供，不再依赖
+   主题的 translateY。 */
+.post-entry:hover,
+.post-entry:focus-within,
+.searchResults li:hover,
+.searchResults li:focus-within {
+  transform: perspective(var(--tilt-persp)) translateY(var(--home-lift, 0px)) scale(var(--home-press, 1)) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+}
+
 /* 手电筒光晕：光斑跟随指针（--gx/--gy 由 site.js 写入） */
 .post-entry::before,
 .searchResults li::before {

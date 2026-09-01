@@ -322,6 +322,17 @@
     var href = a.getAttribute('href') || '';
     /* 只处理站内纯锚点链接（如 #一前言），不处理外部/完整 URL */
     if (href.charAt(0) !== '#') return;
+
+    /* —— 返回顶部按钮（#top）例外 ——
+       文章页（body.page-posts，长文 + 懒加载图片）保持下方的「即时跳转 +
+       多次校正」，避免平滑动画期间页面高度变化导致定位偏差；
+       其余页面（首页 / 关于 / 归档等）没有该定位问题，直接放行给
+       PaperMod footer 脚本的 scrollIntoView({behavior:'smooth'})，
+       恢复平滑回顶效果。 */
+    var isTopLink = (a.id === 'top-link') || href === '#top';
+    var isPostPage = document.body.classList.contains('page-posts');
+    if (isTopLink && !isPostPage) return;
+
     e.preventDefault();
 
     var target = null;

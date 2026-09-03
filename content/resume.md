@@ -24,6 +24,7 @@ description: "霍楠 - 计算机科学与技术专业"
 - [Countdown-to-College-Entrance-Examination](https://github.com/huonanwholovecomputer/Countdown-to-College-Entrance-Examination)：一款基于tkinter的简易桌面高考倒计时工具，提供了14种时间格式。
 - [Python-Random-Select](https://github.com/huonanwholovecomputer/Python-Random-Select)：一款在终端运行的学生名字随机抽取工具，学生名单在程序外部储存，名单使用Fernet进行加密，支持多种命令进行名单操作。
 - [Audio-Cover-Extraction-Tool](https://github.com/huonanwholovecomputer/Audio-Cover-Extraction-Tool)：音频封面提取工具，自动提取程序所在目录的所有mp3文件的封面。
+- [UTF-8-automatic-conversion](https://github.com/huonanwholovecomputer/UTF-8-automatic-conversion)：批量转换文件编码的 Python 脚本，自动识别 GBK 等编码并统一转换为 UTF-8，解决不同 IDE 间的中文乱码问题。
 
 ## 教程与分享
 

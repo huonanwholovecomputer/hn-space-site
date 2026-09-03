@@ -17,7 +17,7 @@ highlights:
   - value: "2"
     label: "篇长教程"
     note: "合计近万字，覆盖开发环境与系统重装"
-  - value: "7"
+  - value: "8"
     label: "个开源项目"
     note: "GitHub 持续更新：打印工具、截图、脚本工具与本站源码"
   - value: "1"
@@ -99,6 +99,12 @@ projects:
     role: "独立开发"
     stack: ["Python"]
     link: "https://github.com/huonanwholovecomputer/Audio-Cover-Extraction-Tool"
+    status: "开源"
+  - name: "UTF-8-automatic-conversion"
+    summary: "批量转换文件编码的 Python 脚本，使用 chardet 自动识别 GBK 等编码并统一转换为 UTF-8，解决不同 IDE 间的中文乱码问题。"
+    role: "独立开发"
+    stack: ["Python"]
+    link: "https://github.com/huonanwholovecomputer/UTF-8-automatic-conversion"
     status: "开源"
 
 links:

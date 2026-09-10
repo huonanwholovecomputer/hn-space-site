@@ -1,7 +1,9 @@
 /* 共享的可见性判定（首页 data-reveal 与 about 行级入场共用）：
-   - 'wait' ：元素仍在视口下方 / 仅露出一角 → 保持隐藏，等滚动到足够可见再播
-   - 'show' ：元素基本完全进入视口（常规 ≥90% 可见，超一屏 ≥60%）→ 播放入场动画
+   - 'wait' ：元素进入视口的像素不足 → 保持隐藏，等滚动到触发线再播
+   - 'show' ：元素进入视口 ≥ REVEAL_PX 像素（固定像素，与元素高度无关）→ 播放入场动画
    - 'force'：元素已滚过视口上方 → 直接显示，不再播动画，只保证不残留隐藏态 */
+var REVEAL_PX = 20; /* 触发阈值：元素进入视口的像素数，可调 */
+
 var revealClassify = function (rect, vh) {
   if (rect.top >= vh) {
     return 'wait';
@@ -9,12 +11,7 @@ var revealClassify = function (rect, vh) {
   if (rect.bottom <= 0 || rect.top < 0) {
     return 'force';
   }
-  var visible = Math.min(rect.bottom, vh) - rect.top;
-  var ratio = visible / (rect.height || 1);
-  if (rect.height > vh) {
-    return ratio >= 0.6 ? 'show' : 'wait';
-  }
-  return ratio >= 0.9 ? 'show' : 'wait';
+  return (vh - rect.top) >= REVEAL_PX ? 'show' : 'wait';
 };
 
 /* 全站滚动入场动画：渐进增强，无 JS 或减少动态时直接显示 */
@@ -82,9 +79,9 @@ var revealClassify = function (rect, vh) {
           }
         });
       },
-      /* 与 about 页一致的触发口径：元素基本完全进入视口
-         （≥90%，超一屏 ≥60%）才播放，避免在显示范围外提前播 */
-      { threshold: [0, 0.3, 0.6, 0.9, 1] }
+      /* 与 about 页一致的触发口径：进入视口 ≥ REVEAL_PX 像素才播放，
+         与元素高度无关，避免在显示范围外提前播 */
+      { threshold: [0, 0.01, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1] }
     );
 
     els.forEach(function (el) {
@@ -380,7 +377,7 @@ var revealClassify = function (rect, vh) {
   };
 
   /* 行当前的处理方式由文件顶部的 revealClassify 统一判定
-     （与首页 data-reveal 共用同一套 ≥90% / 超一屏 ≥60% 触发口径） */
+     （与首页 data-reveal 共用同一套固定像素 ≥REVEAL_PX 触发口径） */
 
   function startGuard() {
     if (guard) {
@@ -446,9 +443,9 @@ var revealClassify = function (rect, vh) {
             }
           });
         },
-        /* 只按可见比例触发：行基本完全进入视口（≥90%，超一屏 ≥60%）
-           才播放入场动画，避免在显示范围外/只露出一角时提前播放 */
-        { threshold: [0, 0.3, 0.6, 0.9, 1] }
+        /* 只按进入像素触发：行进入视口 ≥ REVEAL_PX 像素
+           才播放入场动画，避免在显示范围外提前播放 */
+        { threshold: [0, 0.01, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1] }
       );
     }
 

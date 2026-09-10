@@ -17,9 +17,9 @@ highlights:
   - value: "2"
     label: "篇长教程"
     note: "合计近万字，覆盖开发环境与系统重装"
-  - value: "8"
+  - value: "9"
     label: "个开源项目"
-    note: "GitHub 持续更新：打印工具、截图、脚本工具与本站源码"
+    note: "GitHub 持续更新：打印工具、截图、脚本工具、本站源码与校园网研究"
   - value: "1"
     label: "个自用工具"
     note: "h_n-printer 后端已部署，小程序测试中，仅供本人与朋友使用"
@@ -70,6 +70,12 @@ projects:
     link: "https://github.com/huonanwholovecomputer/hn-space-site"
     site: "https://blog.hn-space.cn/"
     status: "开源"
+  - name: "campus-bandwidth-aggregation"
+    summary: "校园网「多设备并发会话」带宽合并的通用原理研究归档：无感认证 / 设备白名单 / 多会话并存模型、等效带宽验证方法论与健壮性设计。所有配置模板均占位符化，不含任何真实环境标识。"
+    role: "独立研究"
+    stack: ["网络研究", "Linux", "Shell"]
+    link: "https://github.com/huonanwholovecomputer/campus-bandwidth-aggregation"
+    status: "开源"
   - name: "FrameKeeper"
     summary: "一款在系统托盘中运行的 Windows 截图工具，可按固定间隔自动捕捉屏幕，并将图像序列轻松导出为延时视频。适合用于工作记录、项目监控与创意分享。使用多线程和生产者-消费者模型高速处理图片并将其合成为 MP4 视频、动态计算最佳视频码率。"
     role: "独立开发"
@@ -94,17 +100,17 @@ projects:
     stack: ["Python"]
     link: "https://github.com/huonanwholovecomputer/Python-Random-Select"
     status: "开源"
-  - name: "Audio-Cover-Extraction-Tool"
-    summary: "音频封面提取工具，自动提取程序所在目录的所有mp3文件的封面。"
-    role: "独立开发"
-    stack: ["Python"]
-    link: "https://github.com/huonanwholovecomputer/Audio-Cover-Extraction-Tool"
-    status: "开源"
   - name: "UTF-8-automatic-conversion"
     summary: "批量转换文件编码的 Python 脚本，使用 chardet 自动识别 GBK 等编码并统一转换为 UTF-8，解决不同 IDE 间的中文乱码问题。"
     role: "独立开发"
     stack: ["Python"]
     link: "https://github.com/huonanwholovecomputer/UTF-8-automatic-conversion"
+    status: "开源"
+  - name: "Audio-Cover-Extraction-Tool"
+    summary: "音频封面提取工具，自动提取程序所在目录的所有mp3文件的封面。"
+    role: "独立开发"
+    stack: ["Python"]
+    link: "https://github.com/huonanwholovecomputer/Audio-Cover-Extraction-Tool"
     status: "开源"
 
 links:

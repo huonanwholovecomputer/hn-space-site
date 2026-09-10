@@ -3,6 +3,7 @@
    内容并更新标题/URL，保留 body 上的全局元素（header、footer、
    鼠标拖尾 canvas 等），滚动位置不重置 → 灵动岛收缩状态、
    拖尾与点击特效跨页面持续存在。
+   例外：进入 /posts/<slug>/ 正文页时回到页首（见 isArticleUrl）。
    ========================================================= */
 (function () {
   'use strict';
@@ -58,6 +59,13 @@
     if (url.pathname === location.pathname && url.search === location.search) return false;
     if (url.hash && url.pathname === location.pathname) return false; // 同页锚点
     return true;
+  }
+
+  /* 文章页判定：/posts/<slug>/ 形式的正文页（区别于 /posts/ 列表页）。
+     点击进入正文时应回到页首，不保留来源页的滚动位置。 */
+  function isArticleUrl(url) {
+    var p = url.pathname || '';
+    return /^\/posts\/[^/]+(?:\/)?$/.test(p);
   }
 
   function applyHead(doc, url) {
@@ -185,17 +193,24 @@
           ensureSearchReady(doc);
         }
 
-        /* 新页面高度可能更短：尝试恢复到原滚动位置，超界则由浏览器收紧。
-           在替换后立即执行（此时浏览器尚未因内容变更自动跳顶）。 */
-        var targetY = Math.min(prevScrollY, document.body.scrollHeight - window.innerHeight);
-        if (targetY > 0) {
-          window.scrollTo(0, targetY);
+        /* 文章页点击进入正文：固定回到页首。
+           其余页面：尝试恢复到原滚动位置（新页面高度可能更短，
+           超界则由浏览器收紧；在替换后立即执行，此时浏览器尚未
+           因内容变更自动跳顶）。 */
+        var isArticle = isArticleUrl(url);
+        if (isArticle) {
+          window.scrollTo(0, 0);
+        } else {
+          var targetY = Math.min(prevScrollY, document.body.scrollHeight - window.innerHeight);
+          if (targetY > 0) {
+            window.scrollTo(0, targetY);
+          }
         }
 
         /* 灵动岛过渡：即使新页面不够长导致滚动位置归零，
            也先保持导航收缩状态一瞬，再由 scroll 监听按真实位置校正，
-           避免导航栏在跨页瞬间"弹开"闪烁。 */
-        if (header && wasScrolled && window.scrollY <= 80) {
+           避免导航栏在跨页瞬间"弹开"闪烁（文章页已回页首，跳过）。 */
+        if (header && wasScrolled && !isArticle && window.scrollY <= 80) {
           header.classList.add('is-scrolled');
         }
 

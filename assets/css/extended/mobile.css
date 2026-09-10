@@ -174,3 +174,48 @@
     padding: 18px 20px 34px;
   }
 }
+
+/* =========================================================
+   手机端阅读适配（≤768px）：
+   1) 基础字号 18px → 16px，正文与各级标题相应收窄；
+   2) 文章图片放宽到 95% 宽（桌面 80% 在手机上显得过小）。
+   ========================================================= */
+@media screen and (max-width: 768px) {
+  /* 基础字号与行高（正文段落默认继承 body） */
+  body {
+    font-size: 16px;
+    line-height: 1.75;
+  }
+
+  /* 文章标题与页面标题收窄 */
+  .post-title {
+    font-size: 1.4rem;
+  }
+  .page-header h1 {
+    font-size: 1.3rem;
+  }
+
+  /* 正文各级标题收窄（h5/h6 已足够小，不再调） */
+  .md-content h1 {
+    font-size: 24px;
+  }
+  .md-content h2 {
+    font-size: 20px;
+  }
+  .md-content h3 {
+    font-size: 17px;
+  }
+  .md-content h4 {
+    font-size: 15px;
+  }
+
+  /* 文章图片：桌面 80% 在手机上过小，放宽到 95%。
+     选择器带 .md-content/.post-content 前缀提升优先级，
+     覆盖 extend_head.html 内联样式里的 80% 上限；
+     手动指定宽度的图（如 width:100% 封面）不受影响。 */
+  .post-content .math-img-box,
+  .post-content .math-img-box img,
+  .md-content .post-content img {
+    max-width: 95%;
+  }
+}

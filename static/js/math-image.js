@@ -91,6 +91,24 @@
       link.appendChild(img);
       box.appendChild(link);
       });
+
+      /* 连续多图收窄标记：包装完成后，整组判定「相邻段落各含一张图」→
+         给组内每个 box 加 .math-img-seq 类（CSS 据此收窄到 80%）。
+         手动指定宽度的图（style="width:XX%"）不参与收窄。 */
+      Array.prototype.forEach.call(
+        document.querySelectorAll('.post-content .math-img-box'),
+        function (box) {
+          if (box.querySelector('img[style*="width"]')) return;       /* 手动宽度豁免 */
+          var p = box.parentElement;
+          if (!p) return;
+          var prevSib = p.previousElementSibling;
+          var nextSib = p.nextElementSibling;
+          var inSeq =
+            (prevSib && prevSib.querySelector('.math-img-box')) ||
+            (nextSib && nextSib.querySelector('.math-img-box'));
+          if (inSeq) box.classList.add('math-img-seq');
+        }
+      );
     } catch (e) {
       /* 图片包装失败：静默跳过，不影响页面其它交互 */
     }
@@ -345,18 +363,17 @@
 
     /* —— 精准锚点定位，避开懒加载图片导致的高度变化 ——
        用「手动计算绝对位置 + 直接跳转」而非平滑滚动（平滑动画长，期间图
-       片加载会改变高度导致停偏）。跳转后再多次校正，等懒加载图片陆续
-       加载完、高度稳定后，最终把目标对准在导航栏下方。 */
+       片加载会改变高度导致停偏）；不做延迟二次校正，避免「先跳一次、
+       约一秒后又跳一次」的二次跳转观感。 */
     var NAV_OFFSET = 92; /* 顶部悬浮导航高度 + 余量 */
     function scrollToTarget() {
       var top = target.getBoundingClientRect().top + (window.scrollY || window.pageYOffset);
       window.scrollTo(0, Math.max(0, top - NAV_OFFSET));
     }
     scrollToTarget();
-    /* 多次延迟校正：覆盖懒加载图片逐步加载带来的高度变化（由近到远分散） */
-    window.setTimeout(scrollToTarget, 120);
-    window.setTimeout(scrollToTarget, 400);
-    window.setTimeout(scrollToTarget, 900);
+    /* 只保留第一次即时跳转，取消 120/400/900ms 的多次延迟校正：
+       那会在跳转后约一秒再补跳一次，观感上是二次跳转。
+       懒加载图片带来的高度漂移，改为由浏览器滚动位置自然承担。 */
 
     /* 更新地址栏 hash（不触发滚动/不产生历史记录，避免反向干扰） */
     if (history.replaceState) {

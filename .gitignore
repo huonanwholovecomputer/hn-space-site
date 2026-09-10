@@ -5,7 +5,7 @@ resources/
 *.key
 themes/PaperMod/
 
-# 敏感 / 内部文档（含服务器运维信息，勿提交到公开仓库）
+# 敏感 / 内部文档（含服务器运维信息，勿提交到公开仓库�?
 个人网站搭建指导.md
 DeepSeek设计分析.md
 nginx-hardening/
@@ -13,8 +13,8 @@ nginx-hardening/
 # 本地环境变量（部署服务器地址等）
 .env
 
-# 本地 VSCode 图片预览用 junction（posts -> static/posts），不进仓库
-posts/
+# 本地 VSCode 图片预览�? junction（posts -> static/posts），不进仓库
+/posts/
 
 # 本地 VSCode 配置
 .vscode/

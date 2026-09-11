@@ -60,6 +60,37 @@
         }, 1600);
       }
 
+      /* 降级方案：浏览器不支持 View Transitions 时，给 <html> 临时挂过渡类，
+         让背景/文字/边框等全局元素逐元素渐变；过渡结束后移除。 */
+      var themeTransTimer = null;
+      function enableThemeTransition() {
+        var html = document.documentElement;
+        /* 冻结 color-scheme：Chrome 在 color-scheme 由浅切深时，会不断重启后代
+           元素的 color 过渡，导致"文字比背景晚结束/节奏不一致"。切换期间先把
+           旧的 color-scheme 写死在内联样式上，过渡结束后再放开，让文字与背景同步。 */
+        html.style.colorScheme = getComputedStyle(html).colorScheme;
+        html.classList.add('theme-transition');
+        if (themeTransTimer) window.clearTimeout(themeTransTimer);
+        themeTransTimer = window.setTimeout(function () {
+          html.classList.remove('theme-transition');
+          html.style.removeProperty('color-scheme');
+        }, 700);
+      }
+
+      /* 应用三态目标（只改状态，不含动画）：localStorage + data-theme + 气泡提示 */
+      function applyTheme(next) {
+        var html = document.documentElement;
+        if (next === 'auto') {
+          localStorage.removeItem('pref-theme');
+          html.dataset.theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        } else {
+          localStorage.setItem('pref-theme', next);
+          html.dataset.theme = next;
+        }
+        fresh.title = '主题：' + label[next] + '（点击切换）';
+        showModeTip(next);
+      }
+
       fresh.addEventListener('click', function () {
         var html = document.documentElement;
         var current = html.dataset.theme === 'dark' ? 'dark' : 'light';
@@ -74,16 +105,28 @@
           next = 'auto';
         }
 
-        if (next === 'auto') {
-          localStorage.removeItem('pref-theme');
-          html.dataset.theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if (document.startViewTransition && !reduce) {
+          /* 首选：View Transitions —— 浏览器对切换前后各截一张全页快照，
+             用合成层做交叉淡入。动画跑在合成线程、主线程不参与，
+             元素再多也不掉帧；且不再逐元素过渡，color-scheme 拖尾一并消失。 */
+          var vt = document.startViewTransition(function () {
+            /* 切换瞬间禁用所有逐元素过渡：新快照直接取最终态（否则会截到过渡起点），
+               同时避免主线程再跑 N 个元素的重绘。 */
+            html.classList.add('theme-vt');
+            applyTheme(next);
+          });
+          var vtCleanup = function () { html.classList.remove('theme-vt'); };
+          if (vt && vt.finished) {
+            vt.finished.then(vtCleanup, vtCleanup);
+          } else {
+            window.setTimeout(vtCleanup, 500);
+          }
         } else {
-          localStorage.setItem('pref-theme', next);
-          html.dataset.theme = next;
+          /* 降级：逐元素 CSS 过渡（兼容性最好，元素多时主线程压力较大） */
+          enableThemeTransition();
+          applyTheme(next);
         }
-        /* 提示显示「当前模式」（切换后已生效）+ 弹出气泡 */
-        fresh.title = '主题：' + label[next] + '（点击切换）';
-        showModeTip(next);
       });
 
       fresh.title = '主题：' + currentLabel() + '（点击切换）';

@@ -36,6 +36,46 @@ body.list {
   --radius: 12px;
 }
 
+/* ---------- 主题切换过渡 ----------
+   site 脚本切换时给 <html> 临时加 .theme-transition，让背景色/文字色/边框色
+   等全局属性一起平滑渐变（此前只有卡片因自身 transition 而渐变，背景是硬切）。
+   过渡是临时的（约 0.7s 后由脚本移除），不会常驻影响 hover 等交互。 */
+/* 首选：View Transitions —— 整页快照交叉淡入，动画跑在合成线程，
+   与 DOM 元素数量无关（元素再多也不掉帧）。 */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 420ms;
+  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* View Transition 进行中：禁用一切逐元素过渡。
+   否则新快照会截到"过渡起点"（快照看起来没变），且主线程仍要跑 N 个元素的重绘。
+   该 class 只在 VT 回调期间由脚本短暂添加，随后移除。 */
+html.theme-vt,
+html.theme-vt *,
+html.theme-vt *::before,
+html.theme-vt *::after {
+  transition: none !important;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* 降级：浏览器不支持 View Transitions 时的逐元素过渡。
+     box-shadow 不放进全局过渡——它每帧都要重新模糊，元素多时最贵。 */
+  html.theme-transition,
+  html.theme-transition body,
+  html.theme-transition *,
+  html.theme-transition *::before,
+  html.theme-transition *::after {
+    transition:
+      background-color 420ms ease,
+      color 420ms ease,
+      border-color 420ms ease,
+      fill 420ms ease,
+      stroke 420ms ease !important;
+    transition-delay: 0s !important;
+  }
+}
+
 /* 全局字体与文字色 */
 body {
   font-family: var(--home-font-display);
@@ -351,17 +391,21 @@ html:not([data-theme]) .theme-toggle .sun {
   --tilt-persp: 900px;
   --home-lift: 0px;
   --home-press: 1;
-  transform: perspective(var(--tilt-persp)) translateY(var(--home-lift, 0px)) scale(var(--home-press, 1)) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+  /* 上升/下降用独立的 translate 过渡，可与 3D 旋转分别调速 */
+  --lift-dur: 900ms;
+  translate: 0 var(--home-lift, 0px);
+  transform: perspective(var(--tilt-persp)) scale(var(--home-press, 1)) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
   transition:
-    transform var(--tilt-dur, 220ms) var(--home-ease-out),
-    box-shadow 200ms var(--home-ease-out),
-    background-color 180ms ease,
-    border-color 180ms ease;
+    transform var(--tilt-dur, 640ms) var(--home-ease-out),
+    translate var(--lift-dur, 900ms) var(--home-ease-out),
+    box-shadow 360ms var(--home-ease-out),
+    background-color 300ms ease,
+    border-color 300ms ease;
 }
 
 .post-entry.is-tilting,
 .searchResults li.is-tilting {
-  --tilt-dur: 90ms;
+  --tilt-dur: 200ms;
 }
 
 /* 覆盖 PaperMod 主题 .post-entry:hover 的 transform（translateY(-2px)）。
@@ -375,7 +419,7 @@ html:not([data-theme]) .theme-toggle .sun {
 .post-entry:focus-within,
 .searchResults li:hover,
 .searchResults li:focus-within {
-  transform: perspective(var(--tilt-persp)) translateY(var(--home-lift, 0px)) scale(var(--home-press, 1)) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+  transform: perspective(var(--tilt-persp)) scale(var(--home-press, 1)) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
 }
 
 /* 手电筒光晕：光斑跟随指针（--gx/--gy 由 site.js 写入） */
@@ -405,6 +449,7 @@ html:not([data-theme]) .theme-toggle .sun {
   .searchResults li:hover,
   .searchResults li:focus-within {
     --home-lift: -4px;
+    --lift-dur: 400ms;
     box-shadow: var(--home-shadow-lg);
   }
 
@@ -419,6 +464,7 @@ html:not([data-theme]) .theme-toggle .sun {
   .searchResults li:active {
     --home-lift: -1px;
     --home-press: 0.98;
+    --lift-dur: 220ms;
     box-shadow: var(--home-shadow);
   }
 }

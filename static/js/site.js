@@ -155,7 +155,19 @@ var revealClassify = function (rect, vh) {
 
     var target = { rx: 0, ry: 0, gx: 50, gy: 50 };
     var current = { rx: 0, ry: 0, gx: 50, gy: 50 };
+    /* 中间缓冲：倾斜用「两级级联指数平滑」做低通滤波（见 step）。
+       相当于把运动曲线重新采样成更少的点再平滑描出，抹掉快速拂过时的突变。 */
+    var smooth = { rx: 0, ry: 0 };
     var raf = null;
+    var lastT = 0;
+
+    /* 每 60fps 帧的平滑系数（越小越"慢"、越顺） */
+    var SMOOTH_ALPHA = 0.16;
+
+    /* 把"每帧系数"换算为按实际帧间隔 dt 的等效系数，保证不同刷新率手感一致 */
+    function filt(a, dt) {
+      return 1 - Math.pow(1 - a, dt / (1000 / 60));
+    }
 
     function apply() {
       el.style.setProperty('--rx', current.rx.toFixed(2) + 'deg');
@@ -171,20 +183,41 @@ var revealClassify = function (rect, vh) {
       el.style.removeProperty('--gx');
       el.style.removeProperty('--gy');
       el.style.removeProperty('--gs');
+      current.rx = current.ry = 0;
+      smooth.rx = smooth.ry = 0;
     }
 
-    function step() {
-      current.rx += (target.rx - current.rx) * 0.16;
-      current.ry += (target.ry - current.ry) * 0.16;
-      current.gx += (target.gx - current.gx) * 0.16;
-      current.gy += (target.gy - current.gy) * 0.16;
+    /* 光斑即时定位（不做插值）：快速划过/首次进入卡片时，
+       光斑直接落在指针处，而不是从卡片中心（默认 50%）追过去。 */
+    function setGlow(gx, gy) {
+      current.gx = gx;
+      current.gy = gy;
+      el.style.setProperty('--gx', gx.toFixed(1) + '%');
+      el.style.setProperty('--gy', gy.toFixed(1) + '%');
+    }
+
+    function step(now) {
+      var dt = lastT ? Math.min(now - lastT, 64) : 1000 / 60;
+      lastT = now;
+      var k = filt(SMOOTH_ALPHA, dt);
+      /* 两级级联低通：先平滑指针目标，再让输出跟随，运动曲线更顺、突变被抹去。
+         光斑位置仍由 setGlow 直接写入，保持 1:1 跟随。 */
+      smooth.rx += (target.rx - smooth.rx) * k;
+      smooth.ry += (target.ry - smooth.ry) * k;
+      current.rx += (smooth.rx - current.rx) * k;
+      current.ry += (smooth.ry - current.ry) * k;
       apply();
       var settled =
-        Math.abs(current.rx - target.rx) < 0.03 &&
-        Math.abs(current.ry - target.ry) < 0.03 &&
-        Math.abs(current.gx - target.gx) < 0.03 &&
-        Math.abs(current.gy - target.gy) < 0.03;
-      raf = settled ? null : window.requestAnimationFrame(step);
+        Math.abs(smooth.rx - target.rx) < 0.02 &&
+        Math.abs(smooth.ry - target.ry) < 0.02 &&
+        Math.abs(current.rx - smooth.rx) < 0.02 &&
+        Math.abs(current.ry - smooth.ry) < 0.02;
+      if (settled) {
+        lastT = 0;
+        raf = null;
+      } else {
+        raf = window.requestAnimationFrame(step);
+      }
     }
 
     return {
@@ -196,6 +229,7 @@ var revealClassify = function (rect, vh) {
       raf: null,
       apply: apply,
       resetInline: resetInline,
+      setGlow: setGlow,
       start: function () {
         if (!raf) {
           raf = window.requestAnimationFrame(step);
@@ -229,19 +263,16 @@ var revealClassify = function (rect, vh) {
         el.classList.add('is-tilting');
         var size = Math.max(90, Math.min(rect.width, rect.height) * 0.72);
         el.style.setProperty('--gs', size.toFixed(0) + 'px');
-        /* 进入时立即写入一次目标值，避免 rAF 未启动时光效停留在旧位置 */
         st.target.rx = (0.5 - y) * 2 * st.maxTilt;
         st.target.ry = (x - 0.5) * 2 * st.maxTilt;
-        st.target.gx = x * 100;
-        st.target.gy = y * 100;
-        st.apply();
+        /* 首次进入即把光斑钉在指针位置（不做从中心出发的追踪） */
+        st.setGlow(x * 100, y * 100);
         st.start();
         return;
       }
       st.target.rx = (0.5 - y) * 2 * st.maxTilt;
       st.target.ry = (x - 0.5) * 2 * st.maxTilt;
-      st.target.gx = x * 100;
-      st.target.gy = y * 100;
+      st.setGlow(x * 100, y * 100);
       st.start();
     } else if (st.active) {
       st.active = false;
@@ -315,6 +346,13 @@ var revealClassify = function (rect, vh) {
       function (el) {
         if (el.__tiltBound) return;
         el.__tiltBound = true;
+        /* 边框渐变高亮层：光斑照到边缘时点亮卡片边框（见 home.css .ds-glow-border） */
+        if (!el.querySelector(':scope > .ds-glow-border')) {
+          var glowBorder = document.createElement('span');
+          glowBorder.className = 'ds-glow-border';
+          glowBorder.setAttribute('aria-hidden', 'true');
+          el.appendChild(glowBorder);
+        }
         var st = makeState(el);
         /* PJAX 换页后新卡片可能带旧的内联光效样式，先复位，
            避免光效卡在十字中心或残留旧位置 */

@@ -162,12 +162,16 @@ html.js [data-about-row] > *.is-in {
   --tilt-persp: 900px;
   --home-lift: 0px;
   --home-press: 1;
-  transform: perspective(var(--tilt-persp)) translateY(var(--home-lift, 0px)) scale(var(--home-press, 1)) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+  /* 上升/下降用独立的 translate 过渡，可与 3D 旋转分别调速 */
+  --lift-dur: 900ms;
+  translate: 0 var(--home-lift, 0px);
+  transform: perspective(var(--tilt-persp)) scale(var(--home-press, 1)) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
   transition:
-    transform var(--tilt-dur, 220ms) var(--home-ease-out),
-    box-shadow 200ms var(--home-ease-out),
-    border-color 180ms ease,
-    background-color 180ms ease;
+    transform var(--tilt-dur, 640ms) var(--home-ease-out),
+    translate var(--lift-dur, 900ms) var(--home-ease-out),
+    box-shadow 360ms var(--home-ease-out),
+    border-color 300ms ease,
+    background-color 300ms ease;
 }
 
 /* 大卡片 / 侧栏卡片：倾斜幅度进一步收敛 */
@@ -186,7 +190,7 @@ html.js [data-about-row] > *.is-in {
 .about-comp-card.is-tilting,
 .about-comp-featured.is-tilting,
 .about-quick-card.is-tilting {
-  --tilt-dur: 90ms;
+  --tilt-dur: 200ms;
 }
 
 /* 手电筒光晕（指针跟随） */
@@ -215,6 +219,7 @@ html.js [data-about-row] > *.is-in {
   .about-comp-featured:hover,
   .about-quick-card:hover {
     --home-lift: -4px;
+    --lift-dur: 400ms;
     border-color: var(--home-accent-line);
     box-shadow: var(--home-shadow-lg);
   }

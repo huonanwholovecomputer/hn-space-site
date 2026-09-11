@@ -75,8 +75,12 @@ main.main:has(.home-page) {
   --main-width: 1120px;
 }
 
+/* 背景交给 body（body.list:has(.home-page)）统一提供。
+   这里若再画一层 var(--theme)，主题切换时 body 的背景是"传播到视口"的，
+   插值节奏与普通元素不同，会和 .home-page 的 1120px 内容列产生一条色差条。
+   只保留单一背景源即可无缝渐变。 */
 .home-page {
-  background: var(--theme);
+  background: transparent;
   color: var(--home-text);
   font-family: var(--home-font-display);
   line-height: 1.75;
@@ -503,12 +507,16 @@ main.main:has(.home-page) {
   --tilt-persp: 900px;
   --home-lift: 0px;
   --home-press: 1;
-  transform: perspective(var(--tilt-persp)) translateY(var(--home-lift, 0px)) scale(var(--home-press, 1)) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+  /* 上升/下降用独立的 translate 过渡，可与 3D 旋转分别调速 */
+  --lift-dur: 900ms;
+  translate: 0 var(--home-lift, 0px);
+  transform: perspective(var(--tilt-persp)) scale(var(--home-press, 1)) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
   transition:
-    transform var(--tilt-dur, 220ms) var(--home-ease-out),
-    box-shadow 200ms var(--home-ease-out),
-    background-color 180ms ease,
-    border-color 180ms ease;
+    transform var(--tilt-dur, 640ms) var(--home-ease-out),
+    translate var(--lift-dur, 900ms) var(--home-ease-out),
+    box-shadow 360ms var(--home-ease-out),
+    background-color 300ms ease,
+    border-color 300ms ease;
 }
 
 /* 大卡片 / 侧栏卡片：倾斜幅度进一步收敛，避免形变过度 */
@@ -531,7 +539,7 @@ main.main:has(.home-page) {
 .project-featured.is-tilting,
 .about-card.is-tilting,
 .contact-panel.is-tilting {
-  --tilt-dur: 90ms;
+  --tilt-dur: 200ms;
 }
 
 /* 手电筒光晕：光斑跟随指针（--gx/--gy 由 site.js 写入） */
@@ -565,6 +573,37 @@ main.main:has(.home-page) {
   z-index: 1;
 }
 
+/* ---------- 边框渐变高亮（手电筒照亮卡片边缘） ----------
+   site.js 为每张卡片插入 <span class="ds-glow-border">；
+   mask-composite 只保留 1px 边框环，径向渐变让靠近指针的一侧变亮。 */
+.ds-glow-border {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: radial-gradient(
+    calc(var(--gs, 220px) / 2) circle at var(--gx, 50%) var(--gy, 50%),
+    var(--home-glare-core) 0%,
+    var(--home-accent) 42%,
+    transparent 78%
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 200ms var(--home-ease-out);
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* 仅在指针真正位于卡片内（:hover）时点亮边框。
+   磁吸区 .is-tilting 会同时命中间隙两侧的多张卡片，不能用于边框高亮，
+   否则鼠标落在卡片之间时多张边框会一起亮、看起来"跨越"了卡片。 */
+:hover > .ds-glow-border {
+  opacity: 1;
+}
+
 .highlight-card:hover,
 .skill-card:hover,
 .project-card:hover,
@@ -585,6 +624,7 @@ main.main:has(.home-page) {
   .about-card:hover,
   .contact-panel:hover {
     --home-lift: -4px;
+    --lift-dur: 400ms;
     box-shadow: var(--home-shadow-lg);
   }
 
@@ -603,6 +643,7 @@ main.main:has(.home-page) {
   .content-card:active {
     --home-lift: -1px;
     --home-press: 0.98;
+    --lift-dur: 220ms;
     box-shadow: var(--home-shadow);
   }
 }

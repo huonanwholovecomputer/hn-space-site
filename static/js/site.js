@@ -246,6 +246,17 @@ var revealClassify = function (rect, vh) {
     var rect = el.getBoundingClientRect();
     if (!rect.width || !rect.height) return;
 
+    /* 指针是否真正落在卡片内（不含磁吸扩展区）：控制光晕/边框高亮的显隐。
+       由 pointermove + scroll 重算，滚动时也即时刷新——不像 CSS :hover
+       在滚轮滚动时可能不更新，导致光效卡在旧的卡片上。 */
+    el.classList.toggle(
+      'is-pointed',
+      mouseX >= rect.left &&
+        mouseX <= rect.right &&
+        mouseY >= rect.top &&
+        mouseY <= rect.bottom
+    );
+
     var inside =
       mouseX >= rect.left - MAGNET &&
       mouseX <= rect.right + MAGNET &&
@@ -325,13 +336,21 @@ var revealClassify = function (rect, vh) {
       window.addEventListener('pointermove', onGlobalMove, { passive: true });
       /* capture：捕获任意滚动容器（window / 内部滚动区）的滚动 */
       window.addEventListener('scroll', onScroll, { passive: true, capture: true });
+      /* 指针移出窗口：清掉光效态（is-pointed 由 JS 控制，不会像 :hover 自动消失） */
+      document.documentElement.addEventListener('mouseleave', function () {
+        mouseReady = false;
+        for (var i = 0; i < cards.length; i++) {
+          cards[i].el.classList.remove('is-pointed');
+        }
+      });
     }
 
-    /* PJAX 换页后：清除所有卡片的激活态（is-tilting 类 + 内联光效样式），
+    /* PJAX 换页后：清除所有卡片的激活态（is-tilting/is-pointed 类 + 内联光效样式），
        并把鼠标坐标重置为无效值，避免用旧页面坐标对新卡片误触发光效。 */
     cards.forEach(function (st) {
       st.active = false;
       st.el.classList.remove('is-tilting');
+      st.el.classList.remove('is-pointed');
       st.resetInline();
     });
     mouseX = -9999;

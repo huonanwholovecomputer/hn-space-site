@@ -453,9 +453,9 @@ html:not([data-theme]) .theme-toggle .sun {
     box-shadow: var(--home-shadow-lg);
   }
 
-  .post-entry:hover::before,
+  .post-entry.is-pointed::before,
   .post-entry:focus-within::before,
-  .searchResults li:hover::before,
+  .searchResults li.is-pointed::before,
   .searchResults li:focus-within::before {
     opacity: 1;
   }

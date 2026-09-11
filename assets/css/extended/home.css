@@ -597,10 +597,10 @@ main.main:has(.home-page) {
   z-index: 2;
 }
 
-/* 仅在指针真正位于卡片内（:hover）时点亮边框。
-   磁吸区 .is-tilting 会同时命中间隙两侧的多张卡片，不能用于边框高亮，
-   否则鼠标落在卡片之间时多张边框会一起亮、看起来"跨越"了卡片。 */
-:hover > .ds-glow-border {
+/* 仅在指针真正位于卡片内（.is-pointed，由 site.js 按最新 rect 判定）时点亮边框。
+   用 JS 类而非 :hover —— :hover 在滚轮滚动时可能不即时更新，会让光效卡在原地；
+   也不能用磁吸区 .is-tilting（会同时命中间隙两侧的多张卡片）。 */
+.is-pointed > .ds-glow-border {
   opacity: 1;
 }
 
@@ -628,13 +628,13 @@ main.main:has(.home-page) {
     box-shadow: var(--home-shadow-lg);
   }
 
-  .highlight-card:hover::before,
-  .skill-card:hover::before,
-  .project-card:hover::before,
-  .content-card:hover::before,
-  .project-featured:hover::before,
-  .about-card:hover::before,
-  .contact-panel:hover::after {
+  .highlight-card.is-pointed::before,
+  .skill-card.is-pointed::before,
+  .project-card.is-pointed::before,
+  .content-card.is-pointed::before,
+  .project-featured.is-pointed::before,
+  .about-card.is-pointed::before,
+  .contact-panel.is-pointed::after {
     opacity: 1;
   }
 

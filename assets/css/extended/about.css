@@ -224,12 +224,12 @@ html.js [data-about-row] > *.is-in {
     box-shadow: var(--home-shadow-lg);
   }
 
-  .about-tile:hover::before,
-  .about-dev-card:hover::before,
-  .about-exp-card:hover::before,
-  .about-comp-card:hover::before,
-  .about-comp-featured:hover::before,
-  .about-quick-card:hover::before {
+  .about-tile.is-pointed::before,
+  .about-dev-card.is-pointed::before,
+  .about-exp-card.is-pointed::before,
+  .about-comp-card.is-pointed::before,
+  .about-comp-featured.is-pointed::before,
+  .about-quick-card.is-pointed::before {
     opacity: 1;
   }
 }

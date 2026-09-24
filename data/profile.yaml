@@ -17,7 +17,7 @@ highlights:
   - value: "2"
     label: "篇长教程"
     note: "合计近万字，覆盖开发环境与系统重装"
-  - value: "9"
+  - value: "10"
     label: "个开源项目"
     note: "GitHub 持续更新：打印工具、截图、脚本工具、本站源码与校园网研究"
   - value: "1"
@@ -81,6 +81,12 @@ projects:
     role: "独立开发"
     stack: ["Python", "Windows"]
     link: "https://github.com/huonanwholovecomputer/FrameKeeper"
+    status: "开源"
+  - name: "auto_input_anywhere"
+    summary: "键盘输入助手：调用 Windows SendInput 的 Unicode 模式把文本逐字「敲」进当前焦点输入框，用于网页表单、聊天窗口、远程桌面、虚拟机等禁止粘贴的场景。不经过输入法、不占用剪贴板，仅依赖 Python 标准库，附 PyInstaller 打包配置。"
+    role: "独立开发（AI 辅助）"
+    stack: ["Python", "Windows"]
+    link: "https://github.com/huonanwholovecomputer/auto_input_anywhere"
     status: "开源"
   - name: "cpp_format"
     summary: "格式化 C++ 代码的 Python 脚本。"

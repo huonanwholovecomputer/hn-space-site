@@ -23,6 +23,10 @@
 <script defer src="{{ "js/site.js" | relURL }}?v=21"></script>
 <script defer src="{{ "js/pjax.js" | relURL }}?v=5"></script>
 <script defer src="{{ "js/deepseek-effects.js" | relURL }}?v=16"></script>
+{{- /* 自定义事件埋点（外链 / 邮件 / 代码复制 / 图片放大 / 站内搜索 / 404）。
+       Umami 脚本在本文件末尾才加载，所以 track.js 里对 window.umami 是懒调用：
+       所有上报都发生在点击、输入、load 之后，不会因为顺序或脚本失败而报错。 */}}
+<script defer src="{{ "js/track.js" | relURL }}?v=1"></script>
 {{- /* ===== LaTeX 数学公式（KaTeX）+ 文章图片增强 ===== */}}
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
@@ -198,5 +202,9 @@
     transition: background-color 150ms ease, transform 150ms ease; }
   .math-lightbox-close:hover { background: rgba(255,255,255,0.3); transform: scale(1.08); }
 </style>
-{{- /* Umami 访问统计（自托管看板：analytics.hn-space.cn） */}}
-<script defer src="https://analytics.hn-space.cn/script.js" data-website-id="73653f50-bcb9-4154-8fa4-7a0894f7718b"></script>
+{{- /* Umami 访问统计（自托管看板：analytics.hn-space.cn）
+       · data-domains   ：只在生产域名上报；本地 hugo server / 127.0.0.1 预览不再污染数据
+       · data-performance：上报 TTFB/FCP/LCP/CLS/INP，用于「性能」面板
+       注意：本标签必须排在其他 defer 脚本之后——宁可统计脚本失败，
+       也不能让站点自身 JS 的加载被 analytics 子域名的可用性拖住。 */}}
+<script defer src="https://analytics.hn-space.cn/script.js" data-website-id="73653f50-bcb9-4154-8fa4-7a0894f7718b" data-domains="blog.hn-space.cn" data-performance="true"></script>

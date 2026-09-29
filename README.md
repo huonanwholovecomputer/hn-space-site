@@ -13,7 +13,8 @@
 - **关于页**：个人信息卡片化 —— 办公软件品牌图标行、编程方向、成长经历、竞赛时间线；卡片随滚动从左到右逐个「磁吸」入位（`layouts/about/list.html` + `about.css`）
 - **全站动效**：卡片 3D 倾斜 + 手电筒光晕、滚动入场动画、鼠标拖尾（均支持 `prefers-reduced-motion` 降级）
 - **深浅色主题**：自动跟随系统，可手动切换，全站配色统一（浅色/深色各一套变量）
-- **访问统计**：自托管 [Umami](https://umami.is/)（PostgreSQL），看板独立子域名，脚本 `defer` 加载不影响性能
+- **访问统计**：自托管 [Umami](https://umami.is/)（PostgreSQL），看板独立子域名，脚本 `defer` 加载不影响性能；`data-domains` 只统计线上域名（本地预览不再污染数据），`data-performance` 采集 TTFB/FCP/LCP/CLS/INP
+- **统计埋点**：`static/js/track.js` 用事件委托上报 `outbound-click`（外链）、`email-click`、`copy-code`、`image-zoom`、`search`（含命中数）、`theme-toggle`、`404`，PJAX 换页后无需重新绑定
 - **内容管理**：接入 Sveltia CMS（GitHub 登录），支持 Markdown 写作与图片上传
 - **自动部署**：`deploy.cmd` 一键构建 + 上传 + 服务器验证
 
@@ -75,7 +76,7 @@ tags: ["教程"]
 
 - **布局**：`layouts/`（`index.html` 首页、`about/list.html` 关于页、`_partials/` 组件）
 - **样式**：`assets/css/extended/`（Hugo 自动合并；`home.css` 首页、`about.css` 关于页、`site.css` 全站、`mobile.css` 移动端）
-- **脚本**：`static/js/`（`site.js` 动效、`deepseek-effects.js` 流体/网格、`mouse-trail.js` 拖尾）
+- **脚本**：`static/js/`（`site.js` 动效、`deepseek-effects.js` 流体/网格、`mouse-trail.js` 拖尾、`track.js` 统计埋点）
 
 ## 🚢 部署
 

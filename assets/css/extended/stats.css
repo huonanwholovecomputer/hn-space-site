@@ -162,10 +162,18 @@ html[data-theme="dark"] .stats-page {
 }
 
 /* ---------- 表格（标签 + 条形 + 数值） ---------- */
-.stats-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+/* 必须显式写 display: table —— 主题 core/reset.css 里有一条 HTML5 重置
+   `main, nav, section, table { display: block }`，会把表格变成块盒，
+   导致行宽随内容收缩（每个面板宽度都不一样）。 */
+.stats-table {
+  display: table;
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
 
 .stats-table td {
-  padding: 0.28rem 0;
+  padding: 0.3rem 0;
   font-size: 0.82rem;
   border-bottom: 1px solid var(--border);
   vertical-align: middle;
@@ -173,19 +181,47 @@ html[data-theme="dark"] .stats-page {
 
 .stats-table tr:last-child td { border-bottom: none; }
 
+/* 标签列不指定宽度：在 fixed 布局下自动吃掉剩余宽度（约 46%） */
 .stats-cell-label {
-  width: 45%;
   overflow: hidden;
   color: var(--content);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.stats-cell-bar { width: 40%; padding-right: 0.6rem !important; }
-.stats-cell-bar span { display: block; height: 6px; background: var(--stats-accent, #4d6bfe); border-radius: 3px; opacity: 0.55; }
+/* 条形列：整列铺一条浅色轨道，实心部分按占比填充 —— 视觉上"铺满卡片"，
+   同时仍然忠实表达比例关系。用一个绝对定位的 ::before 画轨道，
+   span 的百分比宽度即相对同一内容区，两者天然对齐。 */
+.stats-cell-bar {
+  position: relative;
+  width: 42%;
+  padding-right: 0.75rem !important;
+}
+
+.stats-cell-bar::before {
+  position: absolute;
+  top: 50%;
+  right: 0.75rem;
+  left: 0;
+  height: 7px;
+  margin-top: -3.5px;
+  background: var(--border);
+  border-radius: 4px;
+  content: '';
+}
+
+.stats-cell-bar span {
+  position: relative;
+  display: block;
+  height: 7px;
+  background: var(--stats-accent, #4d6bfe);
+  border-radius: 4px;
+  opacity: 0.85;
+}
 
 .stats-cell-num {
-  width: 15%;
+  width: 12%;
+  padding-left: 0.5rem;
   color: var(--secondary);
   text-align: right;
   font-variant-numeric: tabular-nums;
@@ -225,7 +261,7 @@ html[data-theme="dark"] .stats-page {
   .stats-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .stats-card-value { font-size: 1.25rem; }
   .stats-chart { height: 96px; }
-  .stats-cell-label { width: 52%; }
-  .stats-cell-bar { width: 32%; }
-  .stats-cell-num { width: 16%; }
+  /* 标签列保持自动（吃掉剩余宽度），只把条形与数值列收窄一点 */
+  .stats-cell-bar { width: 36%; }
+  .stats-cell-num { width: 14%; }
 }

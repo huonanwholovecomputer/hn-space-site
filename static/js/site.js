@@ -134,7 +134,9 @@ var revealClassify = function (rect, vh) {
     '.highlight-card, .skill-card, .project-card, .content-card, ' +
     '.project-featured, .about-card, .contact-panel, .post-entry, .searchResults li, ' +
     '.about-quick-card, .about-tile, .about-dev-card, .about-exp-card, ' +
-    '.about-comp-card, .about-comp-featured';
+    '.about-comp-card, .about-comp-featured, ' +
+    /* 统计页卡片：只要光效与边框高亮，不做 3D 倾斜（靠 --tilt-max: 0 声明，见 makeState） */
+    '.stats-card, .stats-panel';
 
   /* 磁吸扩展区（像素）：卡片四周留出该范围，边缘滑动仍视为"在卡片上" */
   var MAGNET = 28;
@@ -146,10 +148,13 @@ var revealClassify = function (rect, vh) {
   var globalBound = false;
 
   function makeState(el) {
-    var maxTilt = parseFloat(
-      window.getComputedStyle(el).getPropertyValue('--tilt-max')
-    );
-    if (!isFinite(maxTilt) || maxTilt <= 0) {
+    /* --tilt-max 的语义：
+       · 未声明（拿到空字符串）→ 默认 4deg
+       · 显式声明 0（或负值）→ 不倾斜，只保留光晕/边框光效（统计页卡片用这个）
+       · 其它数值 → 按该角度倾斜 */
+    var tiltRaw = window.getComputedStyle(el).getPropertyValue('--tilt-max').trim();
+    var maxTilt = tiltRaw === '' ? 4 : parseFloat(tiltRaw);
+    if (!isFinite(maxTilt)) {
       maxTilt = 4;
     }
 

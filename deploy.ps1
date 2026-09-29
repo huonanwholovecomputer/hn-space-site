@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 HN Space 一键发布脚本：新建文章 / 本地预览 / 构建 / 部署到服务器
 不依赖 GitHub Actions：本地构建 -> scp 上传 -> 服务器全量替换。
@@ -62,8 +62,11 @@ function New-Post {
 }
 
 function Start-Preview {
-    Write-Host '本地预览: http://localhost:1313  （Ctrl+C 停止）' -ForegroundColor Cyan
-    & $hugo server --source $root --bind 127.0.0.1 --port 1313
+    Write-Host '本地预览: http://127.0.0.1:1313  （Ctrl+C 停止）' -ForegroundColor Cyan
+    # --baseURL 必须显式指向本地：否则 hugo server 沿用 hugo.toml 里的生产 baseURL，
+    # 站内导航/Logo/菜单用的是 absLangURL 生成的绝对地址，点一下就会跳到线上站点
+    # （会在统计里留下 referrer=127.0.0.1 的记录）。
+    & $hugo server --source $root --bind 127.0.0.1 --port 1313 --baseURL http://127.0.0.1:1313/
     if ($LASTEXITCODE -ne 0) { throw '本地预览启动失败' }
 }
 

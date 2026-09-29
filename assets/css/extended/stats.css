@@ -255,6 +255,63 @@ html[data-theme="dark"] .stats-page {
   white-space: nowrap;
 }
 
+/* ========== 与全站一致的鼠标光效 + 入场动画（不含 3D 倾斜） ==========
+   光效与倾斜由 site.js 统一驱动（卡片需命中 CARD_SELECTOR，已包含这两个类）：
+   · --tilt-max: 0  → 显式告诉 site.js「只给光效，不要倾斜」（未声明时默认 4deg）
+   · 光晕层用 z-index:-1 + isolation:isolate 放在卡片底色之上、正文之下，
+     这样光斑照亮卡片但不会把表格文字糊掉（home.css 里卡片是直接盖在内容上的，
+     这里内容更密，故调整层次）。 */
+.stats-card,
+.stats-panel {
+  position: relative;
+  isolation: isolate;
+  --tilt-max: 0;
+  --home-lift: 0px;
+  translate: 0 var(--home-lift, 0px);
+  transition:
+    translate var(--lift-dur, 500ms) var(--home-ease-out),
+    border-color 300ms ease,
+    box-shadow 360ms var(--home-ease-out);
+}
+
+/* 手电筒光晕：光斑跟随指针（--gx / --gy / --gs 由 site.js 写入） */
+.stats-card::before,
+.stats-panel::before {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: radial-gradient(calc(var(--gs, 200px) / 2) circle at var(--gx, 50%) var(--gy, 50%), var(--home-glare-core) 0%, var(--home-glare-mid) 45%, var(--home-glare-edge) 72%, transparent 88%);
+  opacity: 0;
+  transition: opacity 200ms ease;
+  content: '';
+  pointer-events: none;
+}
+
+.stats-card.is-pointed::before,
+.stats-panel.is-pointed::before { opacity: 1; }
+
+/* 边框高亮：.is-pointed > .ds-glow-border 的规则在 home.css，命中即生效 */
+.stats-card:hover,
+.stats-panel:hover { border-color: var(--home-accent-line); }
+
+/* 入场动画：沿用 home.css 已定义的 reveal-card 关键帧（上浮 + 轻微放大） */
+html.js .reveal-item.is-in.stats-card,
+html.js .reveal-item.is-in.stats-panel {
+  animation-name: reveal-card;
+  animation-duration: 0.6s;
+}
+
+/* 精细指针且允许动效时：物理上浮 + 阴影（与首页/关于页卡片一致） */
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .stats-card:hover,
+  .stats-panel:hover {
+    --home-lift: -4px;
+    --lift-dur: 400ms;
+    box-shadow: var(--home-shadow-lg);
+  }
+}
+
 /* ---------- 窄屏 ---------- */
 @media (max-width: 768px) {
   .stats-grid { grid-template-columns: minmax(0, 1fr); }

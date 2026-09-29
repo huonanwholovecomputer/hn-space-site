@@ -135,7 +135,7 @@
       var d = c.delta
         ? '<span class="stats-delta is-' + c.delta.dir + '">' + esc(c.delta.text) + '</span>'
         : '';
-      return '<div class="stats-card"><span class="stats-card-label">' + esc(c.label) + '</span>' +
+      return '<div class="stats-card" data-reveal><span class="stats-card-label">' + esc(c.label) + '</span>' +
         '<span class="stats-card-value">' + esc(c.value) + '</span>' + d + '</div>';
     }).join('');
   }
@@ -155,7 +155,7 @@
         '<td class="stats-cell-bar"><span style="width:' + r.width + '%"></span></td>' +
         '<td class="stats-cell-num">' + esc(fmtNumber(r.value)) + '</td></tr>';
     }).join('');
-    return '<section class="stats-panel"><h2 class="stats-panel-title">' + esc(t.title) + '</h2>' +
+    return '<section class="stats-panel" data-reveal><h2 class="stats-panel-title">' + esc(t.title) + '</h2>' +
       '<table class="stats-table"><tbody>' + rows + '</tbody></table></section>';
   }
 
@@ -167,8 +167,19 @@
       : '';
     body.innerHTML =
       '<div class="stats-cards">' + cardsHtml(model.cards) + '</div>' +
-      '<section class="stats-panel"><h2 class="stats-panel-title">访问趋势<span class="stats-panel-hint">按天 · ' + esc(model.chartRange) + '</span>' + online + '</h2>' + chartHtml(model) + '</section>' +
+      '<section class="stats-panel" data-reveal><h2 class="stats-panel-title">访问趋势<span class="stats-panel-hint">按天 · ' + esc(model.chartRange) + '</span>' + online + '</h2>' + chartHtml(model) + '</section>' +
       '<div class="stats-grid">' + model.tables.map(tableHtml).join('') + '</div>';
+
+    /* 复用全站的入场动画与鼠标光效机制：新插入的元素交给 site.js 重新扫描。
+       __siteInitReveal 负责入场动画（IntersectionObserver + 同级错峰），
+       __siteInitTilt 负责绑定卡片并注入 .ds-glow-border 光效层 —— 它默认只在
+       脚本执行时扫一遍，而这里的卡片是异步渲染的，必须显式再调一次。 */
+    if (typeof window.__siteInitReveal === 'function') {
+      window.__siteInitReveal();
+    }
+    if (typeof window.__siteInitTilt === 'function') {
+      window.__siteInitTilt();
+    }
   }
 
   function fail(root, message, shareUrl) {

@@ -26,7 +26,7 @@
 {{- /* 自定义事件埋点（外链 / 邮件 / 代码复制 / 图片放大 / 站内搜索 / 404）。
        Umami 脚本在本文件末尾才加载，所以 track.js 里对 window.umami 是懒调用：
        所有上报都发生在点击、输入、load 之后，不会因为顺序或脚本失败而报错。 */}}
-<script defer src="{{ "js/track.js" | relURL }}?v=1"></script>
+<script defer src="{{ "js/track.js" | relURL }}?v=2"></script>
 {{- /* ===== LaTeX 数学公式（KaTeX）+ 文章图片增强 ===== */}}
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>

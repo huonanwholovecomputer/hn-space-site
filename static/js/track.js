@@ -18,6 +18,10 @@
      search          { query, results }    站内搜索（停手 1.5s 后记一次，带命中条数）
      theme-toggle    { mode }              主题切换（浅色 / 深色 / 跟随系统，见 extend_footer.html）
      404             { path }              访问了不存在的路径
+
+   路径类属性统一经 readable() 处理：浏览器给的 location.pathname 是百分号编码的
+   （中文路径会变成 /%E9%9A%8F%E4%BE%BF...），解码后才能在「事件属性」里直接读；
+   非法转义序列退还原值，超长（扫描器探测）截断到 200 字符。
    ========================================================= */
 (function () {
   'use strict';
@@ -55,6 +59,19 @@
     return m ? m[1] : 'text';
   }
 
+  /* 把百分号编码的路径/文件名还原成可读文本：
+     /%E9%9A%8F%E4%BE%BF → /随便 ；同时给超长值封顶，避免扫描器构造的超长 URL 灌进事件属性。 */
+  var MAX_PROP_LEN = 200;
+  function readable(value) {
+    var s = value || '';
+    try {
+      s = decodeURIComponent(s);
+    } catch (err) {
+      /* 非法转义序列：保留原值 */
+    }
+    return s.length > MAX_PROP_LEN ? s.slice(0, MAX_PROP_LEN) + '…' : s;
+  }
+
   document.addEventListener('click', function (e) {
     var t = e.target;
     if (!t || !t.closest) return;
@@ -72,7 +89,7 @@
     if (zoom) {
       var img = zoom.tagName === 'IMG' ? zoom : zoom.querySelector('img');
       var src = (img && (img.getAttribute('src') || '')) || '';
-      track('image-zoom', { image: src.split('/').pop().split('?')[0] });
+      track('image-zoom', { image: readable(src.split('/').pop().split('?')[0]) });
       return;
     }
 
@@ -89,7 +106,7 @@
     if (isExternal(a.href)) {
       var host = '';
       try { host = new URL(a.href).hostname; } catch (err) { /* 忽略 */ }
-      track('outbound-click', { host: host, from: location.pathname });
+      track('outbound-click', { host: host, from: readable(location.pathname) });
     }
   }, true);
 
@@ -115,7 +132,7 @@
      等 window load——那时所有 defer 脚本（含 umami）都已执行完。 */
   if (document.querySelector('.not-found')) {
     window.addEventListener('load', function () {
-      track('404', { path: location.pathname });
+      track('404', { path: readable(location.pathname) });
     });
   }
 })();

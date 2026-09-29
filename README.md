@@ -15,6 +15,7 @@
 - **深浅色主题**：自动跟随系统，可手动切换，全站配色统一（浅色/深色各一套变量）
 - **访问统计**：自托管 [Umami](https://umami.is/)（PostgreSQL），看板独立子域名，脚本 `defer` 加载不影响性能；`data-domains` 只统计线上域名（本地预览不再污染数据），`data-performance` 采集 TTFB/FCP/LCP/CLS/INP
 - **统计埋点**：`static/js/track.js` 用事件委托上报 `outbound-click`（外链）、`email-click`、`copy-code`、`image-zoom`、`search`（含命中数）、`theme-toggle`、`404`，PJAX 换页后无需重新绑定
+- **站点统计页**：`/stats/` 页脚入口，前端直接读 Umami 公开分享接口（CORS 已放开），用站点自身设计渲染浏览量/访客/跳出率/趋势/热门页面/来源/地区/浏览器/设备/事件，支持 `?days=7|30|90` 与 PJAX 路由（`static/js/stats.js` + `layouts/stats/list.html` + `assets/css/extended/stats.css`）
 - **内容管理**：接入 Sveltia CMS（GitHub 登录），支持 Markdown 写作与图片上传
 - **自动部署**：`deploy.cmd` 一键构建 + 上传 + 服务器验证
 

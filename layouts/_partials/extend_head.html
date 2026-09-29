@@ -27,6 +27,10 @@
        Umami 脚本在本文件末尾才加载，所以 track.js 里对 window.umami 是懒调用：
        所有上报都发生在点击、输入、load 之后，不会因为顺序或脚本失败而报错。 */}}
 <script defer src="{{ "js/track.js" | relURL }}?v=2"></script>
+{{- /* /stats/ 站点统计页：读取 Umami 公开分享接口并渲染。
+       全局加载一次，页面里找不到 #stats-root 时直接 no-op；
+       PJAX 换页后由 stats.js 自己监听 pjax:done 重新初始化。 */}}
+<script defer src="{{ "js/stats.js" | relURL }}?v=2"></script>
 {{- /* ===== LaTeX 数学公式（KaTeX）+ 文章图片增强 ===== */}}
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>

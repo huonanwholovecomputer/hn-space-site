@@ -1,0 +1,39 @@
+{{- define "main" }}
+{{- /* 站点统计页：数据由自托管 Umami 的公开分享接口提供（CORS 已放开，可直接 fetch）。
+       逻辑在 static/js/stats.js，本模板只负责结构与可配置项。 */}}
+<article class="stats-page">
+  <header class="page-header stats-header">
+    {{- partial "breadcrumbs.html" . }}
+    <h1>{{ .Title }}</h1>
+    {{- if .Description }}
+    <div class="post-description">{{ .Description }}</div>
+    {{- end }}
+  </header>
+
+  <div id="stats-root"
+       class="stats-root"
+       data-endpoint="https://analytics.hn-space.cn"
+       data-slug="hn-space"
+       data-share-url="https://analytics.hn-space.cn/share/hn-space"
+       data-timezone="Asia/Shanghai">
+
+    <div class="stats-toolbar">
+      <div class="stats-ranges" role="group" aria-label="时间范围">
+        <button type="button" class="stats-range" data-days="7">近 7 天</button>
+        <button type="button" class="stats-range is-active" data-days="30">近 30 天</button>
+        <button type="button" class="stats-range" data-days="90">近 90 天</button>
+      </div>
+      <a class="stats-full-link" href="https://analytics.hn-space.cn/share/hn-space" target="_blank" rel="noopener">完整看板 ↗</a>
+    </div>
+
+    <div id="stats-body" class="stats-body">
+      <p class="stats-loading">正在加载统计数据…</p>
+    </div>
+  </div>
+
+  <p class="stats-note">
+    数据由自托管 <a href="https://umami.is/" target="_blank" rel="noopener">Umami</a> 采集，无 Cookie、不做跨站追踪；
+    本页每次打开实时读取公开分享接口，因此数字是即时的。
+  </p>
+</article>
+{{- end }}

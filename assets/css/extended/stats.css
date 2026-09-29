@@ -1,0 +1,223 @@
+/* =========================================================
+   /stats/ 站点统计页样式
+   ---------------------------------------------------------
+   全部走主题变量（--theme / --entry / --border / --secondary / --primary），
+   浅色与深色自动适配；强调色复用首页的 --home-accent，取不到时退回品牌蓝。
+   ========================================================= */
+
+.stats-page {
+  --stats-accent: var(--home-accent, #4d6bfe);
+  --stats-up: #2ea043;
+  --stats-down: #d1242f;
+}
+
+html[data-theme="dark"] .stats-page {
+  --stats-up: #3fb950;
+  --stats-down: #f85149;
+}
+
+.stats-header { margin-bottom: 1.2rem; }
+
+.stats-root { margin-bottom: 1.2rem; }
+
+/* ---------- 工具条：时间范围 + 完整看板入口 ---------- */
+.stats-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.1rem;
+}
+
+.stats-ranges { display: inline-flex; gap: 0.35rem; }
+
+.stats-range {
+  padding: 0.3rem 0.85rem;
+  font-size: 0.82rem;
+  color: var(--secondary);
+  background: var(--entry);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: color 150ms ease, border-color 150ms ease, background-color 150ms ease;
+}
+
+.stats-range:hover { color: var(--primary); border-color: var(--secondary); }
+
+.stats-range.is-active {
+  color: #fff;
+  background: var(--stats-accent, #4d6bfe);
+  border-color: var(--stats-accent, #4d6bfe);
+}
+
+.stats-full-link {
+  font-size: 0.82rem;
+  color: var(--secondary);
+  text-decoration: none;
+  border-bottom: 1px dashed var(--border);
+}
+
+.stats-full-link:hover { color: var(--primary); border-bottom-color: var(--secondary); }
+
+/* ---------- 指标卡 ---------- */
+.stats-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.7rem;
+  margin-bottom: 0.9rem;
+}
+
+.stats-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.85rem 0.95rem;
+  background: var(--entry);
+  border: 1px solid var(--border);
+  border-radius: var(--radius, 8px);
+}
+
+.stats-card-label { font-size: 0.76rem; color: var(--secondary); }
+
+.stats-card-value {
+  font-size: 1.5rem;
+  font-weight: 600;
+  line-height: 1.15;
+  color: var(--primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.stats-delta { font-size: 0.74rem; color: var(--secondary); }
+.stats-delta.is-up { color: var(--stats-up); }
+.stats-delta.is-down { color: var(--stats-down); }
+
+/* ---------- 面板（趋势 / 各维度表格） ---------- */
+.stats-panel {
+  padding: 0.95rem 1rem;
+  margin-bottom: 0.9rem;
+  background: var(--entry);
+  border: 1px solid var(--border);
+  border-radius: var(--radius, 8px);
+}
+
+.stats-panel-title {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: baseline;
+  margin: 0 0 0.75rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--primary);
+}
+
+.stats-panel-hint { font-size: 0.74rem; font-weight: 400; color: var(--secondary); }
+
+.stats-online {
+  display: inline-flex;
+  gap: 0.35rem;
+  align-items: center;
+  margin-left: auto;
+  font-size: 0.74rem;
+  font-weight: 400;
+  color: var(--secondary);
+}
+
+.stats-online i {
+  width: 7px;
+  height: 7px;
+  background: var(--stats-up);
+  border-radius: 50%;
+}
+
+.stats-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.9rem; }
+.stats-grid .stats-panel { margin-bottom: 0; }
+
+/* ---------- 趋势柱状图 ---------- */
+.stats-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 130px;
+  padding-bottom: 2px;
+}
+
+.stats-bar {
+  flex: 1 1 0;
+  min-height: 2px;
+  background: linear-gradient(180deg, var(--stats-accent, #4d6bfe), color-mix(in srgb, var(--stats-accent, #4d6bfe) 55%, transparent));
+  border-radius: 2px 2px 0 0;
+  transition: opacity 150ms ease;
+}
+
+.stats-bar:hover { opacity: 0.65; }
+
+.stats-chart-axis {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.4rem;
+  font-size: 0.72rem;
+  color: var(--secondary);
+}
+
+/* ---------- 表格（标签 + 条形 + 数值） ---------- */
+.stats-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+
+.stats-table td {
+  padding: 0.28rem 0;
+  font-size: 0.82rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.stats-table tr:last-child td { border-bottom: none; }
+
+.stats-cell-label {
+  width: 45%;
+  overflow: hidden;
+  color: var(--content);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stats-cell-bar { width: 40%; padding-right: 0.6rem !important; }
+.stats-cell-bar span { display: block; height: 6px; background: var(--stats-accent, #4d6bfe); border-radius: 3px; opacity: 0.55; }
+
+.stats-cell-num {
+  width: 15%;
+  color: var(--secondary);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- 状态文案与脚注 ---------- */
+.stats-loading, .stats-empty, .stats-error {
+  margin: 0;
+  padding: 1.4rem 0;
+  font-size: 0.86rem;
+  color: var(--secondary);
+  text-align: center;
+}
+
+.stats-error { color: var(--stats-down); }
+.stats-error a { color: inherit; }
+
+.stats-note {
+  margin: 0.4rem 0 0;
+  font-size: 0.76rem;
+  line-height: 1.7;
+  color: var(--secondary);
+  text-indent: 0;
+}
+
+/* ---------- 窄屏 ---------- */
+@media (max-width: 768px) {
+  .stats-grid { grid-template-columns: minmax(0, 1fr); }
+  .stats-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .stats-card-value { font-size: 1.25rem; }
+  .stats-chart { height: 96px; }
+  .stats-cell-label { width: 52%; }
+  .stats-cell-bar { width: 32%; }
+  .stats-cell-num { width: 16%; }
+}

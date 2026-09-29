@@ -212,3 +212,12 @@
        注意：本标签必须排在其他 defer 脚本之后——宁可统计脚本失败，
        也不能让站点自身 JS 的加载被 analytics 子域名的可用性拖住。 */}}
 <script defer src="https://analytics.hn-space.cn/script.js" data-website-id="73653f50-bcb9-4154-8fa4-7a0894f7718b" data-domains="blog.hn-space.cn" data-performance="true"></script>
+{{- /* 会话回放 + 热图记录器（对应后台「网站 → 设置 → 回放 & 热图」两个开关）
+       · 与 script.js 是两个独立文件：script.js 里不含 rrweb，记录器是单独的包（186KB，gzip 后 ~57KB）
+       · 用 defer 且排在 script.js 之后：延迟加载不阻塞渲染，同时保证执行顺序确定
+       · 只在正式构建注入：该记录器不读 data-domains，本地 hugo server 预览会被一并录下
+       · 采样/遮罩/时长等策略由后台控制（当前：15% 采样、moderate 遮罩、单次上限 5 分钟）
+       · 若某天要停用，关掉后台开关或删掉本段即可，无需动 Nginx */}}
+{{- if hugo.IsProduction }}
+<script defer src="https://analytics.hn-space.cn/recorder.js" data-website-id="73653f50-bcb9-4154-8fa4-7a0894f7718b"></script>
+{{- end }}

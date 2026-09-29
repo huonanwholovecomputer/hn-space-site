@@ -10,12 +10,8 @@
     {{- end }}
   </header>
 
-  <div id="stats-root"
-       class="stats-root"
-       data-endpoint="https://analytics.hn-space.cn"
-       data-slug="hn-space"
-       data-share-url="https://analytics.hn-space.cn/share/hn-space"
-       data-timezone="Asia/Shanghai">
+  {{- /* 配置统一来自 extend_head.html 里的 window.__HN_STATS */}}
+  <div id="stats-root" class="stats-root">
 
     <div class="stats-toolbar">
       <div class="stats-ranges" role="group" aria-label="时间范围">

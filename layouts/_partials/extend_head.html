@@ -27,10 +27,19 @@
        Umami 脚本在本文件末尾才加载，所以 track.js 里对 window.umami 是懒调用：
        所有上报都发生在点击、输入、load 之后，不会因为顺序或脚本失败而报错。 */}}
 <script defer src="{{ "js/track.js" | relURL }}?v=2"></script>
-{{- /* /stats/ 站点统计页：读取 Umami 公开分享接口并渲染。
-       全局加载一次，页面里找不到 #stats-root 时直接 no-op；
-       PJAX 换页后由 stats.js 自己监听 pjax:done 重新初始化。 */}}
-<script defer src="{{ "js/stats.js" | relURL }}?v=2"></script>
+{{- /* 统计展示配置：/stats 页与文章页「本文浏览量」共用这一份，避免两处硬编码漂移。
+       仅是可公开读取的分享端点信息（分享令牌由浏览器当场换取）。 */}}
+<script>window.__HN_STATS = {
+  endpoint: "https://analytics.hn-space.cn",
+  slug: "hn-space",
+  shareUrl: "https://analytics.hn-space.cn/share/hn-space",
+  timezone: "Asia/Shanghai"
+};</script>
+{{- /* 统计展示脚本：/stats 整页渲染 + 文章页 meta 行注入浏览量。
+       全局加载一次，页面上找不到对应容器就直接 no-op；
+       PJAX 换页后由 stats.js 自己监听 pjax:done 重新初始化。
+       数据与分享令牌都走 sessionStorage 缓存（令牌 10 分钟 / 页面数据 5 分钟 / 浏览量 10 分钟）。 */}}
+<script defer src="{{ "js/stats.js" | relURL }}?v=3"></script>
 {{- /* ===== LaTeX 数学公式（KaTeX）+ 文章图片增强 ===== */}}
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>

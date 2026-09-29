@@ -171,50 +171,186 @@
       '<div class="stats-grid">' + model.tables.map(tableHtml).join('') + '</div>';
   }
 
-  function fail(root, message) {
+  function fail(root, message, shareUrl) {
     var body = root.querySelector('#stats-body');
     if (!body) return;
-    body.innerHTML = '<p class="stats-error">' + esc(message) + '（可先看 <a href="' + esc(root.dataset.shareUrl || '#') + '" target="_blank" rel="noopener">完整分享看板 ↗</a>）</p>';
+    var more = shareUrl
+      ? '（可先看 <a href="' + esc(shareUrl) + '" target="_blank" rel="noopener">完整分享看板 ↗</a>）'
+      : '';
+    body.innerHTML = '<p class="stats-error">' + esc(message) + more + '</p>';
+  }
+
+  /* ---------------- sessionStorage 缓存 ----------------
+     目的：同一标签页内来回翻页、切换时间范围时不重复打接口。
+     一律带 TTL；取不到、过期、隐私模式抛错都当"没有缓存"降级处理。 */
+  var CACHE_PREFIX = 'hn-stats:';
+
+  function cacheGet(key) {
+    try {
+      var raw = window.sessionStorage.getItem(CACHE_PREFIX + key);
+      if (!raw) return null;
+      var box = JSON.parse(raw);
+      if (!box || typeof box.e !== 'number' || box.e < Date.now()) {
+        window.sessionStorage.removeItem(CACHE_PREFIX + key);
+        return null;
+      }
+      return box.v;
+    } catch (err) {
+      return null;
+    }
+  }
+
+  function cacheSet(key, value, ttlMs) {
+    try {
+      window.sessionStorage.setItem(CACHE_PREFIX + key, JSON.stringify({ v: value, e: Date.now() + (ttlMs || 0) }));
+    } catch (err) { /* 配额满 / 隐私模式：忽略 */ }
+  }
+
+  function cacheDrop(key) {
+    try { window.sessionStorage.removeItem(CACHE_PREFIX + key); } catch (err) { /* 忽略 */ }
+  }
+
+  /* ---------------- 配置与分享令牌 ---------------- */
+
+  var TTL = { token: 10 * 60e3, stats: 5 * 60e3, views: 10 * 60e3 };
+
+  /* 配置只在 extend_head.html 声明一次（window.__HN_STATS），
+     /stats 页与文章页浏览量共用，避免两处硬编码漂移。 */
+  function statsConfig() {
+    var c = window.__HN_STATS || {};
+    if (!c.endpoint || !c.slug) return null;
+    return {
+      endpoint: String(c.endpoint).replace(/\/+$/, ''),
+      slug: c.slug,
+      timezone: c.timezone || 'Asia/Shanghai',
+      shareUrl: c.shareUrl || '',
+    };
+  }
+
+  function rangeQuery(days, timezone) {
+    var end = Date.now();
+    var start = end - days * 86400000;
+    return 'startAt=' + start + '&endAt=' + end + '&timezone=' + encodeURIComponent(timezone);
+  }
+
+  /* 分享令牌带缓存；显式 noCache 时强制重取（令牌失效/接口报错时用） */
+  function shareMeta(conf, noCache) {
+    var key = 'share:' + conf.slug;
+    if (!noCache) {
+      var hit = cacheGet(key);
+      if (hit) return Promise.resolve(hit);
+    }
+    return fetch(conf.endpoint + '/api/share/' + conf.slug, { credentials: 'omit' })
+      .then(function (r) {
+        if (!r.ok) throw new Error('分享接口 ' + r.status);
+        return r.json();
+      })
+      .then(function (meta) {
+        if (!meta || !meta.token || !meta.websiteId) throw new Error('分享信息不完整');
+        cacheSet(key, meta, TTL.token);
+        return meta;
+      });
+  }
+
+  function shareHeaders(meta) {
+    return { 'x-umami-share-token': meta.token, 'x-umami-share-context': 'share' };
+  }
+
+  /* ---------------- 文章页「本文浏览量」：纯函数部分 ---------------- */
+
+  /* 浏览量要看该路径的历史总量，给足够长的窗口（3 年） */
+  var VIEW_DAYS = 1095;
+
+  function viewsQuery(pathname, days, timezone) {
+    return rangeQuery(days || VIEW_DAYS, timezone) + '&path=eq.' + encodeURIComponent(pathname);
+  }
+
+  function viewsLabel(n) {
+    return '浏览 ' + fmtNumber(n) + ' 次';
   }
 
   /* ---------------- 数据获取 ---------------- */
 
-  function load(api, slug, days, timezone) {
-    var end = Date.now();
-    var start = end - days * 86400000;
-    var qs = 'startAt=' + start + '&endAt=' + end + '&timezone=' + encodeURIComponent(timezone);
-    var wid = '';
+  function load(conf, days, noCache) {
+    var qs = rangeQuery(days, conf.timezone);
 
-    return fetch(api + '/api/share/' + slug, { credentials: 'omit' })
-      .then(function (r) { if (!r.ok) throw new Error('分享接口 ' + r.status); return r.json(); })
-      .then(function (meta) {
-        if (!meta || !meta.token || !meta.websiteId) throw new Error('分享信息不完整');
-        wid = meta.websiteId;
-        var headers = { 'x-umami-share-token': meta.token, 'x-umami-share-context': 'share' };
-        function get(path, key) {
-          return fetch(api + path, { headers: headers, credentials: 'omit' })
-            .then(function (r) { return r.ok ? r.json() : null; })
-            .then(function (json) { return [key, json]; })
-            .catch(function () { return [key, null]; });
-        }
-        var base = '/api/websites/' + wid;
-        return Promise.all([
-          get(base + '/stats?' + qs, 'stats'),
-          get(base + '/pageviews?' + qs + '&unit=day', 'pageviews'),
-          get(base + '/metrics?' + qs + '&type=path&limit=8', 'path'),
-          get(base + '/metrics?' + qs + '&type=referrer&limit=8', 'referrer'),
-          get(base + '/metrics?' + qs + '&type=country&limit=8', 'country'),
-          get(base + '/metrics?' + qs + '&type=browser&limit=6', 'browser'),
-          get(base + '/metrics?' + qs + '&type=device&limit=4', 'device'),
-          get(base + '/metrics?' + qs + '&type=event&limit=8', 'event'),
-          get(base + '/active', 'active'),
-        ]);
-      })
+    return shareMeta(conf, noCache).then(function (meta) {
+      var headers = shareHeaders(meta);
+      function get(path, key) {
+        return fetch(conf.endpoint + path, { headers: headers, credentials: 'omit' })
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (json) { return [key, json]; })
+          .catch(function () { return [key, null]; });
+      }
+      var base = '/api/websites/' + meta.websiteId;
+      return Promise.all([
+        get(base + '/stats?' + qs, 'stats'),
+        get(base + '/pageviews?' + qs + '&unit=day', 'pageviews'),
+        get(base + '/metrics?' + qs + '&type=path&limit=8', 'path'),
+        get(base + '/metrics?' + qs + '&type=referrer&limit=8', 'referrer'),
+        get(base + '/metrics?' + qs + '&type=country&limit=8', 'country'),
+        get(base + '/metrics?' + qs + '&type=browser&limit=6', 'browser'),
+        get(base + '/metrics?' + qs + '&type=device&limit=4', 'device'),
+        get(base + '/metrics?' + qs + '&type=event&limit=8', 'event'),
+        get(base + '/active', 'active'),
+      ]);
+    })
       .then(function (pairs) {
         var data = {};
         pairs.forEach(function (p) { data[p[0]] = p[1]; });
         if (!data.stats) throw new Error('统计数据不可用');
         return data;
+      });
+  }
+
+  /* ---------------- 文章页「本文浏览量」：DOM 部分 ---------------- */
+
+  function injectViews(metaEl, n) {
+    if (metaEl.querySelector('.post-views')) return;
+    var el = document.createElement('span');
+    el.className = 'post-views';
+    el.textContent = viewsLabel(n);
+    metaEl.appendChild(document.createTextNode('\u00a0·\u00a0'));
+    metaEl.appendChild(el);
+  }
+
+  /* 只在文章页生效：PaperMod 的列表页/归档页也有 .post-meta（在 article.post-entry 内），
+     这里把选择器限定到 article.post-single 下的那一个，杜绝误伤列表摘要。 */
+  function initPostViews() {
+    var conf = statsConfig();
+    var metaEl = document.querySelector('article.post-single .post-header .post-meta');
+    if (!conf || !metaEl) return;
+    if (metaEl.querySelector('.post-views') || metaEl.dataset.viewsPending) return;
+    metaEl.dataset.viewsPending = '1';
+
+    var done = function () { metaEl.dataset.viewsPending = ''; };
+    var key = 'views:' + location.pathname;
+
+    /* 命中缓存：直接注入，零请求（来回翻页时的主要优化点） */
+    var hit = cacheGet(key);
+    if (hit !== null) {
+      injectViews(metaEl, hit);
+      done();
+      return;
+    }
+
+    shareMeta(conf)
+      .then(function (m) {
+        var url = conf.endpoint + '/api/websites/' + m.websiteId + '/stats?' +
+          viewsQuery(location.pathname, VIEW_DAYS, conf.timezone);
+        return fetch(url, { headers: shareHeaders(m), credentials: 'omit' });
+      })
+      .then(function (r) { if (!r.ok) throw new Error('stats ' + r.status); return r.json(); })
+      .then(function (json) {
+        var n = Number(json && json.pageviews) || 0;
+        cacheSet(key, n, TTL.views);
+        /* PJAX 可能已经换页，旧元素脱落后就不要再插 */
+        if (metaEl.isConnected) injectViews(metaEl, n);
+        done();
+      })
+      .catch(function () {
+        /* 静默降级：取不到就不显示，绝不干扰阅读 */
+        done();
       });
   }
 
@@ -228,10 +364,8 @@
     var body = root.querySelector('#stats-body');
     if (!body) return;
 
-    var api = root.dataset.endpoint;
-    var slug = root.dataset.slug;
-    var timezone = root.dataset.timezone || 'Asia/Shanghai';
-    if (!api || !slug) return;
+    var conf = statsConfig();
+    if (!conf) return;
 
     var btns = root.querySelectorAll('.stats-range');
 
@@ -259,30 +393,48 @@
       });
     });
 
+    /* 缓存命中：直接渲染，一个请求都不发（切换范围来回点时很省） */
+    var cacheKey = 'stats:' + conf.slug + ':' + days;
+    var cached = cacheGet(cacheKey);
+    if (cached) {
+      render(root, compose(cached));
+      body.dataset.loaded = '1';
+      return;
+    }
+
     busy = true;
     if (!body.dataset.loaded) body.innerHTML = '<p class="stats-loading">正在加载统计数据…</p>';
 
-    load(api, slug, days, timezone)
+    load(conf, days)
       .then(function (data) {
+        cacheSet(cacheKey, data, TTL.stats);
         render(root, compose(data));
         body.dataset.loaded = '1';
       })
       .catch(function (err) {
-        fail(root, '统计数据暂时取不到：' + (err && err.message ? err.message : '网络异常'));
+        fail(root, '统计数据暂时取不到：' + (err && err.message ? err.message : '网络异常'), conf.shareUrl);
       })
       .then(function () { busy = false; });
   }
 
   window.__hnStatsInit = init;
+  window.__hnStatsInitPostViews = initPostViews;
   window.__hnStatsModel = {
     fmtDuration: fmtDuration, fmtNumber: fmtNumber, pct: pct, delta: delta,
     readable: readable, toRows: toRows, compose: compose,
+    statsConfig: statsConfig, rangeQuery: rangeQuery, viewsQuery: viewsQuery,
+    viewsLabel: viewsLabel, cacheGet: cacheGet, cacheSet: cacheSet,
   };
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-  } else {
+  function boot() {
     init();
+    initPostViews();
   }
-  document.addEventListener('pjax:done', init);
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
+  }
+  document.addEventListener('pjax:done', boot);
 })();

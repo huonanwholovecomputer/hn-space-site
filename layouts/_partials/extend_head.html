@@ -52,7 +52,9 @@
     var apply = function (v) {
       document.documentElement.classList.toggle('type-large', v === 'large');
     };
-    apply(store.get(KEY)); /* 首帧就是正确字号，不闪 */
+    /* 默认就是放大版（已通过评估）；带 ?typescale=base 或点面板上的「基准」
+       才会回到旧尺度，选择存 sessionStorage。 */
+    apply(store.get(KEY) || 'large'); /* 首帧就是正确字号，不闪 */
 
     if (store.get(PANEL) !== '1') return;
 

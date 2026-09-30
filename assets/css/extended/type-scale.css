@@ -7,14 +7,15 @@
    全站唯一入口：给 <html> 加 .type-large（由 extend_head.html 里的 TS_SCALE 脚本
    按 ?typescale= 参数添加）。
 
-   预览用法（访客不带参数，永远看不到任何变化）：
-     /?typescale=1      基准版 + 左下角开关面板（可来回切）
-     /?typescale=large  直接进放大版
-     /?typescale=base   直接回基准版
-     /?typescale=off    清掉选择（下次不带参数即恢复基准）
+   预览用法：
+     /                  默认即放大版
+     /?typescale=base   回到旧（基准）尺度对照
+     /?typescale=1      基准/放大 开关面板（左下角，可来回切）
+     /?typescale=off    清掉 sessionStorage 里的选择（回到默认的放大版）
    选择存在 sessionStorage，PJAX 换页与站内跳转都会保持。
 
-   想完全移除这个实验：删掉本文件 + extend_head.html 里的 TS_SCALE 那段 <script>。
+   想完全移除这个实验：删掉本文件 + extend_head.html 里的 TS_SCALE 那段 <script>
+   （或者只把默认改回基准：把那段里的 `store.get(KEY) || 'large'` 去掉 `|| 'large'`）。
    ============================================================================ */
 
 /* ---------- 开关面板（只在带 ?typescale 时由脚本插入 DOM） ---------- */

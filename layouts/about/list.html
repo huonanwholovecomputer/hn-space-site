@@ -33,9 +33,10 @@
       </div>
     </section>
 
-    {{/* 「常用软件 / Toolbox」板块已按你的要求整块移除（2026-09-30）。
-         相关样式（.about-tile / .office-row / .tile-bg--*）也一并从 about.css 删掉了；
-         data/about.yaml 里的 office 列表保留着（带注释），想恢复直接把这十几行贴回来即可。 */}}
+    {{/* 「常用软件 / Toolbox」板块已整块移除（2026-09-30）。
+         相关样式（.about-tile / .office-row / .tile-bg--*）、数据（data/about.yaml 的 office）、
+         图标资源（static/img/app-icons/*.png 与 icon.html 的 img 型字典）也一并删了。
+         想恢复：git show 6bd9cfd 取模板与样式、git show <本次提交> 之前取数据与图标。 */}}
 
     {{/* ================= 编程方向 ================= */}}
     <section class="about-section" id="dev" aria-labelledby="dev-title">

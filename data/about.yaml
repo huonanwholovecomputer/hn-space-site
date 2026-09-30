@@ -16,39 +16,6 @@ quickFacts:
   - label: "站点"
     value: "blog.hn-space.cn"
 
-# 「常用软件 / Toolbox」板块已整块移除（2026-09-30），这段数据暂时没有页面在用。
-# 保留在这里是为了随时恢复：把下面的 office 列表贴回 about/list.html 对应位置即可
-# （样式需一并恢复：about.css 的 .office-row / .about-tile* / .tile-bg--*，
-#   以及 site.js CARD_SELECTOR 里的 .about-tile）。
-office:
-  - name: "WPS Office"
-    icon: "wps"
-    desc: "文档 / 表格 / 演示"
-  - name: "PowerPoint"
-    icon: "ppt"
-    desc: "演示与汇报"
-  - name: "Word"
-    icon: "word"
-    desc: "长文与排版"
-  - name: "Excel"
-    icon: "excel"
-    desc: "数据与表格"
-  - name: "Pr"
-    icon: "pr"
-    desc: "视频剪辑"
-  - name: "An"
-    icon: "an"
-    desc: "矢量动画"
-  - name: "Ps"
-    icon: "ps"
-    desc: "图像处理"
-  - name: "剪映"
-    icon: "jianying"
-    desc: "快速剪辑"
-  - name: "必剪"
-    icon: "bijian"
-    desc: "B 站创作"
-
 dev:
   - name: "Python 项目"
     icon: "python"

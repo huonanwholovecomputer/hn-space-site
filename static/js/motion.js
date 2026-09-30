@@ -509,13 +509,24 @@
     function degradeToNativeScroll(lenis, count) {
       if (window.__hnLenisDegraded) return;
       window.__hnLenisDegraded = true;
+
+      /* ★ 必须掐断这个实例的滚轮入口，否则"降级"是假的：
+         Lenis 的滚轮处理器在内部先做 e.preventDefault()，再交给 emitter 派发。
+         只要它还在监听 wheel，浏览器就永远拿不到原生滚动 ——
+         表现正是用户实测的"触控能滑（触控不归 Lenis 管）、滚轮彻底卡死"。
+         destroy() 不保证摘掉这个监听（实测其残骸仍在派发，字段已被清成 null），
+         所以这里把 emitter 的 emit 直接改成空函数：onWheel 派发不到 onVirtualScroll，
+         preventDefault 也就不会发生，原生滚动立刻恢复。
+         （不必也无法替换已注册的监听函数本身，掐掉派发即可。） */
+      try { if (lenis.emitter) lenis.emitter.emit = function () {}; } catch (eEmit) { /* 忽略 */ }
+      try { lenis.onVirtualScroll = function () {}; } catch (eOn) { /* 忽略 */ }
       try { if (typeof lenis.destroy === 'function') lenis.destroy(); } catch (eDestroy) { /* 忽略 */ }
       window.__hnLenis = null;
       var cl = document.documentElement.classList;
       ['lenis', 'lenis-smooth', 'lenis-stopped', 'lenis-scrolling'].forEach(function (c) { cl.remove(c); });
       try {
-        console.warn('[hn] Lenis 内部状态被外部脚本反复写坏（已 ' + count +
-          ' 次），已退回浏览器原生滚动——功能不受影响，只是少了平滑缓动。');
+        console.warn('[hn] Lenis 内部状态被写坏（已 ' + count +
+          ' 次），已退回浏览器原生滚动并掐断其滚轮接管——功能不受影响，只是少了平滑缓动。');
       } catch (eWarn) { /* 忽略 */ }
     }
 

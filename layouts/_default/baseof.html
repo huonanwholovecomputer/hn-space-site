@@ -13,6 +13,18 @@
 {{- end }}
 
 <head>
+    {{- /* 首帧底色：外链样式表到达前，浏览器会先用 UA 默认色铺一次画布（深色模式下偏灰），
+           这一帧就是"进入页面时先闪一下灰"的来源。把主题底色的实色写在最前面
+           （必须在 head.html 之前，才能早于外链样式表生效）。
+           深色值取自 assets/css/extended/site.css 的 --theme: rgb(10,13,19)；
+           auto 时用 prefers-color-scheme 跟随系统。 */}}
+    <style>
+      html { background-color: #fff; }
+      html[data-theme="dark"] { background-color: rgb(10, 13, 19); }
+      @media (prefers-color-scheme: dark) {
+        html[data-theme="auto"] { background-color: rgb(10, 13, 19); }
+      }
+    </style>
     {{- partial "head.html" . }}
 </head>
 

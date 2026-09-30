@@ -1146,6 +1146,32 @@ main.main:has(.home-page) {
 }
 
 /* ============ 入场动画 ============ */
+
+/* 首帧预隐藏：site.js 是 defer 脚本，执行前浏览器已经画过若干帧。
+   若只靠它加上 .reveal-item 才隐藏，那么"匹配它的选择器、但模板里没写 data-reveal"
+   的元素（.post-entry / .page-header / .archive-entry / …，多数来自主题模板）
+   就会「先以可见状态画出来 → site.js 打上类 → 瞬间被隐藏 → 再入场」，
+   肉眼正是"内容闪一下又没了"。
+   这里在 site.js 接管之前先把它们藏住，闸门由 site.js 在 initReveal() 里打开
+   （html.reveal-ready）——那一刻这些元素已经带上 .reveal-item，隐藏态无缝接续，
+   既不会闪、也不会"露出半截"。
+   只写 opacity（不写 transform）：预隐藏阶段还不知道各元素的偏移形状，
+   transform 交给随后生效的 .reveal-item 规则，且全程 opacity:0 不可见，不会跳。
+   选择器清单**必须与 site.js 的 selector 一致**（那边同注）。
+   失败模式：若 site.js 完全没能加载/执行，闸门不会打开，这些元素会一直隐藏。
+   这与 [data-reveal] 元素同命运（那些元素本来也只能靠 site.js 显示），
+   所以没有引入新的最坏情况；若将来要更硬，可在 head 内联脚本里加一个超时兜底开闸。 */
+@media (prefers-reduced-motion: no-preference) {
+  html.js:not(.reveal-ready) [data-reveal],
+  html.js:not(.reveal-ready) .post-entry,
+  html.js:not(.reveal-ready) .searchResults li,
+  html.js:not(.reveal-ready) .archive-entry,
+  html.js:not(.reveal-ready) .page-header,
+  html.js:not(.reveal-ready) .post-header {
+    opacity: 0;
+  }
+}
+
 html.js .reveal-item,
 html.js [data-reveal] {
   --reveal-x: 0px;

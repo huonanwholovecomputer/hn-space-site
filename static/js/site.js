@@ -19,6 +19,8 @@ var revealClassify = function (rect, vh) {
   'use strict';
   document.documentElement.classList.add('js');
 
+  /* 与 home.css 里 `html.js:not(.reveal-ready)` 的首帧预隐藏规则**必须一致**：
+     改这里就要同步改那边，否则又会出现"先可见 → 被隐藏 → 再入场"的闪动。 */
   var selector = '[data-reveal], .post-entry, .searchResults li, .archive-entry, .page-header, .post-header';
 
   var guardTimer = null;
@@ -49,6 +51,14 @@ var revealClassify = function (rect, vh) {
 
   function initReveal() {
     var els = Array.prototype.slice.call(document.querySelectorAll(selector));
+
+    /* 打开首帧预隐藏的闸门（见 home.css 的 `html.js:not(.reveal-ready)` 规则）：
+       从这里起隐藏态由 .reveal-item 接管。放在最前面是为了覆盖所有分支
+       ——无匹配元素、减少动态、正常 IO。整个 initReveal 是同步执行的，
+       闸门打开与 .reveal-item 打标之间不会插入一帧，所以不会出现"露一下"。
+       放在 <html> 上，PJAX 换页后持续有效（换页是同任务内替换+打标，本来也无空窗）。 */
+    document.documentElement.classList.add('reveal-ready');
+
     if (!els.length) {
       return;
     }

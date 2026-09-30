@@ -275,8 +275,13 @@
           /* 先撤掉淡出态：新内容以正常状态就位，再由 data-reveal 逐个入场 */
           finish();
 
-          /* 进入搜索页：重新初始化搜索框（启用输入框 + 绑定事件 + 重建索引） */
+          /* 进入搜索页：重新初始化搜索框（启用输入框 + 绑定事件 + 重建索引）。
+             但**必须先把 Lenis 拆掉**——实测搜索页会让 Lenis 的内部数值字段被写坏
+             （scrollY 那类滚轮卡死就是这么来的），而且注入搜索包这件事本身要早于
+             "还有实例可写"的窗口。拆掉后本页走原生滚动，离开时由 motion.js 的
+             syncSmoothScroll（监听 pjax:done）重建一个干净实例。 */
           if (isSearchUrl(url)) {
+            if (typeof window.__hnLenisTeardown === 'function') window.__hnLenisTeardown();
             ensureSearchReady(doc);
           }
 

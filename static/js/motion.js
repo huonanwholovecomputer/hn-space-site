@@ -345,6 +345,11 @@
     if (reduceMotion()) return;
     if (typeof window.Lenis !== 'function') return;
     if (window.__hnLenis) return;
+    /* 搜索页不持有 Lenis（见文件末尾 syncSmoothScroll 的说明）：
+       实测"访问过搜索页之后"Lenis 的内部数值字段会被写坏，而搜索包自己并不调用
+       任何滚动接口（已核对：scrollY/scrollTop/scrollTo 全为 0 处）——所以合理的
+       处置是让它在搜索页根本不存在，从而无可污染；离开搜索页时再重建一个干净的。 */
+    if (isSearchPage()) return;
 
     try {
       window.__hnLenis = new window.Lenis({
@@ -529,6 +534,53 @@
           ' 次），已退回浏览器原生滚动并掐断其滚轮接管——功能不受影响，只是少了平滑缓动。');
       } catch (eWarn) { /* 忽略 */ }
     }
+
+    /* ------------------------------------------------------------------------
+       搜索页隔离（对应实测结论：访问过搜索页之后 Lenis 内部状态才被写坏）
+
+       探测顺序：搜索包只含 Fuse（模糊搜索），**不含任何滚动接口**
+       （scrollY/scrollX/scrollTop/scrollTo/scrollIntoView 全为 0 处），
+       所以它不是直接调用滚动 API 写坏的 —— 合理处置是让搜索页根本不持有 Lenis：
+       没有实例，就没有可被写坏的对象；离开搜索页时再建一个全新的干净实例。
+
+       与 degradeToNativeScroll 的区别：那个是**永久**降级（一次性闸门，防再次被写坏）；
+       这里是**可逆**拆除，仅用于搜索页的进出。
+       ------------------------------------------------------------------------ */
+    function isSearchPage() {
+      return /\/search\/?$/.test(location.pathname);
+    }
+
+    function teardownLenis() {
+      var lenis = window.__hnLenis;
+      if (!lenis) return;
+      try { if (lenis.emitter) lenis.emitter.emit = function () {}; } catch (eEmit) { /* 忽略 */ }
+      try { lenis.onVirtualScroll = function () {}; } catch (eOn) { /* 忽略 */ }
+      try { if (typeof lenis.destroy === 'function') lenis.destroy(); } catch (eDestroy) { /* 忽略 */ }
+      window.__hnLenis = null;
+      var cl = document.documentElement.classList;
+      ['lenis', 'lenis-smooth', 'lenis-stopped', 'lenis-scrolling'].forEach(function (c) { cl.remove(c); });
+    }
+
+    /* 换页后把"当前页该不该有 Lenis"对齐；也供 pjax.js 在**进入搜索页之前**调用
+       （必须早于搜索包的注入，否则注入那一刻它就有实例可写了）。 */
+    function syncSmoothScroll() {
+      if (window.__hnLenisDegraded) return;      /* 已永久降级：不再重建 */
+      if (reduceMotion() || typeof window.Lenis !== 'function') return;
+      if (isSearchPage()) {
+        teardownLenis();
+        return;
+      }
+      if (!window.__hnLenis) {
+        initSmoothScroll();
+        if (window.__hnLenis && typeof window.__hnLenisResize === 'function') {
+          window.__hnLenisResize();              /* 新实例立即按当前文档量一次尺寸 */
+        }
+      }
+    }
+
+    window.__hnLenisTeardown = teardownLenis;
+    window.__hnSyncSmoothScroll = syncSmoothScroll;
+    document.addEventListener('pjax:done', syncSmoothScroll);
 
     if (!window.__hnLenisSelfHeal) {
       window.__hnLenisSelfHeal = true;

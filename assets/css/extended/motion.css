@@ -37,6 +37,16 @@
    没拆行（非纯文本 / 减少动态 / 无 JS）时下面的规则一律不匹配，标题保持原样。
    ============================================================================ */
 
+html.js .mask-lines {
+  display: block;
+  /* 宿主可能是 flex/grid 容器——文章 H1 的 .entry-hint-parent 就是 PaperMod
+     用来放草稿图标的 flex。若把多行直接塞进去，它们会被当成并排的 flex item，
+     行与行横向排列、各自再折行（实测就是这样花掉的）。包一层块级容器后，
+     宿主始终只看到一个子节点；flex:1 1 auto 让它占满剩余宽度，行内文本不二次折行。 */
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 html.js .mask-line {
   display: block;
   clip-path: inset(0);        /* 只裁切绘制，不影响基线与布局 */

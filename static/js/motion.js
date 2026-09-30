@@ -97,7 +97,9 @@
     return lines;
   }
 
-  /* 拆行：成功返回 true */
+  /* 拆行：成功返回 true。
+     注意最后是包进一个 .mask-lines 块级容器再替换——宿主可能是 flex 容器
+     （文章 H1 的 .entry-hint-parent），直接放多个块级行会被当成并排 flex item。 */
   function split(el) {
     if (el.classList.contains('mask-split')) return true;
 
@@ -108,7 +110,8 @@
     if (!lines.length) return false;
 
     var text = tn.nodeValue;
-    var frag = document.createDocumentFragment();
+    var wrap = document.createElement('span');
+    wrap.className = 'mask-lines';
     var box;
 
     for (var i = 0; i < lines.length; i++) {
@@ -121,10 +124,10 @@
       inner.style.setProperty('--line-i', String(i));
       inner.textContent = seg;
       box.appendChild(inner);
-      frag.appendChild(box);
+      wrap.appendChild(box);
     }
 
-    if (!frag.childNodes.length) return false;
+    if (!wrap.childNodes.length) return false;
 
     /* 同级错峰：与 site.js 同一公式，写成内联变量交给 CSS 的 calc() 用 */
     var parent = el.parentElement;
@@ -134,7 +137,7 @@
     var delay = Math.min(Math.max(index, 0), SIBLING_MAX) * SIBLING_STAGGER;
     el.style.setProperty('--mask-delay', delay + 'ms');
 
-    el.replaceChild(frag, tn);
+    el.replaceChild(wrap, tn);
     el.classList.add('mask-split');
     return true;
   }

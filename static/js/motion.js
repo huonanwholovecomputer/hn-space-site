@@ -234,12 +234,90 @@
     };
   }
 
+  /* --------------------------------------------------------------------------
+   * 数字滚动（count-up）——《动效升级方案》§4-8
+   * 目标：首页 Highlights 的数值、/stats 的统计卡片数值。
+   * 只处理「纯数字（可带前后缀与千分位）」的文本，其余原样跳过；
+   * 进入视口触发一次即停（打 data-counted 标记），不来回重播；
+   * 减少动态下不介入（文本本来就是终值）。
+   * ------------------------------------------------------------------------ */
+  var COUNT_MS = 700;
+  var countIO = null;
+
+  /* 把 "2" / "1,234" / "35 次" 拆成 前缀 + 数字 + 后缀；拆不动返回 null */
+  function parseCount(text) {
+    var m = /^(\D*)(\d[\d,]*)(\D*)$/.exec(text);
+    if (!m) return null;
+    var raw = m[2];
+    var num = parseInt(raw.replace(/,/g, ''), 10);
+    if (!isFinite(num)) return null;
+    return { pre: m[1], num: num, post: m[3], grouped: raw.indexOf(',') >= 0 };
+  }
+
+  function runCount(el) {
+    var info = parseCount(el.textContent.trim());
+    if (!info || info.num <= 0) return;
+    var target = info.num;
+    var t0 = 0;
+    var fmt = function (v) {
+      return info.grouped ? v.toLocaleString('en-US') : String(v);
+    };
+    var frame = function (t) {
+      if (!t0) t0 = t;
+      var k = Math.min(1, (t - t0) / COUNT_MS);
+      var e = 1 - Math.pow(1 - k, 3); /* easeOutCubic：起快收慢，符合"数字落定"的观感 */
+      el.textContent = info.pre + fmt(Math.round(target * e)) + info.post;
+      if (k < 1) {
+        window.requestAnimationFrame(frame);
+      } else {
+        el.textContent = info.pre + fmt(target) + info.post; /* 收尾写精确值 */
+      }
+    };
+    el.textContent = info.pre + fmt(0) + info.post;
+    window.requestAnimationFrame(frame);
+  }
+
+  function initCountUp() {
+    if (!('IntersectionObserver' in window)) return;
+    var els = document.querySelectorAll('.highlight-value, .stats-card-value');
+    if (!els.length) return;
+
+    if (countIO) countIO.disconnect();
+    countIO = new IntersectionObserver(
+      function (entries) {
+        for (var i = 0; i < entries.length; i++) {
+          if (!entries[i].isIntersecting) continue;
+          var el = entries[i].target;
+          countIO.unobserve(el);
+          runCount(el);
+        }
+      },
+      { threshold: 0.2 }
+    );
+
+    for (var i = 0; i < els.length; i++) {
+      var el = els[i];
+      if (el.getAttribute('data-counted') === '1') continue;
+      if (!parseCount(el.textContent.trim())) continue; /* 非数字：保持原样 */
+      el.setAttribute('data-counted', '1');
+      countIO.observe(el);
+    }
+  }
+
+  /* 供 stats.js 在异步渲染完卡片后调用（与 __siteInitReveal/__siteInitTilt 同一套约定） */
+  window.__motionCountUp = function () {
+    if (reduceMotion()) return;
+    initCountUp();
+  };
+
   function init() {
     /* 目录高亮是功能性指示：减少动态下也保留（CSS 只去掉那条竖条的过渡） */
     initTocSpy();
 
     /* 下面都是装饰性入场：减少动态 / 无 IntersectionObserver 时完全不介入 */
     if (reduceMotion() || !('IntersectionObserver' in window)) return;
+
+    initCountUp();
 
     if (io) io.disconnect();
     io = new IntersectionObserver(

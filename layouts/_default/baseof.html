@@ -30,6 +30,9 @@
            显示与否交给 body 类（body.page-posts）控制，而
            pjax.js 的 applyBodyClass() 会随换页更新它。 */}}
     <div class="read-progress" aria-hidden="true"></div>
+    {{- /* 慢网加载细线：PJAX 取数超过 250ms 才由 pjax.js 打开（html.is-nav-loading），
+           同样必须常驻 body、不能只在某类页面渲染。 */}}
+    <div class="nav-loading" aria-hidden="true"></div>
     {{ partialCached "header.html" . .Page -}}
     <main class="main">
         {{- block "main" . }}{{ end }}

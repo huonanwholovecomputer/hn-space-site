@@ -160,6 +160,35 @@
     document.head.appendChild(s);
   }
 
+  /* ---------- 换页过渡（对应《动效升级方案》§4-6）----------
+     离开：先把 <main> 淡出（html.is-nav-leaving），再替换内容；新内容的入场
+     交给 site.js 的 data-reveal，不再叠第二层容器动画（否则两层各淡一次）。
+     慢网桥接：超过 LOADING_DELAY_MS 还没回来，才在顶部显示一条不确定进度细线。
+     减少动态：不做淡出（LEAVE_MS = 0），行为与改动前完全一致。
+     并发保护：只有最后一次点击的结果允许改 DOM（快速连点不互相打架）。 */
+  var reduceMotion = !!(
+    window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  );
+  var LEAVE_MS = reduceMotion ? 0 : 150;
+  var LOADING_DELAY_MS = 250;
+  var navToken = 0;
+
+  function setNavLoading(on) {
+    document.documentElement.classList.toggle('is-nav-loading', !!on);
+  }
+
+  function setNavLeaving(on) {
+    document.documentElement.classList.toggle('is-nav-leaving', !!on);
+  }
+
+  function beginLeave() {
+    if (LEAVE_MS <= 0) return Promise.resolve();
+    setNavLeaving(true);
+    return new Promise(function (resolve) {
+      window.setTimeout(resolve, LEAVE_MS);
+    });
+  }
+
   function navigate(url, push) {
     if (push) {
       history.pushState({ url: url.href }, '', url.href);
@@ -170,6 +199,23 @@
     var header = document.querySelector('.header');
     var wasScrolled = header ? header.classList.contains('is-scrolled') : false;
 
+    var myToken = ++navToken;
+    var stale = function () {
+      return myToken !== navToken;
+    };
+
+    var loadingTimer = window.setTimeout(function () {
+      if (!stale()) setNavLoading(true);
+    }, LOADING_DELAY_MS);
+
+    /* 收尾：撤掉加载细线与淡出态。过期导航不再碰这些状态，交给最新那次 */
+    var finish = function () {
+      window.clearTimeout(loadingTimer);
+      if (stale()) return;
+      setNavLoading(false);
+      setNavLeaving(false);
+    };
+
     var req = fetch(url.href, { headers: { 'X-PJAX': '1' } });
 
     req
@@ -178,52 +224,62 @@
         return res.text();
       })
       .then(function (html) {
+        if (stale()) return; /* 期间又有新导航：这次结果丢弃，不碰 DOM */
+
         var doc = new DOMParser().parseFromString(html, 'text/html');
         var newMain = doc.querySelector('main.main');
         if (!newMain) throw new Error('no main');
 
-        applyHead(doc, url);
-        applyBodyClass(doc);
-        applyNavActive(url);
-        /* 替换 main 内容：header/footer/拖尾 canvas 等 body 全局元素不动 */
-        mainEl.innerHTML = newMain.innerHTML;
+        /* 先淡出、再替换：避免"旧内容瞬间消失、新内容空一帧"的硬切 */
+        return beginLeave().then(function () {
+          if (stale()) return;
 
-        /* 进入搜索页：重新初始化搜索框（启用输入框 + 绑定事件 + 重建索引） */
-        if (isSearchUrl(url)) {
-          ensureSearchReady(doc);
-        }
+          applyHead(doc, url);
+          applyBodyClass(doc);
+          applyNavActive(url);
+          /* 替换 main 内容：header/footer/拖尾 canvas 等 body 全局元素不动 */
+          mainEl.innerHTML = newMain.innerHTML;
+          /* 先撤掉淡出态：新内容以正常状态就位，再由 data-reveal 逐个入场 */
+          finish();
 
-        /* 文章页点击进入正文：固定回到页首。
-           其余页面：尝试恢复到原滚动位置（新页面高度可能更短，
-           超界则由浏览器收紧；在替换后立即执行，此时浏览器尚未
-           因内容变更自动跳顶）。 */
-        var isArticle = isArticleUrl(url);
-        if (isArticle) {
-          window.scrollTo(0, 0);
-        } else {
-          var targetY = Math.min(prevScrollY, document.body.scrollHeight - window.innerHeight);
-          if (targetY > 0) {
-            window.scrollTo(0, targetY);
+          /* 进入搜索页：重新初始化搜索框（启用输入框 + 绑定事件 + 重建索引） */
+          if (isSearchUrl(url)) {
+            ensureSearchReady(doc);
           }
-        }
 
-        /* 灵动岛过渡：即使新页面不够长导致滚动位置归零，
-           也先保持导航收缩状态一瞬，再由 scroll 监听按真实位置校正，
-           避免导航栏在跨页瞬间"弹开"闪烁（文章页已回页首，跳过）。 */
-        if (header && wasScrolled && !isArticle && window.scrollY <= 80) {
-          header.classList.add('is-scrolled');
-        }
-
-        document.dispatchEvent(new CustomEvent('pjax:done', { detail: { url: url.href } }));
-
-        /* 等浏览器稳定后，根据真实滚动位置校正导航状态 */
-        window.setTimeout(function () {
-          if (header) {
-            header.classList.toggle('is-scrolled', window.scrollY > 80);
+          /* 文章页点击进入正文：固定回到页首。
+             其余页面：尝试恢复到原滚动位置（新页面高度可能更短，
+             超界则由浏览器收紧；在替换后立即执行，此时浏览器尚未
+             因内容变更自动跳顶）。 */
+          var isArticle = isArticleUrl(url);
+          if (isArticle) {
+            window.scrollTo(0, 0);
+          } else {
+            var targetY = Math.min(prevScrollY, document.body.scrollHeight - window.innerHeight);
+            if (targetY > 0) {
+              window.scrollTo(0, targetY);
+            }
           }
-        }, 60);
+
+          /* 灵动岛过渡：即使新页面不够长导致滚动位置归零，
+             也先保持导航收缩状态一瞬，再由 scroll 监听按真实位置校正，
+             避免导航栏在跨页瞬间"弹开"闪烁（文章页已回页首，跳过）。 */
+          if (header && wasScrolled && !isArticle && window.scrollY <= 80) {
+            header.classList.add('is-scrolled');
+          }
+
+          document.dispatchEvent(new CustomEvent('pjax:done', { detail: { url: url.href } }));
+
+          /* 等浏览器稳定后，根据真实滚动位置校正导航状态 */
+          window.setTimeout(function () {
+            if (header) {
+              header.classList.toggle('is-scrolled', window.scrollY > 80);
+            }
+          }, 60);
+        });
       })
       .catch(function () {
+        finish();
         /* 失败回退：整页跳转 */
         location.href = url.href;
       });

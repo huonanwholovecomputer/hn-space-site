@@ -22,9 +22,9 @@
 <script defer src="{{ "js/mouse-trail.js" | relURL }}?v=9"></script>
 {{- /* 动效层（第一批）：标题逐行遮罩上推。必须在 site.js 之前加载——
        它要在 site.js 绑定滚动入场前完成拆行，pjax:done 时同理。 */}}
-<script defer src="{{ "js/motion.js" | relURL }}?v=1"></script>
+<script defer src="{{ "js/motion.js" | relURL }}?v=2"></script>
 <script defer src="{{ "js/site.js" | relURL }}?v=22"></script>
-<script defer src="{{ "js/pjax.js" | relURL }}?v=5"></script>
+<script defer src="{{ "js/pjax.js" | relURL }}?v=6"></script>
 <script defer src="{{ "js/deepseek-effects.js" | relURL }}?v=16"></script>
 {{- /* 自定义事件埋点（外链 / 邮件 / 代码复制 / 图片放大 / 站内搜索 / 404）。
        Umami 脚本在本文件末尾才加载，所以 track.js 里对 window.umami 是懒调用：
@@ -42,7 +42,7 @@
        全局加载一次，页面上找不到对应容器就直接 no-op；
        PJAX 换页后由 stats.js 自己监听 pjax:done 重新初始化。
        数据与分享令牌都走 sessionStorage 缓存（令牌 10 分钟 / 页面数据 5 分钟 / 浏览量 10 分钟）。 */}}
-<script defer src="{{ "js/stats.js" | relURL }}?v=5"></script>
+<script defer src="{{ "js/stats.js" | relURL }}?v=6"></script>
 {{- /* ===== LaTeX 数学公式（KaTeX）+ 文章图片增强 ===== */}}
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>

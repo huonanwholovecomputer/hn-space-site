@@ -383,4 +383,60 @@ body::after {
   }
 }
 
+/* ============================================================================
+   ⑥ PJAX 页面过渡 + 慢网加载细线（对应《动效升级方案》§4-6）
+   ----------------------------------------------------------------------------
+   离开：html.is-nav-leaving 时 <main> 淡出并轻微上移；pjax.js 在替换完内容后
+   立刻移除该类。transition 只写在"离开态"里，所以回到可见是**瞬时**的——
+   进入动画完全交给 site.js 的 data-reveal，避免两层各淡一次。
+   加载细线：只在 fetch 超过 250ms 时出现，用不确定进度（横向扫动）而不是
+   假装成真实进度条；文章页正在换页时先收起阅读进度条，避免两条线叠加。
+   ============================================================================ */
+
+.nav-loading {
+  display: none;
+}
+
+html.is-nav-loading .nav-loading {
+  display: block;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 30%;
+  height: 2px;
+  z-index: 61;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, var(--home-accent), transparent);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html.is-nav-leaving main.main {
+    opacity: 0;
+    transform: translateY(-6px);
+    pointer-events: none;
+    transition: opacity 150ms var(--home-ease-in-out), transform 150ms var(--home-ease-in-out);
+  }
+
+  html.is-nav-loading .nav-loading {
+    animation: nav-sweep 1s linear infinite;
+  }
+}
+
+@keyframes nav-sweep {
+  from { transform: translateX(-110%); }
+  to   { transform: translateX(430%); }
+}
+
+html.is-nav-loading .read-progress {
+  display: none;
+}
+
+/* 减少动态：淡出由 pjax.js 直接跳过（LEAVE_MS=0）；加载细线改为静态一行 */
+@media (prefers-reduced-motion: reduce) {
+  html.is-nav-loading .nav-loading {
+    width: 100%;
+    opacity: 0.7;
+  }
+}
+
 

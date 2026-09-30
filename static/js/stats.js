@@ -180,6 +180,10 @@
     if (typeof window.__siteInitTilt === 'function') {
       window.__siteInitTilt();
     }
+    /* 数字滚动：卡片数值从 0 滚到终值（motion.js 提供；未加载时静默跳过） */
+    if (typeof window.__motionCountUp === 'function') {
+      window.__motionCountUp();
+    }
   }
 
   function fail(root, message, shareUrl) {

@@ -362,6 +362,56 @@
     } catch (err) {
       window.__hnLenis = null;
     }
+
+    /* ------------------------------------------------------------------------
+       防御一：把非法的滚动目标挡在 Lenis 之外。
+       Lenis 的 scrollTo 对 target **不做类型校验**：`{immediate:true}` 分支里直接
+       `this.targetScroll = target`。一旦被传进非数字（实测过一次：一个全局函数被
+       塞了进来，因为早期版本 __hnScrollTo 是原样透传 y 的），它就固定在那里，
+       此后每个滚轮事件都会走 `this.targetScroll + delta` —— 字符串拼接后再送进
+       document.querySelector 抛 SyntaxError，**滚动彻底失效、页面卡在顶部且不自愈**。
+       这里统一归一化，并留一条带调用栈的警告：下次真有人传错，控制台直接指出是谁。
+
+       为什么字符串要放行：字符串是 Lenis 的合法用法（选择器），而且它走的是
+       querySelector 分支——非法选择器会在**赋值之前**就抛错，不会污染内部状态。 */
+    var rawScrollTo = window.__hnLenis && window.__hnLenis.scrollTo;
+    if (typeof rawScrollTo === 'function') {
+      var boundScrollTo = rawScrollTo.bind(window.__hnLenis);
+      window.__hnLenis.scrollTo = function (target, opts) {
+        if (typeof target !== 'number' && typeof target !== 'string' && !(target instanceof Element)) {
+          try {
+            console.warn(
+              '[hn] Lenis.scrollTo 收到非法滚动目标，已按 0 处理：',
+              target,
+              '\n调用栈：',
+              new Error().stack
+            );
+          } catch (errWarn) { /* 警告本身失败不影响滚动 */ }
+          target = 0;
+        }
+        return boundScrollTo(target, opts);
+      };
+    }
+
+    /* ------------------------------------------------------------------------
+       防御二：自愈。若 targetScroll/animatedScroll 已经被写成非数字（旧缓存文件
+       留下的坏状态、或将来别处又写坏），滚轮会永远抛错、页面永远卡在顶部。
+       这里在**捕获阶段**先于 Lenis 自己的 wheel 处理器跑一次，发现异常立刻按当前
+       真实滚动位置复位 —— 等于"下一次滚轮就恢复"，不需要刷新页面。
+       capture + passive：必定最先执行，且不干扰滚动性能。 */
+    if (!window.__hnLenisSelfHeal) {
+      window.__hnLenisSelfHeal = true;
+      window.addEventListener('wheel', function () {
+        var lenis = window.__hnLenis;
+        if (!lenis) return;
+        if (typeof lenis.targetScroll === 'number' && typeof lenis.animatedScroll === 'number') return;
+        var y = typeof lenis.actualScroll === 'number'
+          ? lenis.actualScroll
+          : (window.scrollY || document.documentElement.scrollTop || 0);
+        lenis.targetScroll = lenis.animatedScroll = y;
+        try { console.warn('[hn] 检测到 Lenis 内部滚动值被写坏，已复位到', y); } catch (errHeal) { /* 忽略 */ }
+      }, { capture: true, passive: true });
+    }
   }
 
   /* 统一的"跳到某个滚动位置"入口：有 Lenis 时交给它（同时同步它内部的目标值，

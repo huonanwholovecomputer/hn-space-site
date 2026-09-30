@@ -276,10 +276,13 @@
           finish();
 
           /* 进入搜索页：重新初始化搜索框（启用输入框 + 绑定事件 + 重建索引）。
-             但**必须先把 Lenis 拆掉**——实测搜索页会让 Lenis 的内部数值字段被写坏
-             （scrollY 那类滚轮卡死就是这么来的），而且注入搜索包这件事本身要早于
-             "还有实例可写"的窗口。拆掉后本页走原生滚动，离开时由 motion.js 的
-             syncSmoothScroll（监听 pjax:done）重建一个干净实例。 */
+             先拆掉 Lenis 是第二道防线：搜索包里的 Fuse UMD 曾在 classic script 顶层
+             声明 `var e,t; e=this`，把 window.e/t 覆盖掉，而 Lenis 的内部初始化是运行时
+             从全局作用域取 `e`/`t` 的 → `new Lenis()` 抛 "e is not a constructor"，
+             平滑滚动从此消失（且被静默吞掉、控制台无输出）。
+             根因已修在源头（lenis.min.js 与 Fuse 包各自加作用域隔离），搜索页现在不再
+             污染任何全局；这里仍先拆后建，让搜索页固定走原生滚动，也隔离未来的意外。
+             离开搜索页时由 motion.js 的 syncSmoothScroll（监听 pjax:done）重建实例。 */
           if (isSearchUrl(url)) {
             if (typeof window.__hnLenisTeardown === 'function') window.__hnLenisTeardown();
             ensureSearchReady(doc);

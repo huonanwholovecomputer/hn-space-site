@@ -346,9 +346,15 @@
     if (typeof window.Lenis !== 'function') return;
     if (window.__hnLenis) return;
     /* 搜索页不持有 Lenis（见文件末尾 syncSmoothScroll 的说明）：
-       实测"访问过搜索页之后"Lenis 的内部数值字段会被写坏，而搜索包自己并不调用
-       任何滚动接口（已核对：scrollY/scrollTop/scrollTo 全为 0 处）——所以合理的
-       处置是让它在搜索页根本不存在，从而无可污染；离开搜索页时再重建一个干净的。 */
+       实测"访问过搜索页之后"平滑滚动会失效，根因已查明并修在源头——
+       搜索包里的 Fuse UMD 在 classic script 顶层声明 `var e,t; e=this`，
+       会把 window.e 覆盖成 window 对象、window.t 覆盖成 Fuse 工厂函数；而 Lenis 的
+       顶层 `var e`/`function t` 正是它运行时才去全局作用域取的名字（`animate = new e`），
+       于是 `new Lenis()` 抛 "e is not a constructor"（原代码静默吞掉）。
+       现在 lenis.min.js 与 Fuse 包都各自关进了函数作用域（见两个文件里的说明），
+       这个「搜索页拆掉 Lenis」的处置仍然保留：一是它让搜索页固定走原生滚动
+       （输入框聚焦时不会有缓动抢焦点），二是万一以后又有别的脚本写坏全局名字，
+       这里也不会被波及。 */
     if (isSearchPage()) return;
 
     try {
@@ -366,6 +372,26 @@
       });
     } catch (err) {
       window.__hnLenis = null;
+      /* 这里**绝不能静默**（曾经是空的 catch，代价见下）：
+         Lenis 的实例字段初始化是在**运行时**从全局作用域取名的（`animate = new e`），
+         所以页面上任何脚本往 window 上写了同名的 `e`/`t`，`new Lenis()` 就会抛
+         "e is not a constructor"；而滚动会悄悄退回浏览器原生滚动 ——
+         用户看到的就是「访问过搜索页之后平滑滚动失效、控制台却没有任何输出」。
+         实测元凶：搜索包（Fuse 的 UMD）顶层 `var e,t; e=this`，PJAX 进 /search/ 时
+         把 window.e 覆盖成了 window 对象。两头都已在源头加了作用域隔离
+         （static/js/lenis.min.js 的 IIFE、assets/js/fuse.basic.min.js 的包装），
+         这里再把它喊出来，保证同类问题以后不会再无声无息地过去。 */
+      window.__hnLenisInitError = (err && err.message) || String(err);
+      if ((window.__hnLenisInitLogged || 0) < 3) {
+        window.__hnLenisInitLogged = (window.__hnLenisInitLogged || 0) + 1;
+        try {
+          console.error('[hn] Lenis 初始化失败，本页改用浏览器原生滚动（能滚，但没有缓动）：',
+            err,
+            '\n常见原因：某段脚本往 window 上写了与 Lenis 内部同名的全局变量（历史元凶：'
+              + '搜索包 Fuse UMD 的顶层 `var e,t`）。',
+            '\n调用栈：', (err && err.stack) || '');
+        } catch (eLog) { /* 警告本身失败不影响滚动 */ }
+      }
     }
 
     /* ------------------------------------------------------------------------
@@ -567,12 +593,17 @@
   }
 
     /* ------------------------------------------------------------------------
-       搜索页隔离（对应实测结论：访问过搜索页之后 Lenis 内部状态才被写坏）
+       搜索页隔离（对应实测故障：访问过搜索页之后平滑滚动消失）
 
-       探测顺序：搜索包只含 Fuse（模糊搜索），**不含任何滚动接口**
-       （scrollY/scrollX/scrollTop/scrollTo/scrollIntoView 全为 0 处），
-       所以它不是直接调用滚动 API 写坏的 —— 合理处置是让搜索页根本不持有 Lenis：
-       没有实例，就没有可被写坏的对象；离开搜索页时再建一个全新的干净实例。
+       根因（2026-09-30 定位并已修在源头）：搜索包 = 主题 vendored 的 Fuse UMD，
+       它是 classic script，顶层 `var e,t; e=this` 会把 window.e 覆盖成 window 对象、
+       window.t 覆盖成 Fuse 工厂函数。而 Lenis 的顶层 `var e`（Animate 类）与
+       `function t`（clamp 工具）是**运行时**才从全局作用域取名的，于是：
+         · window.e 被换 → `new Lenis()` 抛 "e is not a constructor"（静默退回原生滚动）；
+         · window.t 被换 → clamp 调用返回 Fuse 类，targetScroll 变成非数字 → 滚轮卡死。
+       两个包现在各自关进了函数作用域（static/js/lenis.min.js、assets/js/fuse.basic.min.js），
+       所以搜索页其实已经不会污染任何东西了；这里保留"搜索页不持有 Lenis、离开时重建"，
+       作为第二道防线（也固定让搜索页走原生滚动）。
 
        与 degradeToNativeScroll 的区别：那个是**永久**降级（一次性闸门，防再次被写坏）；
        这里是**可逆**拆除，仅用于搜索页的进出。

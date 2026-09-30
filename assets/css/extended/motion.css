@@ -1,0 +1,152 @@
+/* ============================================================================
+   motion.css —— 动效层（第一批：入场语法分化 + 微交互反馈）
+   ----------------------------------------------------------------------------
+   分工：
+     · site.js        负责「元素级」入场（IntersectionObserver + .is-in + 关键帧）
+     · motion.js      负责「元素内部」的入场语法（逐行遮罩）与滚动/尺寸联动
+     · 本文件         负责这些动效的样式与参数
+
+   安全约定（与全站既有做法一致）：
+     1. 默认可见：所有隐藏态都写在 `html.js` + `prefers-reduced-motion: no-preference`
+        之内；无 JS、或系统开启"减少动态"时，内容照常显示、不残留隐藏态。
+     2. 不改变静态版式：新增动效只用 transform / clip-path / animation-delay，
+        不使用会影响布局的属性；`.mask-line` 特意用 clip-path 而不是 overflow:hidden
+        （overflow:hidden 会让 flex 基线对齐改用"底边"，把 .section-head 里的
+         小标题与标题的基线对齐搞乱）。
+     3. 整体回退：删掉本文件 + extend_head.html 里的 motion.js 那一行即可。
+
+   参考来源：MUUUUU.ORG「动态感强・动效丰富」分类 161 个案例的实测拆解，
+   详见仓库根目录《动效升级方案.md》。缓动词汇沿用站内既有 token：
+     --home-ease-out:   cubic-bezier(0.23, 1, 0.32, 1)   （强 ease-out，参考站主流族）
+     --home-ease-in-out: cubic-bezier(0.77, 0, 0.175, 1)
+   ============================================================================ */
+
+:root {
+  /* 弹性缓动：linear() 在 Chrome 115+ / Safari 26+ 可用；不支持时整条声明被忽略，
+     引用它的地方会退回上一级（各规则里都写了 --home-ease-out 作为兜底顺序） */
+  --ease-spring: linear(0, 0.32 12%, 0.72 24%, 0.92 36%, 1.02 48%, 1.01 62%, 1 100%);
+  --dur-press: 160ms;   /* 按压反馈 */
+  --dur-micro: 220ms;   /* hover / 箭头位移 */
+  --dur-line: 620ms;    /* 线条绘制 */
+  --dur-mask: 720ms;    /* 逐行遮罩上推 */
+}
+
+/* ============================================================================
+   ① 逐行遮罩上推（标题入场）
+   motion.js 把「纯文本标题」拆成 .mask-line > .mask-line-inner 结构；
+   没拆行（非纯文本 / 减少动态 / 无 JS）时下面的规则一律不匹配，标题保持原样。
+   ============================================================================ */
+
+html.js .mask-line {
+  display: block;
+  clip-path: inset(0);        /* 只裁切绘制，不影响基线与布局 */
+}
+
+html.js .mask-line-inner {
+  display: block;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* 隐藏态：等 motion.js 的 IntersectionObserver 加上 .mask-in 才推上来。
+     位移用 135%（大于行高）确保完全移出裁切区，不会有字头露在缝里。 */
+  html.js .mask-split:not(.mask-in) .mask-line-inner {
+    transform: translateY(135%);
+  }
+
+  html.js .mask-split.mask-in .mask-line-inner {
+    animation: mask-up var(--dur-mask) var(--home-ease-out) both;
+    /* 行间错峰 60ms；--mask-delay 由 motion.js 按"同级第几个"给出，
+       与 site.js 的 70ms 同级错峰保持同一节奏（见 motion.js 里的注释） */
+    animation-delay: calc(var(--mask-delay, 0ms) + var(--line-i, 0) * 60ms);
+  }
+
+  /* 标题一旦交给行遮罩，就关掉 site.js 给它本人的那套上浮淡入，避免两层叠加；
+     用 .mask-split 提高特异性覆盖 html.js [data-reveal] 与 .reveal-item 两处隐藏态 */
+  html.js .reveal-item.mask-split,
+  html.js [data-reveal].mask-split {
+    opacity: 1;
+    transform: none;
+  }
+
+  html.js .reveal-item.mask-split.is-in,
+  html.js [data-reveal].mask-split.is-in {
+    animation: none;
+  }
+}
+
+@keyframes mask-up {
+  from { transform: translateY(135%); }
+  to   { transform: translateY(0); }
+}
+
+/* ============================================================================
+   ② 线条绘制（已有的强调短线从左画出）
+   .hero-eyebrow / .page-header / .post-header 本来就各有一条 30~38px 的强调短线，
+   这里只给它一个"画出"的入场，静态外观完全不变（transform 不占布局）。
+   ============================================================================ */
+
+.hero-eyebrow::before,
+.page-header::before,
+.post-header::before {
+  transform-origin: 0 50%;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html.js .reveal-item.hero-eyebrow.is-in::before,
+  html.js [data-reveal].hero-eyebrow.is-in::before,
+  html.js .reveal-item.page-header.is-in::before,
+  html.js .reveal-item.post-header.is-in::before {
+    animation: line-draw var(--dur-line) var(--home-ease-out) both;
+  }
+}
+
+@keyframes line-draw {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+
+/* ============================================================================
+   ③ 微交互反馈
+   ============================================================================ */
+
+/* 按钮按压：hover 是"上浮 2px"，按下时压成 0.97 并缩短到 160ms；
+   本文件在 home.css 之后串联（css/extended/*.css 按文件名序合并），同特异性下后者生效 */
+.btn:active {
+  transform: scale(0.97);
+  transition-duration: var(--dur-press);
+}
+
+/* "全部文章 →" 这类文字链的箭头右移（卡片里的 ↗ 原本已有位移，不重复加） */
+.section-more > span[aria-hidden="true"] {
+  display: inline-block;
+  transition: transform var(--dur-micro) var(--home-ease-out);
+}
+
+.section-more:hover > span[aria-hidden="true"],
+.section-more:focus-visible > span[aria-hidden="true"] {
+  transform: translateX(4px);
+}
+
+/* 正文链接：hover 时下划线下移一点。刻意不改成"下划线扫入"——
+   那需要去掉常态下划线，会让正文里的链接失去可辨识性（内容站不值得）。 */
+.md-content a:not(.anchor) {
+  transition: text-underline-offset var(--dur-micro) var(--home-ease-out),
+              color var(--dur-micro) var(--home-ease-out);
+}
+
+.md-content a:not(.anchor):hover {
+  text-underline-offset: 0.4rem;
+}
+
+/* 减少动态：上面的位移/绘制全部让位（隐藏态本就没生效，这里只兜动画） */
+@media (prefers-reduced-motion: reduce) {
+  .mask-line-inner,
+  .hero-eyebrow::before,
+  .page-header::before,
+  .post-header::before,
+  .section-more > span[aria-hidden="true"] {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
+}

@@ -155,10 +155,35 @@
   var lbLastFocus = null;  /* 打开前的焦点，关闭后归还（键盘用户不丢位置） */
   var lbCapText = null;
   var lbCapIdx = null;
+  var lbLenisWasRunning = false;
+
+  /* 浮层与 Lenis 平滑滚动的关系（用户报过"灯箱里滚轮缩放时下面的文章也跟着滚"）：
+     Lenis 的滚轮处理器里**没有任何 defaultPrevented 判断**（源码实测），它只认
+     ① composedPath 里带 data-lenis-prevent 的元素、② 自身 stopped 状态；
+     而它的滚动是程序化的 window.scrollTo，所以 body{overflow:hidden} 也拦不住它。
+     于是三件事一起做：
+       · 灯箱元素挂 data-lenis-prevent → Lenis 忽略浮层内的滚轮/触摸；
+       · 打开时 stop() → 掐掉进入浮层前残留的惯性滚动；
+       · 关闭时按"打开前的状态"恢复，不擅自启动本来就停着的 Lenis。 */
+  function lockLenis() {
+    var lenis = window.__hnLenis;
+    if (!lenis || typeof lenis.stop !== 'function') return;
+    lbLenisWasRunning = !lenis.isStopped;
+    try { lenis.stop(); } catch (eLock) { /* 忽略：锁不住也不能影响看图 */ }
+  }
+
+  function unlockLenis() {
+    var lenis = window.__hnLenis;
+    if (!lenis || typeof lenis.start !== 'function') return;
+    if (!lbLenisWasRunning) return;
+    try { lenis.start(); } catch (eUnlock) { /* 忽略 */ }
+  }
 
   function buildLightbox() {
     lightboxEl = document.createElement('div');
     lightboxEl.className = 'math-lightbox';
+    /* 让 Lenis 忽略浮层内的滚轮与触摸（配合 body 的 overflow 锁，双保险） */
+    lightboxEl.setAttribute('data-lenis-prevent', '');
     lightboxEl.innerHTML =
       '<div class="math-lightbox-mask"></div>' +
       '<div class="math-lb-stage">' +
@@ -265,7 +290,8 @@
     lbLastFocus = document.activeElement;
     showItem(typeof index === 'number' ? index : 0, 0);
     lightboxEl.style.display = 'flex';
-    document.body.style.overflow = 'hidden'; /* 锁背景滚动 */
+    document.body.style.overflow = 'hidden'; /* 锁背景滚动（原生滚动）*/
+    lockLenis();                             /* 再锁 Lenis 的程序化滚动 */
 
     /* 打开动画：加 .is-opening 播放弹入动画，结束后移除避免影响后续缩放 */
     lightboxEl.classList.remove('is-opening');
@@ -287,6 +313,7 @@
       lightboxEl.style.display = 'none';
       lightboxEl.classList.remove('is-closing');
       document.body.style.overflow = '';
+      unlockLenis();
       lbClosing = false;
       lbItems = [];
       /* 把焦点还给打开它的那个元素 */

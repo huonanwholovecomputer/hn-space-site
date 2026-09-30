@@ -91,6 +91,17 @@ competitions:
         text: "国赛：负责本队代码开发，并辅助另外两支队伍"
       - date: "08-02"
         text: "国赛结果公布：本队全国第 6（一等奖）；另两队第 16（二等奖）、第 47（三等奖）"
+    # 证书原件（PDF 渲染成图，放 static/img/certs/）。点开走站内灯箱放大。
+    # 大图是按需加载的（卡片里只加载 thumb，几十 KB）。
+    certs:
+      - label: "省赛 · 一等奖"
+        alt: "第二十八届中国机器人及人工智能大赛（陕西赛区）一等奖荣誉证书：霍楠、杨孜萌、孟德森，指导教师闫文耀、吴晓晖"
+        img: "/img/certs/cert-craic2026-provincial.webp"
+        thumb: "/img/certs/cert-craic2026-provincial-thumb.webp"
+      - label: "国赛 · 一等奖"
+        alt: "第二十八届中国机器人及人工智能大赛全国总决赛一等奖获奖证书：霍楠、杨孜萌、孟德森，指导老师闫文耀、吴晓晖"
+        img: "/img/certs/cert-craic2026-national.webp"
+        thumb: "/img/certs/cert-craic2026-national-thumb.webp"
   - name: "RoboCup 四足机器狗挑战赛"
     icon: "robocup"
     status: "已完赛，等待结果中"

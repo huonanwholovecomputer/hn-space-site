@@ -12,17 +12,22 @@
      以确保即使后续渲染初始化抛错也绝不漏绑。
      - 捕获阶段：先于页面内其它脚本的 stopPropagation 生效
      - 恒注册：不依赖图片是否已渲染（PJAX/动态插入的图也能拦）
-     - 直接拦截 a.math-img-zoom 上的点击，preventDefault 阻止跳转原图 */
+     - 两种入口：
+       a.math-img-zoom —— 文章图片，取内部 <img> 的 src，preventDefault 阻止跳转原图；
+       a[data-lightbox] —— 通用入口（如竞赛证书），大图取锚点 href、说明取 <img> 的 alt；
+                           无 JS 时 href 仍能直接打开大图，属渐进增强。
+       注意：pjax.js 的 shouldPjax 必须排除 a[data-lightbox]，否则会被当成站内跳转。 */
   document.addEventListener('click', function (e) {
     try {
       var t = e.target;
-      var link = (t && t.closest) ? t.closest('a.math-img-zoom') : null;
+      var link = (t && t.closest) ? t.closest('a.math-img-zoom, a[data-lightbox]') : null;
       if (!link) return;
       var img = link.querySelector('img');
-      if (!img) return;
+      var src = link.hasAttribute('data-lightbox') ? link.getAttribute('href') : (img && img.src);
+      if (!src) return;
       e.preventDefault();
       e.stopPropagation();
-      openLightbox(img.src, img.alt || '');
+      openLightbox(src, (img && img.alt) || link.getAttribute('title') || '');
     } catch (err) {
       /* 静默：不影响页面其它交互 */
     }

@@ -104,6 +104,27 @@
             </li>
             {{- end }}
           </ol>
+
+          {{/* 证书原件：点开走站点灯箱放大（math-image.js 的 a[data-lightbox] 入口），
+               无 JS 时 href 直接打开大图，属于渐进增强。
+               卡片里只加载 thumb（几十 KB），大图在点开时才按需拉取。
+               不写 img 的 width/height：两张证书一竖一横，统一由 CSS 的
+               aspect-ratio + object-fit: cover 切成同尺寸方块，避免高度参差。 */}}
+          {{- with $c.certs }}
+          <div class="comp-certs">
+            <p class="comp-certs-label">证书原件</p>
+            <ul class="comp-certs-list">
+              {{- range . }}
+              <li>
+                <a class="comp-cert" href="{{ .img | relURL }}" data-lightbox>
+                  <img src="{{ .thumb | relURL }}" alt="{{ .alt }}" loading="lazy" decoding="async">
+                  <span class="comp-cert-cap">{{ .label }}</span>
+                </a>
+              </li>
+              {{- end }}
+            </ul>
+          </div>
+          {{- end }}
         </div>
       </div>
       {{- end }}

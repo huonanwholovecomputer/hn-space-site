@@ -593,3 +593,86 @@ html.js [data-about-row] > *.is-in {
     margin-left: 68px;
   }
 }
+
+/* ---------- 竞赛证书：卡片里的原件入口 ----------
+   两张证书一竖一横（1654×2339 / 2339×1654），这里统一切成 3:4 方块、
+   object-fit: cover，避免两张高度参差把版面撑歪；点开由站点灯箱放大看原图
+   （math-image.js 的 a[data-lightbox] 入口，无 JS 时 href 直接打开大图）。
+   视觉上刻意低调：发丝线分隔 + 小字标签——它是"可核验"的补充，不是主角。 */
+.comp-certs {
+  margin-top: 24px;
+  padding-top: 18px;
+  border-top: 1px dashed var(--home-border);
+}
+
+.comp-certs-label {
+  font-family: var(--home-font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--home-faint);
+  margin: 0 0 12px;
+}
+
+.comp-certs-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.comp-cert {
+  display: block;
+  width: 128px;
+  text-decoration: none;
+}
+
+.comp-cert img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  object-position: center;
+  border: 1px solid var(--home-border);
+  border-radius: 10px;
+  background: var(--home-card);
+  transition:
+    transform 220ms var(--home-ease-out),
+    border-color 220ms ease,
+    box-shadow 220ms ease;
+}
+
+.comp-cert:hover img,
+.comp-cert:focus-visible img {
+  transform: translateY(-3px);
+  border-color: var(--home-accent-line);
+  box-shadow: var(--home-shadow);
+}
+
+.comp-cert:focus-visible {
+  outline: 2px solid var(--home-accent);
+  outline-offset: 3px;
+  border-radius: 12px;
+}
+
+.comp-cert-cap {
+  display: block;
+  margin-top: 8px;
+  font-size: 0.76rem;
+  color: var(--home-muted);
+}
+
+/* 窄屏：两张并排均分（都掉到下一行会显得零散） */
+@media screen and (max-width: 560px) {
+  .comp-certs-list {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .comp-cert {
+    width: auto;
+  }
+}

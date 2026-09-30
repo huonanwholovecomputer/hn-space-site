@@ -53,6 +53,14 @@
     if (a.target && a.target !== '_self') return false;
     if (a.hasAttribute('download')) return false;
     if (a.getAttribute('rel') === 'noopener' && a.getAttribute('target') === '_blank') return false;
+    /* 站内灯箱入口（如竞赛证书）：交给 math-image.js 的 a[data-lightbox] 处理，
+       不能当站内跳转去 fetch（否则会把图片当 HTML 解析、然后整页跳转过去）。 */
+    if (a.hasAttribute('data-lightbox')) return false;
+    /* 静态资源一律不做 PJAX（图片/PDF/字体/压缩包等）：
+       同一类问题以后换成 <a href="xx.pdf"> 也不会再踩。 */
+    if (/\.(png|jpe?g|webp|avif|gif|svg|ico|pdf|zip|7z|rar|gz|mp4|webm|mp3|wav|woff2?|ttf|otf|eot)$/i.test(url.pathname)) {
+      return false;
+    }
     var proto = url.protocol;
     if (proto !== 'http:' && proto !== 'https:') return false;
     if (url.origin !== location.origin) return false;

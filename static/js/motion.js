@@ -535,6 +535,37 @@
       } catch (eWarn) { /* 忽略 */ }
     }
 
+
+    if (!window.__hnLenisSelfHeal) {
+      window.__hnLenisSelfHeal = true;
+      var anomalies = 0;
+      window.addEventListener('wheel', function () {
+        var lenis = window.__hnLenis;
+        if (!lenis) return;
+        if (typeof lenis.targetScroll === 'number' && typeof lenis.animatedScroll === 'number') return;
+        anomalies++;
+        /* 先取证（此时字段还是坏的），再复位——顺序反了就只能看到修好的值 */
+        var snapshot = anomalies === 1 ? describeLenisState(lenis) : null;
+        var y = typeof lenis.actualScroll === 'number'
+          ? lenis.actualScroll
+          : (window.scrollY || document.documentElement.scrollTop || 0);
+        lenis.targetScroll = lenis.animatedScroll = y;
+        if (anomalies === 1) {
+          try {
+            console.warn('[hn] Lenis 内部滚动值被写坏，已复位到', y, '——现场（复位前）：', snapshot);
+          } catch (eLog) { /* 忽略 */ }
+          trapLenisWrites(lenis);
+        }
+        /* 第一次异常就降级，不再等第 3 次：
+           实测坏值是在**滚轮路径内部**写入的，而这里的捕获检查每轮最多只能记 1 次，
+           于是"满 3 次才降级"意味着要连滚 3 次才可能触发 —— 用户在那之前就一直卡着。
+           只要能出现这种写入，就说明这台机器上 Lenis 已经不可信：立刻退回原生滚动，
+           把滚动交回浏览器。 */
+        degradeToNativeScroll(lenis, anomalies);
+      }, { capture: true, passive: true });
+    }
+  }
+
     /* ------------------------------------------------------------------------
        搜索页隔离（对应实测结论：访问过搜索页之后 Lenis 内部状态才被写坏）
 
@@ -582,37 +613,11 @@
     window.__hnSyncSmoothScroll = syncSmoothScroll;
     document.addEventListener('pjax:done', syncSmoothScroll);
 
-    if (!window.__hnLenisSelfHeal) {
-      window.__hnLenisSelfHeal = true;
-      var anomalies = 0;
-      window.addEventListener('wheel', function () {
-        var lenis = window.__hnLenis;
-        if (!lenis) return;
-        if (typeof lenis.targetScroll === 'number' && typeof lenis.animatedScroll === 'number') return;
-        anomalies++;
-        /* 先取证（此时字段还是坏的），再复位——顺序反了就只能看到修好的值 */
-        var snapshot = anomalies === 1 ? describeLenisState(lenis) : null;
-        var y = typeof lenis.actualScroll === 'number'
-          ? lenis.actualScroll
-          : (window.scrollY || document.documentElement.scrollTop || 0);
-        lenis.targetScroll = lenis.animatedScroll = y;
-        if (anomalies === 1) {
-          try {
-            console.warn('[hn] Lenis 内部滚动值被写坏，已复位到', y, '——现场（复位前）：', snapshot);
-          } catch (eLog) { /* 忽略 */ }
-          trapLenisWrites(lenis);
-        }
-        /* 第一次异常就降级，不再等第 3 次：
-           实测坏值是在**滚轮路径内部**写入的，而这里的捕获检查每轮最多只能记 1 次，
-           于是"满 3 次才降级"意味着要连滚 3 次才可能触发 —— 用户在那之前就一直卡着。
-           只要能出现这种写入，就说明这台机器上 Lenis 已经不可信：立刻退回原生滚动，
-           把滚动交回浏览器。 */
-        degradeToNativeScroll(lenis, anomalies);
-      }, { capture: true, passive: true });
-    }
-  }
-
-  /* 统一的"跳到某个滚动位置"入口：有 Lenis 时交给它（同时同步它内部的目标值，
+  /* 注意：搜索页隔离必须放在**模块级**，不能放进 initSmoothScroll() 内部——
+     那个函数在搜索页会第一行就 return（这正是它的职责），放里面等于
+     "只在非搜索页才有这套代码"，离开搜索页时就没人负责重建 Lenis 了
+     （症状：访问过搜索页后平滑滚动永久消失，且控制台无任何输出）。
+     同类的还有 __hnScrollTo / __hnLenisResize：都必须是模块级。 */  /* 统一的"跳到某个滚动位置"入口：有 Lenis 时交给它（同时同步它内部的目标值，
      否则它的下一帧会把位置拉回去），没有则退回原生 scrollTo。
      immediate=true 表示不做平滑动画（换页回页首、锚点跳转都用它）。
      force=true：即使 Lenis 处于 stopped/locked（极端情况下可能残留），也照跳不误。 */

@@ -1,0 +1,118 @@
+/* ============================================================================
+   排版尺度实验：标题字号（A/B 可切换）
+   —— 《动效升级方案》§2.4 结论的落地：参考站首屏标题 17vw（1440 下约 245px），
+      本站最大 53px，差 4~5 倍；"一眼高级"的第一来源是字号尺度，不是动效数量。
+   ----------------------------------------------------------------------------
+   本文件只改「标题角色」的字号与字距，不动任何结构、不动任何动效。
+   全站唯一入口：给 <html> 加 .type-large（由 extend_head.html 里的 TS_SCALE 脚本
+   按 ?typescale= 参数添加）。
+
+   预览用法（访客不带参数，永远看不到任何变化）：
+     /?typescale=1      基准版 + 左下角开关面板（可来回切）
+     /?typescale=large  直接进放大版
+     /?typescale=base   直接回基准版
+     /?typescale=off    清掉选择（下次不带参数即恢复基准）
+   选择存在 sessionStorage，PJAX 换页与站内跳转都会保持。
+
+   想完全移除这个实验：删掉本文件 + extend_head.html 里的 TS_SCALE 那段 <script>。
+   ============================================================================ */
+
+/* ---------- 开关面板（只在带 ?typescale 时由脚本插入 DOM） ---------- */
+
+.tsw {
+  position: fixed;
+  left: 16px;
+  bottom: 16px;
+  z-index: 900; /* 高于悬浮导航(90)与动效层(≤200)，低于灯箱(9999) */
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px 7px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--theme); /* 老浏览器兜底：不支持下一条时用不透明底色 */
+  background: color-mix(in srgb, var(--theme) 88%, transparent);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 8px 28px rgb(0 0 0 / 18%);
+  font-size: 12px;
+  line-height: 1;
+  color: var(--content);
+  user-select: none;
+}
+
+.tsw-label {
+  opacity: 0.6;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.tsw-btn {
+  font: inherit;
+  padding: 5px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+
+.tsw-btn:hover {
+  border-color: var(--primary);
+}
+
+.tsw-btn[aria-pressed="true"] {
+  border-color: transparent;
+  background: var(--primary);
+  color: var(--theme);
+  font-weight: 600;
+}
+
+@media print {
+  .tsw {
+    display: none;
+  }
+}
+
+/* ---------- 放大版：四个"标题角色" ----------
+   基准 → 放大（1440px 视口实测值）：
+     .hero-title      53.6px → 80px    （clamp 上限 3.35rem → 5rem）
+     .section-title   30.4px → 44px    （1.9rem → 2.75rem）
+     .post-title      38.4px → 48px    （2.4rem → 3rem）
+     .page-header h1  32px   → 40px    （2rem  → 2.5rem）
+
+   首屏标题的上限不是"能多大"，而是受版心硬约束：它那一列可用宽度 580px
+   （.home-hero-inner 1120px、两列 1.15fr/0.85fr、gap 64px），标题文本是
+   「你好，我是」5 字 + 姓名「霍楠」2 字 = 7 个中文字（每字 1em）+
+   letter-spacing -0.03em → 7 × F × 0.97 ≤ 580 → F ≤ 85px。
+   取 5rem(80px) 留约 37px 余量，保证任何 2 字姓名都稳定单行、不把姓名甩到第二行。
+   若想再接近参考站那种"铺满视口"的尺度，需要先让首屏标题跨出这一列
+   （那是结构改动，不在本实验范围内）。 */
+
+html.type-large .hero-title {
+  font-size: clamp(2.3rem, 6.2vw, 5rem);
+  letter-spacing: -0.03em; /* 参考站是 -0.06~-0.08em；中文标题压太狠会挤，取中间值 */
+}
+
+html.type-large .section-title {
+  font-size: clamp(1.7rem, 3.6vw, 2.75rem);
+  letter-spacing: -0.02em;
+}
+
+html.type-large .post-title {
+  font-size: clamp(1.9rem, 4.6vw, 3rem);
+  letter-spacing: -0.02em;
+}
+
+html.type-large .page-header h1 {
+  font-size: clamp(1.7rem, 4vw, 2.5rem);
+  letter-spacing: -0.02em;
+}
+
+/* 窄屏不需要额外覆盖：三个 clamp 的下限（2.3 / 1.7 / 1.9 / 1.7rem）本身就是
+   "移动端尺寸"，相对基准的 2.1 / 1.45 / 1.7 / 1.5rem 各上抬约 10~13%，
+   实测量测：390px 下 hero 36.8px、section 25.6px、页头 27.2px、文章 30.4px，
+   全部仍单行/正常折行且 0 横向溢出。
+   （顺带记录：mobile.css 里 ≤768px 的 .post-title 1.4rem / .page-header h1 1.3rem
+     其实是**死代码**——mobile.css 按字母序排在 site.css 之前，同特异性被 site.css
+     的 clamp 覆盖，所以移动端实际一直用的是 clamp 下限。这是既有问题，不在本次实验内。） */

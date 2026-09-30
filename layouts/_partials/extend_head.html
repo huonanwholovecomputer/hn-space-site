@@ -19,6 +19,77 @@
     } catch (err) { /* 静默降级 */ }
   })();
 </script>
+{{- /* 标题尺度实验开关（仅预览用；样式在 assets/css/extended/type-scale.css）
+       /?typescale=1     基准版 + 左下角开关面板（可来回切）
+       /?typescale=large 直接进放大版
+       /?typescale=base  直接回基准版
+       /?typescale=off   清掉选择
+       访客不带该参数时：不加类、不插面板、不留任何痕迹。
+       加类放在这个 head 内联脚本里（而不是 defer 脚本里），是为了首帧就是正确字号，
+       避免先按基准字号画一帧再跳大。选择存 sessionStorage，PJAX 换页保持。 */}}
+<script>
+  (function () {
+    var KEY = 'ts-scale';
+    var PANEL = 'ts-panel';
+    var store = {
+      get: function (k) { try { return sessionStorage.getItem(k); } catch (err) { return null; } },
+      set: function (k, v) { try { sessionStorage.setItem(k, v); } catch (err) { /* 隐私模式：忽略 */ } },
+      del: function (k) { try { sessionStorage.removeItem(k); } catch (err) { /* 忽略 */ } }
+    };
+    var q = null;
+    try { q = new URLSearchParams(location.search).get('typescale'); } catch (err) { q = null; }
+
+    if (q !== null) {
+      if (q === 'off') {
+        store.del(KEY);
+        store.del(PANEL);
+      } else {
+        store.set(KEY, q === 'large' ? 'large' : 'base');
+        store.set(PANEL, '1');
+      }
+    }
+
+    var apply = function (v) {
+      document.documentElement.classList.toggle('type-large', v === 'large');
+    };
+    apply(store.get(KEY)); /* 首帧就是正确字号，不闪 */
+
+    if (store.get(PANEL) !== '1') return;
+
+    var build = function () {
+      var box = document.createElement('div');
+      box.className = 'tsw';
+      box.setAttribute('role', 'group');
+      box.setAttribute('aria-label', '标题尺度预览开关');
+      box.innerHTML = '<span class="tsw-label">标题尺度</span>' +
+        '<button type="button" class="tsw-btn" data-ts="base">基准</button>' +
+        '<button type="button" class="tsw-btn" data-ts="large">放大</button>';
+      document.body.appendChild(box);
+
+      var paint = function () {
+        var cur = document.documentElement.classList.contains('type-large') ? 'large' : 'base';
+        var btns = box.querySelectorAll('.tsw-btn');
+        for (var i = 0; i < btns.length; i++) {
+          btns[i].setAttribute('aria-pressed', btns[i].getAttribute('data-ts') === cur ? 'true' : 'false');
+        }
+      };
+      box.addEventListener('click', function (e) {
+        var b = e.target.closest ? e.target.closest('.tsw-btn') : null;
+        if (!b) return;
+        var v = b.getAttribute('data-ts');
+        store.set(KEY, v);
+        apply(v);
+        paint();
+      });
+      paint();
+      /* PJAX 只替换 <main>，面板挂在 body 上不会被换掉；这里只是兜底重绘按下态 */
+      document.addEventListener('pjax:done', paint);
+    };
+
+    if (document.body) build();
+    else document.addEventListener('DOMContentLoaded', build);
+  })();
+</script>
 <script defer src="{{ "js/mouse-trail.js" | relURL }}?v=9"></script>
 {{- /* 平滑滚动引擎（Lenis 1.3.11，MIT，本地托管：static/js/lenis.min.js）。
        必须排在 motion.js 之前——motion.js 初始化时就要用 window.Lenis。

@@ -133,7 +133,7 @@ var revealClassify = function (rect, vh) {
   var CARD_SELECTOR =
     '.highlight-card, .skill-card, .project-card, .content-card, ' +
     '.project-featured, .about-card, .contact-panel, .post-entry, .searchResults li, ' +
-    '.about-quick-card, .about-tile, .about-dev-card, .about-exp-card, ' +
+    '.about-quick-card, .about-dev-card, .about-exp-card, ' +
     '.about-comp-card, .about-comp-featured, ' +
     /* 统计页卡片：只要光效与边框高亮，不做 3D 倾斜（靠 --tilt-max: 0 声明，见 makeState） */
     '.stats-card, .stats-panel';

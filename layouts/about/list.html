@@ -33,25 +33,9 @@
       </div>
     </section>
 
-    {{/* ================= 常用软件 ================= */}}
-    <section class="about-section" id="software" aria-labelledby="software-title">
-      <div class="section-head">
-        <p class="section-eyebrow">Toolbox</p>
-        <h2 id="software-title" class="section-title">常用软件</h2>
-      </div>
-      <div class="about-row office-row" data-about-row>
-        {{- range $a.office }}
-        <div class="about-tile tile-bg--{{ .icon }}">
-          <span class="about-tile-icon" aria-hidden="true">
-            {{- if .glyph }}<span class="about-tile-glyph">{{ .glyph }}</span>
-            {{- else }}{{ partial "icon.html" (dict "name" .icon) }}{{ end }}
-          </span>
-          <span class="about-tile-name">{{ .name }}</span>
-          <span class="about-tile-desc">{{ .desc }}</span>
-        </div>
-        {{- end }}
-      </div>
-    </section>
+    {{/* 「常用软件 / Toolbox」板块已按你的要求整块移除（2026-09-30）。
+         相关样式（.about-tile / .office-row / .tile-bg--*）也一并从 about.css 删掉了；
+         data/about.yaml 里的 office 列表保留着（带注释），想恢复直接把这十几行贴回来即可。 */}}
 
     {{/* ================= 编程方向 ================= */}}
     <section class="about-section" id="dev" aria-labelledby="dev-title">

@@ -16,6 +16,10 @@ quickFacts:
   - label: "站点"
     value: "blog.hn-space.cn"
 
+# 「常用软件 / Toolbox」板块已整块移除（2026-09-30），这段数据暂时没有页面在用。
+# 保留在这里是为了随时恢复：把下面的 office 列表贴回 about/list.html 对应位置即可
+# （样式需一并恢复：about.css 的 .office-row / .about-tile* / .tile-bg--*，
+#   以及 site.js CARD_SELECTOR 里的 .about-tile）。
 office:
   - name: "WPS Office"
     icon: "wps"

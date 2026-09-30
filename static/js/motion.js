@@ -366,14 +366,31 @@
 
   /* 统一的"跳到某个滚动位置"入口：有 Lenis 时交给它（同时同步它内部的目标值，
      否则它的下一帧会把位置拉回去），没有则退回原生 scrollTo。
-     immediate=true 表示不做平滑动画（换页回页首、锚点跳转都用它）。 */
+     immediate=true 表示不做平滑动画（换页回页首、锚点跳转都用它）。
+     force=true：即使 Lenis 处于 stopped/locked（极端情况下可能残留），也照跳不误。 */
   window.__hnScrollTo = function (y, immediate) {
     var lenis = window.__hnLenis;
+    var target = Math.max(0, Math.round(y) || 0);
     if (lenis && typeof lenis.scrollTo === 'function') {
-      lenis.scrollTo(y, { immediate: !!immediate });
+      lenis.scrollTo(target, { immediate: !!immediate, force: true });
       return;
     }
-    window.scrollTo(0, y);
+    window.scrollTo(0, target);
+  };
+
+  /* 内容高度变化后刷新 Lenis 的尺寸缓存。
+     为什么必须有这个：Lenis 把文档高度缓存在 dimensions 里（limit = scrollHeight
+     - innerHeight），只在 window resize 与它自己的 ResizeObserver 回调里更新，
+     而且那个观察器带 250ms 防抖。PJAX 换页后这段窗口里 limit 仍是**旧页面**的值：
+       · 从长页切到短页：跳转会被夹到旧的大 limit（落点不准）；
+       · 从短页切到长页（/posts/ 1347px、搜索页等）：旧 limit 只有几百甚至 0，
+         于是滚轮被夹在 0~旧limit 内 —— 表现为"页面上不去下不来、每次滑动都被
+         弹回顶部、伴随闪烁"（Lenis 的 rAF 仍在逐帧写位置，浏览器又把它夹回真实范围）。
+     实测：换页后 400ms 时 limit 仍是 4297，而新页面 html.scrollHeight 只有 1347。
+     所以换页后必须主动 resize()（这也是 Lenis 官方对 SPA/PJAX 的明确要求）。 */
+  window.__hnLenisResize = function () {
+    var lenis = window.__hnLenis;
+    if (lenis && typeof lenis.resize === 'function') lenis.resize();
   };
 
   /* --------------------------------------------------------------------------

@@ -193,11 +193,20 @@
      （有 Lenis 时由它即时跳转并同步内部目标值，否则 Lenis 下一帧会把位置拉回去），
      没有该入口时就是原生 scrollTo。 */
   function jumpTo(y) {
+    var target = Math.max(0, Math.round(y) || 0);
     if (typeof window.__hnScrollTo === 'function') {
-      window.__hnScrollTo(y, true);
+      window.__hnScrollTo(target, true);
       return;
     }
-    window.scrollTo(0, y);
+    window.scrollTo(0, target);
+  }
+
+  /* 刷新 Lenis 的尺寸缓存（limit = 文档高 - 视口高）。
+     必须在换页替换内容之后、任何跳转之前调用，否则它会拿旧页面的 limit
+     夹住滚动：从短页切到长页时表现为"滑不动 + 每次弹回顶部 + 闪烁"。
+     详见 motion.js 里 __hnLenisResize 的注释。 */
+  function refreshScrollBounds() {
+    if (typeof window.__hnLenisResize === 'function') window.__hnLenisResize();
   }
 
   function navigate(url, push) {
@@ -214,6 +223,11 @@
     var stale = function () {
       return myToken !== navToken;
     };
+
+    /* 新的导航接管过渡状态：清掉上一次可能残留的淡出态。
+       快速连点时，旧导航会在 beginLeave 之后的 stale 分支提前返回、不再调用
+       finish（那次导航的结果已被丢弃），若不在这里清，页面会停在淡出状态。 */
+    setNavLeaving(false);
 
     var loadingTimer = window.setTimeout(function () {
       if (!stale()) setNavLoading(true);
@@ -262,15 +276,21 @@
              其余页面：尝试恢复到原滚动位置（新页面高度可能更短，
              超界则由浏览器收紧；在替换后立即执行，此时浏览器尚未
              因内容变更自动跳顶）。 */
+          /* 先刷新滚动上界，再决定跳到哪里：否则 jumpTo 的 clamp 与随后的
+             滚轮都会用旧页面的 limit（这是"换页后卡住滑不动"的根因）。 */
+          refreshScrollBounds();
           var isArticle = isArticleUrl(url);
           if (isArticle) {
             jumpTo(0);
           } else {
-            var targetY = Math.min(prevScrollY, document.body.scrollHeight - window.innerHeight);
-            if (targetY > 0) {
-              jumpTo(targetY);
-            }
+            var targetY = Math.min(prevScrollY, document.documentElement.scrollHeight - window.innerHeight);
+            jumpTo(targetY);
           }
+          /* 内容里的图片/字体仍会继续撑高文档（懒加载），过一会儿再校正一次；
+             中间这段时间 Lenis 自带的观察器（250ms 防抖）也会兜一次。 */
+          window.setTimeout(function () {
+            if (!stale()) refreshScrollBounds();
+          }, 300);
 
           /* 灵动岛过渡：即使新页面不够长导致滚动位置归零，
              也先保持导航收缩状态一瞬，再由 scroll 监听按真实位置校正，

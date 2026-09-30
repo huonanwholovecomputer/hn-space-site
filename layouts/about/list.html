@@ -106,24 +106,29 @@
             {{- end }}
           </ol>
 
-          {{/* 证书原件：点开走站点灯箱放大（math-image.js 的 a[data-lightbox] 入口），
-               无 JS 时 href 直接打开大图，属于渐进增强。
-               卡片里只加载 thumb（几十 KB），大图在点开时才按需拉取。
-               不写 img 的 width/height：两张证书一竖一横，统一由 CSS 的
-               aspect-ratio + object-fit: cover 切成同尺寸方块，避免高度参差。 */}}
+          {{/* 证书入口：不在卡片里平铺缩略图，只放一个"叠放双证"按钮，
+               点开走站点灯箱的画廊模式（可 ←/→ 切换、带说明与计数器）。
+               结构仍是 <a href="第一张大图" data-lightbox>：无 JS 时直接打开大图，
+               有 JS 时读 data-gallery-items 打开整组。
+               注意 data-gallery-items 只写 `| jsonify`，**不要**再套 htmlEscape：
+               Go 模板在属性上下文已经自动转义一次，套两层会变成 &amp;#34;，
+               浏览器 getAttribute 拿到的是字面量 &#34; → JSON.parse 直接失败。
+               卡片里只加载两张几十 KB 的缩略图。 */}}
           {{- with $c.certs }}
-          <div class="comp-certs">
-            <p class="comp-certs-label">证书原件</p>
-            <ul class="comp-certs-list">
-              {{- range . }}
-              <li>
-                <a class="comp-cert" href="{{ .img | relURL }}" data-lightbox>
-                  <img src="{{ .thumb | relURL }}" alt="{{ .alt }}" loading="lazy" decoding="async">
-                  <span class="comp-cert-cap">{{ .label }}</span>
-                </a>
-              </li>
-              {{- end }}
-            </ul>
+          <div class="comp-certs-bar">
+            <a class="comp-cert-trigger" href="{{ (index . 0).img | relURL }}" data-lightbox
+               data-gallery-items="{{ . | jsonify }}">
+              <span class="comp-cert-deck" aria-hidden="true">
+                {{- range . }}
+                <img src="{{ .thumb | relURL }}" alt="" loading="lazy" decoding="async">
+                {{- end }}
+              </span>
+              <span class="comp-cert-trigger-text">查看获奖证书</span>
+              <span class="comp-cert-trigger-count">{{ len . }}</span>
+            </a>
+            {{- with $c.certsNote }}
+            <p class="comp-certs-note">{{ . }}</p>
+            {{- end }}
           </div>
           {{- end }}
         </div>

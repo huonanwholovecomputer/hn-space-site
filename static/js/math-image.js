@@ -27,7 +27,28 @@
       if (!src) return;
       e.preventDefault();
       e.stopPropagation();
-      openLightbox(src, (img && img.alt) || link.getAttribute('title') || '');
+      /* 多图入口（如竞赛证书）：锚点上带 data-gallery-items 的 JSON，打开画廊；
+         没有则按单图打开（文章图片走的就是这条，行为与以前完全一致）。 */
+      var items = null;
+      var raw = link.getAttribute('data-gallery-items');
+      if (raw) {
+        try {
+          var parsed = JSON.parse(raw);
+          if (parsed && parsed.length) {
+            items = [];
+            for (var i = 0; i < parsed.length; i++) {
+              items.push({
+                img: parsed[i].img || '',
+                alt: parsed[i].alt || '',
+                label: parsed[i].label || ''
+              });
+            }
+          }
+        } catch (errParse) {
+          items = null; /* JSON 坏了就退回单图，不阻断查看 */
+        }
+      }
+      openLightbox(src, (img && img.alt) || link.getAttribute('title') || '', items, 0);
     } catch (err) {
       /* 静默：不影响页面其它交互 */
     }
@@ -119,7 +140,9 @@
     }
   };
 
-  /* ---------- 3. 可缩放悬浮看图（lightbox） ---------- */
+  /* ---------- 3. 可缩放悬浮看图（lightbox） ----------
+     单图与多图共用这一套：多图（证书画廊）多出左右切换按钮、说明条与计数器，
+     由 .is-gallery 控制显隐；单图时它们全部不出现，行为与以前一致。 */
   var lightboxEl = null;
   var lbImg = null;
   var lbStage = null;
@@ -127,6 +150,11 @@
   var lbDrag = null;
   var wasDragging = false;
   var lbClosing = false;
+  var lbItems = [];        /* [{img, alt, label}] */
+  var lbIndex = 0;
+  var lbLastFocus = null;  /* 打开前的焦点，关闭后归还（键盘用户不丢位置） */
+  var lbCapText = null;
+  var lbCapIdx = null;
 
   function buildLightbox() {
     lightboxEl = document.createElement('div');
@@ -135,6 +163,12 @@
       '<div class="math-lightbox-mask"></div>' +
       '<div class="math-lb-stage">' +
       '<img class="math-lightbox-img" alt="" draggable="false" />' +
+      '</div>' +
+      '<button class="math-lb-nav math-lb-prev" data-act="prev" title="上一张（←）" aria-label="上一张">&#8249;</button>' +
+      '<button class="math-lb-nav math-lb-next" data-act="next" title="下一张（→）" aria-label="下一张">&#8250;</button>' +
+      '<div class="math-lb-caption" aria-live="polite">' +
+      '<span class="math-lb-cap-text"></span>' +
+      '<span class="math-lb-cap-idx"></span>' +
       '</div>' +
       '<div class="math-lb-toolbar">' +
       '<button class="math-lb-btn" data-act="zoomout" title="缩小" aria-label="缩小">&minus;</button>' +
@@ -146,8 +180,10 @@
 
     lbImg = lightboxEl.querySelector('.math-lightbox-img');
     lbStage = lightboxEl.querySelector('.math-lb-stage');
+    lbCapText = lightboxEl.querySelector('.math-lb-cap-text');
+    lbCapIdx = lightboxEl.querySelector('.math-lb-cap-idx');
 
-    /* 关闭：点遮罩 / 关按钮 / Esc */
+    /* 关闭：点遮罩 / 关按钮 / Esc；另含缩放与画廊切换 */
     lightboxEl.addEventListener('click', function (e) {
       var act = e.target.closest('[data-act]');
       if (act) {
@@ -155,6 +191,8 @@
         else if (act.getAttribute('data-act') === 'zoomin') { zoomBy(1.4); }
         else if (act.getAttribute('data-act') === 'zoomout') { zoomBy(1 / 1.4); }
         else if (act.getAttribute('data-act') === 'reset') { resetView(); }
+        else if (act.getAttribute('data-act') === 'next') { showItem(lbIndex + 1, 1); }
+        else if (act.getAttribute('data-act') === 'prev') { showItem(lbIndex - 1, -1); }
         return;
       }
       if (e.target === lightboxEl || e.target.classList.contains('math-lightbox-mask')) {
@@ -164,6 +202,8 @@
     });
     document.addEventListener('keydown', function (e) {
       if (e.key === 'Escape' && lightboxEl.style.display !== 'none') { closeLightbox(); }
+      else if (lightboxEl.style.display !== 'none' && e.key === 'ArrowRight') { showItem(lbIndex + 1, 1); }
+      else if (lightboxEl.style.display !== 'none' && e.key === 'ArrowLeft') { showItem(lbIndex - 1, -1); }
       else if (lightboxEl.style.display !== 'none' && (e.key === '+' || e.key === '=')) { zoomBy(1.4); }
       else if (lightboxEl.style.display !== 'none' && e.key === '-') { zoomBy(1 / 1.4); }
       else if (lightboxEl.style.display !== 'none' && e.key === '0') { resetView(); }
@@ -188,11 +228,42 @@
     applyView();
   }
 
-  function openLightbox(src, alt) {
-    if (!lightboxEl) { buildLightbox(); }
-    lbImg.src = src;
-    lbImg.alt = alt || '';
+  /* 显示第 i 张（环形）。dir=1/-1 时给一个轻微的横向滑入方向感；
+     打开时（dir=0）不滑，交给 .is-opening 的弹入动画。 */
+  function showItem(i, dir) {
+    var n = lbItems.length;
+    if (!n) return;
+    i = ((i % n) + n) % n;
+    var moving = i !== lbIndex;
+    lbIndex = i;
+    var it = lbItems[i] || {};
+    lbImg.src = it.img || '';
+    lbImg.alt = it.alt || '';
     resetView();
+    if (lbCapText) lbCapText.textContent = it.label || '';
+    if (lbCapIdx) lbCapIdx.textContent = n > 1 ? (i + 1) + ' / ' + n : '';
+    lightboxEl.classList.toggle('is-gallery', n > 1);
+    if (moving && dir) {
+      lightboxEl.style.setProperty('--lb-dir', String(dir));
+      lightboxEl.classList.remove('is-switching');
+      void lightboxEl.offsetWidth; /* reflow，让动画每次重放 */
+      lightboxEl.classList.add('is-switching');
+      window.setTimeout(function () { lightboxEl.classList.remove('is-switching'); }, 340);
+    }
+    /* 预载相邻两张，翻看时不等图 */
+    var neighbors = [i + 1, i - 1];
+    for (var k = 0; k < neighbors.length; k++) {
+      var t = lbItems[((neighbors[k] % n) + n) % n];
+      if (t && t.img) { var pre = new Image(); pre.src = t.img; }
+    }
+  }
+
+  function openLightbox(src, alt, items, index) {
+    if (!lightboxEl) { buildLightbox(); }
+    lbItems = (items && items.length) ? items : [{ img: src, alt: alt || '', label: '' }];
+    lbIndex = 0;
+    lbLastFocus = document.activeElement;
+    showItem(typeof index === 'number' ? index : 0, 0);
     lightboxEl.style.display = 'flex';
     document.body.style.overflow = 'hidden'; /* 锁背景滚动 */
 
@@ -201,6 +272,10 @@
     void lightboxEl.offsetWidth; /* 强制 reflow，让动画每次重放 */
     lightboxEl.classList.add('is-opening');
     window.setTimeout(function () { lightboxEl.classList.remove('is-opening'); }, 300);
+
+    /* 焦点移入弹层：键盘用户可直接 ←/→ 翻看、Esc 关闭 */
+    var closeBtn = lightboxEl.querySelector('.math-lightbox-close');
+    if (closeBtn) { try { closeBtn.focus({ preventScroll: true }); } catch (eFocus) { closeBtn.focus(); } }
   }
 
   var lbClosing = false;
@@ -213,6 +288,12 @@
       lightboxEl.classList.remove('is-closing');
       document.body.style.overflow = '';
       lbClosing = false;
+      lbItems = [];
+      /* 把焦点还给打开它的那个元素 */
+      if (lbLastFocus && lbLastFocus.focus) {
+        try { lbLastFocus.focus({ preventScroll: true }); } catch (eBack) { /* 忽略 */ }
+      }
+      lbLastFocus = null;
     }, 180);                                  /* 等动画播完再隐藏 */
   }
 

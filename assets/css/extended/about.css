@@ -594,85 +594,103 @@ html.js [data-about-row] > *.is-in {
   }
 }
 
-/* ---------- 竞赛证书：卡片里的原件入口 ----------
-   两张证书一竖一横（1654×2339 / 2339×1654），这里统一切成 3:4 方块、
-   object-fit: cover，避免两张高度参差把版面撑歪；点开由站点灯箱放大看原图
-   （math-image.js 的 a[data-lightbox] 入口，无 JS 时 href 直接打开大图）。
-   视觉上刻意低调：发丝线分隔 + 小字标签——它是"可核验"的补充，不是主角。 */
-.comp-certs {
+/* ---------- 竞赛证书：卡片里的"触发按钮"（不占版面） ----------
+   不在卡片里平铺缩略图——只放一个药丸按钮：左边是两张缩略图叠成的小"证堆"，
+   悬停时像一手牌微微扇开；点开由站点灯箱的画廊模式展示（可 ←/→ 切换）。
+   右侧那行小字说明编号已隐去，属于"我有意脱敏"的交代，不是装饰。 */
+.comp-certs-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px 20px;
   margin-top: 24px;
   padding-top: 18px;
   border-top: 1px dashed var(--home-border);
 }
 
-.comp-certs-label {
-  font-family: var(--home-font-mono);
-  font-size: 0.72rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--home-faint);
-  margin: 0 0 12px;
-}
-
-.comp-certs-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.comp-cert {
-  display: block;
-  width: 128px;
-  text-decoration: none;
-}
-
-.comp-cert img {
-  display: block;
-  width: 100%;
-  aspect-ratio: 3 / 4;
-  object-fit: cover;
-  object-position: center;
+.comp-cert-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 11px;
+  padding: 8px 15px 8px 10px;
   border: 1px solid var(--home-border);
-  border-radius: 10px;
+  border-radius: 999px;
   background: var(--home-card);
+  color: var(--home-heading);
+  font-size: 0.86rem;
+  font-weight: 600;
+  text-decoration: none;
   transition:
-    transform 220ms var(--home-ease-out),
+    transform 260ms var(--home-ease-out),
     border-color 220ms ease,
-    box-shadow 220ms ease;
+    box-shadow 260ms var(--home-ease-out);
 }
 
-.comp-cert:hover img,
-.comp-cert:focus-visible img {
-  transform: translateY(-3px);
+.comp-cert-trigger:hover {
+  transform: translateY(-2px);
   border-color: var(--home-accent-line);
   box-shadow: var(--home-shadow);
 }
 
-.comp-cert:focus-visible {
+.comp-cert-trigger:focus-visible {
   outline: 2px solid var(--home-accent);
   outline-offset: 3px;
-  border-radius: 12px;
 }
 
-.comp-cert-cap {
-  display: block;
-  margin-top: 8px;
-  font-size: 0.76rem;
+/* 小"证堆"：两张缩略图叠放，悬停微微扇开 */
+.comp-cert-deck {
+  position: relative;
+  width: 44px;
+  height: 30px;
+  flex-shrink: 0;
+}
+
+.comp-cert-deck img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 22px;
+  height: 30px;
+  object-fit: cover;
+  border: 1px solid var(--home-border);
+  border-radius: 4px;
+  background: #fff; /* 证书是白纸，给个白底避免深色主题下透出卡片色 */
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  transition: transform 300ms var(--home-ease-out);
+}
+
+.comp-cert-deck img:nth-child(1) { transform: rotate(-6deg); }
+.comp-cert-deck img:nth-child(2) { transform: translateX(11px) rotate(5deg); }
+
+.comp-cert-trigger:hover .comp-cert-deck img:nth-child(1) { transform: translateX(-3px) rotate(-11deg); }
+.comp-cert-trigger:hover .comp-cert-deck img:nth-child(2) { transform: translateX(14px) rotate(9deg); }
+
+.comp-cert-trigger-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--home-border);
   color: var(--home-muted);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
 }
 
-/* 窄屏：两张并排均分（都掉到下一行会显得零散） */
+.comp-certs-note {
+  margin: 0;
+  font-size: 0.74rem;
+  color: var(--home-faint);
+}
+
 @media screen and (max-width: 560px) {
-  .comp-certs-list {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 12px;
+  .comp-cert-trigger-text {
+    font-size: 0.82rem;
   }
 
-  .comp-cert {
-    width: auto;
+  .comp-certs-note {
+    font-size: 0.72rem;
   }
 }

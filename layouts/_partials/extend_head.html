@@ -124,7 +124,7 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
-<script defer src="{{ "js/math-image.js" | relURL }}?v=12"></script>
+<script defer src="{{ "js/math-image.js" | relURL }}?v=13"></script>
 <style>
   /* 公式在深色主题下用亮色，避免黑字看不清 */
   html[data-theme="dark"] .katex { color: #e6edf3; }
@@ -266,13 +266,6 @@
   /* 拖拽时关闭过渡，避免跟手迟滞 */
   .math-lb-stage.is-dragging .math-lightbox-img { transition: none; }
 
-  /* 打开时的弹入动画：图片从 0.96 放大到 1 并淡入 */
-  .math-lightbox.is-opening .math-lightbox-img { animation: mathLbPop 0.26s cubic-bezier(0.22, 1, 0.36, 1); }
-  @keyframes mathLbPop {
-    from { opacity: 0; transform: scale(0.96); }
-    to   { opacity: 1; transform: scale(1); }
-  }
-
   /* 缩放工具栏：左下角 */
   .math-lb-toolbar { position: absolute; bottom: 28px; left: 50%;
     transform: translateX(-50%);
@@ -294,6 +287,55 @@
     background: rgba(255,255,255,0.14); color: #fff; cursor: pointer;
     transition: background-color 150ms ease, transform 150ms ease; }
   .math-lightbox-close:hover { background: rgba(255,255,255,0.3); transform: scale(1.08); }
+
+  /* ---------- 画廊模式（多图，如竞赛证书）：左右切换 + 说明计数器 ----------
+     单图时这些一律不出现（靠 JS 给的 .is-gallery 控制），所以文章图片的
+     看图体验与以前完全一致。 */
+  .math-lb-nav { position: absolute; top: 50%; z-index: 3;
+    width: 46px; height: 46px; font-size: 26px; line-height: 1;
+    border: none; border-radius: 50%; cursor: pointer;
+    display: none; align-items: center; justify-content: center;
+    background: rgba(255,255,255,0.14); color: #fff;
+    transition: background-color 150ms ease, transform 150ms ease; }
+  .math-lightbox.is-gallery .math-lb-nav { display: inline-flex; }
+  .math-lb-prev { left: 20px; transform: translateY(-50%); }
+  .math-lb-next { right: 20px; transform: translateY(-50%); }
+  .math-lb-prev:hover { background: rgba(255,255,255,0.3); transform: translateY(-50%) scale(1.06); }
+  .math-lb-next:hover { background: rgba(255,255,255,0.3); transform: translateY(-50%) scale(1.06); }
+
+  .math-lb-caption { position: absolute; left: 50%; bottom: 86px; z-index: 3;
+    transform: translateX(-50%);
+    display: none; align-items: center; gap: 12px; max-width: min(86%, 640px);
+    padding: 8px 16px; border-radius: 999px;
+    background: rgba(0,0,0,0.55); border: 1px solid rgba(255,255,255,0.15);
+    backdrop-filter: blur(8px);
+    color: #eef2f8; font-size: 13px; line-height: 1.4; }
+  .math-lightbox.is-gallery .math-lb-caption { display: flex; }
+  .math-lb-cap-idx { color: rgba(255,255,255,0.6); font-variant-numeric: tabular-nums; flex-shrink: 0; }
+
+  /* 关闭时说明条与导航一起淡出 */
+  .math-lightbox.is-closing .math-lb-nav,
+  .math-lightbox.is-closing .math-lb-caption { opacity: 0; transition: opacity 140ms ease; }
+
+  /* 切换时的轻微横向滑入（方向由 JS 写到 --lb-dir）。
+     按全站约定，动效一律包在 no-preference 里：用户开了"减少动态"就瞬间切换。 */
+  @media (prefers-reduced-motion: no-preference) {
+    .math-lightbox.is-switching .math-lightbox-img {
+      animation: mathLbSlide 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    @keyframes mathLbSlide {
+      from { opacity: 0.35; transform: translateX(calc(30px * var(--lb-dir, 1))); }
+      to   { opacity: 1; transform: none; }
+    }
+  }
+
+  /* 窄屏：导航收窄、说明条上移一点，避免压住证书内容 */
+  @media (max-width: 600px) {
+    .math-lb-nav { width: 38px; height: 38px; font-size: 22px; }
+    .math-lb-prev { left: 8px; }
+    .math-lb-next { right: 8px; }
+    .math-lb-caption { bottom: 80px; font-size: 12px; padding: 7px 13px; }
+  }
 </style>
 {{- /* Umami 访问统计（自托管看板：analytics.hn-space.cn）
        · data-domains   ：只在生产域名上报；本地 hugo server / 127.0.0.1 预览不再污染数据

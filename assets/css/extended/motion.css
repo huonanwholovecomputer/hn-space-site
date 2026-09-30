@@ -150,3 +150,122 @@ html.js .mask-line-inner {
     transform: none !important;
   }
 }
+
+/* ============================================================================
+   ④ 阅读进度条（仅文章页）
+   ----------------------------------------------------------------------------
+   纯 CSS 滚动时间轴驱动，没有 JS：scroll(root block) → transform: scaleX()。
+   放在 top:0 —— 页头 .header 是 position:fixed; top:10px 的悬浮胶囊，
+   进度条正好落在它上方那 10px 空隙里，不重叠、不遮挡。
+
+   不支持 animation-timeline 的浏览器（当前 Firefox）保持 scaleX(0)：
+   刻意不做 JS 兜底，这条 3px 的线不值得再养一个滚动监听。
+   ============================================================================ */
+
+.read-progress {
+  display: none;
+}
+
+body.page-posts .read-progress {
+  display: block;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  z-index: 60;
+  pointer-events: none;
+  transform-origin: 0 50%;
+  transform: scaleX(0);   /* 无滚动时间轴时不可见，而不是常亮一整条 */
+  background: linear-gradient(90deg, var(--home-accent), #a78bfa);
+}
+
+@supports (animation-timeline: scroll()) {
+  body.page-posts .read-progress {
+    animation: read-grow linear both;
+    animation-timeline: scroll(root block);
+  }
+}
+
+@keyframes read-grow {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+
+/* 这条进度条在「减少动态」下保留：它是滚动位置指示（等价于滚动条），
+   只随用户主动滚动变化、没有自主动画；关掉反而丢了位置感。
+   参考站里这类指示器同样普遍保留——功能性优先于装饰性。 */
+
+/* ============================================================================
+   ⑤ 目录滚动高亮（scrollspy）
+   motion.js 给"当前小节"对应的目录链接加 .is-active；左侧竖条用 scaleY 画出。
+   ============================================================================ */
+
+.post-toc a[href^="#"] {
+  position: relative;
+  transition: color var(--dur-micro) var(--home-ease-out);
+}
+
+/* 竖条放在文字左侧 0.7em：比目录二级项的「·」圆点（在 li 的 -0.9em）
+   更靠近文字，两者不会叠在一起 */
+.post-toc a[href^="#"]::before {
+  content: "";
+  position: absolute;
+  left: -0.7em;
+  top: 0.18em;
+  bottom: 0.18em;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--home-accent);
+  transform: scaleY(0);
+  transform-origin: 50% 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .post-toc a[href^="#"]::before {
+    transition: transform var(--dur-micro) var(--home-ease-out);
+  }
+}
+
+.post-toc a[href^="#"].is-active {
+  color: var(--home-accent);
+}
+
+.post-toc a[href^="#"].is-active::before {
+  transform: scaleY(1);
+}
+
+/* ============================================================================
+   ⑥ 正文图片的滚动揭示（clip-path 擦除）
+   ----------------------------------------------------------------------------
+   只作用于"由页面宽度约束"的图片：手动写了 style="width:XX%" 的图可能高于视口，
+   这类元素 view() 的 entry 区间会退化，配 fill:both 反而会被钉在全裁状态。
+   擦除在「进入视口 60%」处就完成，比等整个元素进入更早、更稳。
+   ============================================================================ */
+
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .post-content .math-img-box img:not([style*="width"]) {
+      animation: img-wipe linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 60%;
+    }
+  }
+}
+
+@keyframes img-wipe {
+  from { clip-path: inset(0 100% 0 0 round 6px); opacity: 0.55; }
+  to   { clip-path: inset(0 0 0 0 round 6px);    opacity: 1; }
+}
+
+/* 减少动态下，⑤⑥ 的位移/擦除全部让位（进度条见上面的说明，刻意保留） */
+@media (prefers-reduced-motion: reduce) {
+  .post-toc a[href^="#"]::before {
+    transition: none !important;
+  }
+  .post-content .math-img-box img {
+    animation: none !important;
+    clip-path: none !important;
+  }
+}
+

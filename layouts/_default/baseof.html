@@ -24,6 +24,12 @@
     {{- $bodyClass = printf "page page-%s" (.Section | default .Type) }}
 {{- end }}
 <body class="{{ $bodyClass }}" id="top">
+    {{- /* 阅读进度条：滚动位置指示（非装饰动效）。
+           必须常驻在 body 里、不能只在文章页渲染——PJAX 只替换 <main> 的内容，
+           从列表页点进文章时这个节点不会被重新插入；
+           显示与否交给 body 类（body.page-posts）控制，而
+           pjax.js 的 applyBodyClass() 会随换页更新它。 */}}
+    <div class="read-progress" aria-hidden="true"></div>
     {{ partialCached "header.html" . .Page -}}
     <main class="main">
         {{- block "main" . }}{{ end }}

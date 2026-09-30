@@ -1,7 +1,9 @@
 /* ============================================================================
  * motion.js —— 动效层脚本（第一批）
  * ----------------------------------------------------------------------------
- * 只做一件事：把「纯文本标题」按视觉行拆开，交给 CSS 做逐行遮罩上推。
+ * 两件事：
+ *   1) 把「纯文本标题」按视觉行拆开，交给 CSS 做逐行遮罩上推；
+ *   2) 文章页目录的滚动高亮（scrollspy）。
  * 样式与参数在 assets/css/extended/motion.css。
  *
  * 为什么不用 SplitText/SplitType：本批只需要「按行」，
@@ -13,17 +15,21 @@
  *   · pjax:done 也是本脚本先注册、site.js 后注册，新页面同样是"先拆行、再入场"。
  *
  * 安全降级：
- *   · prefers-reduced-motion: reduce → 完全不介入（不拆行、不加任何隐藏态）；
- *   · 无 IntersectionObserver → 同样不介入；
+ *   · prefers-reduced-motion: reduce → 不拆行、不加任何隐藏态
+ *     （目录高亮属功能性指示，保留）；
+ *   · 无 IntersectionObserver → 同样不拆行；
  *   · 标题里含元素子节点（如草稿标记 <span class="entry-hint">）→ 跳过该元素，
  *     保持原样，只是没有逐行动效。
  * ========================================================================== */
 (function () {
   'use strict';
 
-  /* 目前只对首页章节标题启用。要扩大范围（例如文章页 H1）时加选择器即可，
-     但必须确认这些元素是「纯文本」或只含可忽略的子元素。 */
-  var HOSTS = '[data-reveal].section-title';
+  /* 目前只对首页章节标题与文章页 H1 启用。要扩大范围时加选择器即可，
+     但必须是「纯文本」或只含可忽略子元素（见 directTextNode 的判定）。 */
+  var HOSTS = '[data-reveal].section-title, .post-title';
+
+  /* 目录高亮的判定线：距视口顶部 100px（页头 44px + 顶部 10px，锚点偏移 84px） */
+  var TOC_LINE = 100;
 
   var LINE_STAGGER = 60; /* 行间错峰（ms），与 motion.css 的 --line-i 计算一致 */
 
@@ -143,7 +149,96 @@
     el.style.removeProperty('--mask-delay');
   }
 
+  /* --------------------------------------------------------------------------
+   * 目录滚动高亮（scrollspy）
+   * 判定口径：当前小节 = 「最后一个已越过 100px 判定线」的标题。
+   * 触发方式：scroll 监听 + 100ms 节流，触发时全局重新判定。
+   *   （一开始用的是 IntersectionObserver 窄带，但大跨度跳转——比如滚轮猛滑、
+   *    点击目录锚点——会在同一帧内"进入又离开"窄带，浏览器只结算最终状态、
+   *    不产生交集变化，回调就不触发，高亮会停在上一个小节。改成节流 scroll
+   *    后不管怎么跳都按真实位置重算。）
+   * ------------------------------------------------------------------------ */
+  var tocCleanup = null;
+
+  function initTocSpy() {
+    if (tocCleanup) {
+      tocCleanup();
+      tocCleanup = null;
+    }
+
+    var nav = document.getElementById('TableOfContents');
+    if (!nav) return;
+
+    var links = nav.querySelectorAll('a[href^="#"]');
+    if (!links.length) return;
+
+    var byId = {};
+    var i;
+    for (i = 0; i < links.length; i++) {
+      var href = links[i].getAttribute('href') || '';
+      var id = href.charAt(0) === '#' ? decodeURIComponent(href.slice(1)) : '';
+      if (id) byId[id] = links[i];
+    }
+
+    var heads = document.querySelectorAll(
+      '.post-content h2[id], .post-content h3[id], .post-content h4[id],' +
+        '.post-content h5[id], .post-content h6[id]'
+    );
+    if (!heads.length) return;
+
+    var current = null;
+    function setActive(link) {
+      if (link === current) return;
+      if (current) current.classList.remove('is-active');
+      current = link;
+      if (current) current.classList.add('is-active');
+    }
+
+    function pick() {
+      var best = null;
+      for (var k = 0; k < heads.length; k++) {
+        if (heads[k].getBoundingClientRect().top <= TOC_LINE) best = heads[k];
+      }
+      setActive(best ? byId[best.id] || null : null);
+    }
+
+    /* 点击目录链接：立即高亮，不等下一次滚动判定 */
+    function onClick() {
+      setActive(this);
+    }
+    for (i = 0; i < links.length; i++) {
+      links[i].addEventListener('click', onClick);
+    }
+
+    /* 节流 100ms 直接判定：刻意不挂 rAF——rAF 在后台标签页/省电模式/某些无头环境下
+       可能不被调度，那样 ticking 会一直停在 true，高亮就卡在上一个小节不动了。
+       判定本身只是读 ~20 个标题的 rect、不写 DOM，10 次/秒的开销可以接受。 */
+    var lastRun = 0;
+    function onScroll() {
+      var now = Date.now();
+      if (now - lastRun < 100) return;
+      lastRun = now;
+      pick();
+    }
+    window.addEventListener('scroll', onScroll, { passive: true });
+
+    pick();
+
+    tocCleanup = function () {
+      window.removeEventListener('scroll', onScroll);
+      for (var k = 0; k < links.length; k++) {
+        links[k].removeEventListener('click', onClick);
+      }
+      if (current) current.classList.remove('is-active');
+      current = null;
+    };
+  }
+
   function init() {
+    /* 目录高亮是功能性指示：减少动态下也保留（CSS 只去掉那条竖条的过渡） */
+    initTocSpy();
+
+    /* 下面都是装饰性入场：减少动态 / 无 IntersectionObserver 时完全不介入 */
     if (reduceMotion() || !('IntersectionObserver' in window)) return;
 
     if (io) io.disconnect();
@@ -169,12 +264,13 @@
     }
   }
 
-  /* 窗口尺寸变化：只处理「还没入场」的标题——已入场的行已是终态，
-     重新拆行反而会把它打回隐藏态。 */
+  /* 窗口尺寸变化：节奏重算（TOC 判定依赖当前视口）；
+     标题只处理「还没入场」的——已入场的行已是终态，重新拆行反而会把它打回隐藏态。 */
   function onResize() {
     if (resizeTimer) window.clearTimeout(resizeTimer);
     resizeTimer = window.setTimeout(function () {
-      if (reduceMotion()) return;
+      initTocSpy();
+      if (reduceMotion() || !('IntersectionObserver' in window)) return;
       var hosts = document.querySelectorAll(HOSTS + '.mask-split:not(.mask-in)');
       for (var i = 0; i < hosts.length; i++) {
         unsplit(hosts[i]);

@@ -184,23 +184,37 @@
     lightboxEl.className = 'math-lightbox';
     /* 让 Lenis 忽略浮层内的滚轮与触摸（配合 body 的 overflow 锁，双保险） */
     lightboxEl.setAttribute('data-lenis-prevent', '');
+    /* 图标一律用内联 SVG，而不是文字字形（‹ › × − +）：
+       文字字形在行盒里天生不居中（实测 ‹› 的墨迹比行盒中心低 3.5px、× 低 2.5px，
+       line-height:1 也改不了——那是字体的基线/墨迹度量决定的），
+       用 SVG 则由 flex 居中对齐，几何精确且与字体无关。 */
+    var svg = function (inner, size) {
+      return '<svg viewBox="0 0 24 24" width="' + size + '" height="' + size + '" fill="none"' +
+        ' stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"' +
+        ' aria-hidden="true" focusable="false">' + inner + '</svg>';
+    };
     lightboxEl.innerHTML =
       '<div class="math-lightbox-mask"></div>' +
       '<div class="math-lb-stage">' +
       '<img class="math-lightbox-img" alt="" draggable="false" />' +
       '</div>' +
-      '<button class="math-lb-nav math-lb-prev" data-act="prev" title="上一张（←）" aria-label="上一张">&#8249;</button>' +
-      '<button class="math-lb-nav math-lb-next" data-act="next" title="下一张（→）" aria-label="下一张">&#8250;</button>' +
+      '<button class="math-lb-nav math-lb-prev" data-act="prev" title="上一张（←）" aria-label="上一张">' +
+      svg('<polyline points="15 18 9 12 15 6"/>', 24) + '</button>' +
+      '<button class="math-lb-nav math-lb-next" data-act="next" title="下一张（→）" aria-label="下一张">' +
+      svg('<polyline points="9 18 15 12 9 6"/>', 24) + '</button>' +
       '<div class="math-lb-caption" aria-live="polite">' +
       '<span class="math-lb-cap-text"></span>' +
       '<span class="math-lb-cap-idx"></span>' +
       '</div>' +
       '<div class="math-lb-toolbar">' +
-      '<button class="math-lb-btn" data-act="zoomout" title="缩小" aria-label="缩小">&minus;</button>' +
+      '<button class="math-lb-btn" data-act="zoomout" title="缩小" aria-label="缩小">' +
+      svg('<line x1="5" y1="12" x2="19" y2="12"/>', 20) + '</button>' +
       '<button class="math-lb-btn math-lb-reset" data-act="reset" title="重置为 100%" aria-label="重置为 100%">1:1</button>' +
-      '<button class="math-lb-btn" data-act="zoomin" title="放大" aria-label="放大">+</button>' +
+      '<button class="math-lb-btn" data-act="zoomin" title="放大" aria-label="放大">' +
+      svg('<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>', 20) + '</button>' +
       '</div>' +
-      '<button class="math-lightbox-close" data-act="close" aria-label="关闭">&times;</button>';
+      '<button class="math-lightbox-close" data-act="close" aria-label="关闭">' +
+      svg('<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>', 22) + '</button>';
     document.body.appendChild(lightboxEl);
 
     lbImg = lightboxEl.querySelector('.math-lightbox-img');

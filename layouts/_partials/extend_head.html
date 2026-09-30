@@ -124,7 +124,7 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
-<script defer src="{{ "js/math-image.js" | relURL }}?v=15"></script>
+<script defer src="{{ "js/math-image.js" | relURL }}?v=16"></script>
 <style>
   /* 公式在深色主题下用亮色，避免黑字看不清 */
   html[data-theme="dark"] .katex { color: #e6edf3; }
@@ -283,16 +283,32 @@
 
   /* 右上角关闭按钮 */
   .math-lightbox-close { position: absolute; top: 18px; right: 20px; z-index: 3;
-    width: 44px; height: 44px; font-size: 30px; line-height: 1; border: none; border-radius: 50%;
+    width: 44px; height: 44px; border: none; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
     background: rgba(255,255,255,0.14); color: #fff; cursor: pointer;
     transition: background-color 150ms ease, transform 150ms ease; }
   .math-lightbox-close:hover { background: rgba(255,255,255,0.3); transform: scale(1.08); }
+
+  /* 按钮里的图标是内联 SVG，**必须 display:block**：
+     内联 SVG 默认坐在文字基线上，会带出一段下沉间隙，等于把"字形不居中"换个形式重犯。
+     变成块级后由 flex 做几何居中，与字体度量完全无关。 */
+  .math-lb-nav svg,
+  .math-lb-btn svg,
+  .math-lightbox-close svg { display: block; }
+
+  /* 锁回圆形：站点全局有 `button:focus-visible { border-radius: 4px }`（特异度 0,1,1），
+     会盖掉下面这些 50% 的圆按钮——而打开灯箱时我们会把焦点移到关闭按钮，
+     于是它一露脸就是个圆角方块（键盘用户 Tab 到左右切换键时同理会变形）。
+     这里用更高特异度（0,2,0）保住圆形外观：只覆盖圆角，保留站点给键盘用户的焦点轮廓。 */
+  .math-lightbox .math-lb-nav,
+  .math-lightbox .math-lb-btn,
+  .math-lightbox .math-lightbox-close { border-radius: 50%; }
 
   /* ---------- 画廊模式（多图，如竞赛证书）：左右切换 + 说明计数器 ----------
      单图时这些一律不出现（靠 JS 给的 .is-gallery 控制），所以文章图片的
      看图体验与以前完全一致。 */
   .math-lb-nav { position: absolute; top: 50%; z-index: 3;
-    width: 46px; height: 46px; font-size: 26px; line-height: 1;
+    width: 46px; height: 46px;
     border: none; border-radius: 50%; cursor: pointer;
     display: none; align-items: center; justify-content: center;
     background: rgba(255,255,255,0.14); color: #fff;
@@ -331,7 +347,7 @@
 
   /* 窄屏：导航收窄、说明条上移一点，避免压住证书内容 */
   @media (max-width: 600px) {
-    .math-lb-nav { width: 38px; height: 38px; font-size: 22px; }
+    .math-lb-nav { width: 38px; height: 38px; }
     .math-lb-prev { left: 8px; }
     .math-lb-next { right: 8px; }
     .math-lb-caption { bottom: 80px; font-size: 12px; padding: 7px 13px; }

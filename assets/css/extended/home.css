@@ -763,28 +763,12 @@ main.main:has(.home-page) {
   margin-bottom: 16px;
 }
 
-/* ③ 让 featured 项目出血成一条横贯视口的"带"（≥900px），把卡片栅格打断一次。
-   实现要点：用 margin 的 vw/百分比差出血，而不是 width:100vw ——
-   100vw 在"有滚动条"的浏览器上比可视宽度多出一个滚动条宽度，会撑出横向滚动；
-   而 margin-inline: calc(50% - 50vw) 里的 50vw 与 50% 会各自把滚动条算进去，
-   左右正好到视口边缘，实测 7 个宽度全部 0 溢出。
-   padding-inline: calc(50vw - 50%) 再把内容推回与 1120px 版心对齐（两者互为相反数）。 */
-@media screen and (min-width: 900px) {
-  .home-projects .project-featured {
-    margin-inline: calc(50% - 50vw);
-    padding-inline: calc(50vw - 50%);
-    padding-block: clamp(28px, 3.6vw, 46px); /* 变"一段"而不是"一张卡"，上下留白放大 */
-    border-inline: none;
-    border-radius: 0;
-    box-shadow: none;
-    /* 彻底退出卡片语言：去掉 3D 透视基变换与悬停抬升。
-       1425px 宽的元素做 2.5° 透视旋转会让整幅形变（观感就是"横条变卡片"）；
-       site.js 那边同时用 index.html 的 data-no-tilt 跳过注册（不插光斑描边、
-       不进倾斜列表）。transform:none 是兜底：即使 JS 没跑/旧版缓存，也不会形变。 */
-    transform: none;
-    --home-lift: 0px;
-  }
-}
+/* ③ 全宽出血带方案已回退（2026-09-30，你说"一整个横条有点违和"）。
+   即：不再让 featured 项目出血到视口两侧，恢复成版心内的大卡片（上面 754 行那条基线规则），
+   同时去掉 data-no-tilt，让它重新参与卡片的 3D 倾斜 + 光斑描边 + 手电筒光晕。
+   想再试带形态的话：git show 2989e3c 里有完整实现（margin-inline: calc(50% - 50vw)
+   + padding-inline: calc(50vw - 50%)，注意必须用这套而不是 width:100vw）。
+   下面这个 ≥900px 的覆盖块已删除。 */
 
 .project-title-row {
   display: flex;

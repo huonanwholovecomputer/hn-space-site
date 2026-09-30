@@ -269,3 +269,118 @@ body.page-posts .read-progress {
   }
 }
 
+/* ============================================================================
+   ⑦ 首屏 Hero 的滚动纵深（对应《动效升级方案》§4-7）
+   ----------------------------------------------------------------------------
+   只给 .hero-copy（首屏文案），**不碰** .hero-visual（它自己带 data-reveal，
+   会和滚动动画抢 transform）；也刻意不碰那三张 canvas——动 WebGL 画布会额外重绘。
+   滚动 0 → 85vh 之间，首屏文案缓慢上移淡出，制造"内容浮到首屏之上"的纵深。
+   ============================================================================ */
+
+@supports (animation-timeline: scroll()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .home-hero .hero-copy {
+      animation: hero-depth linear both;
+      animation-timeline: scroll(root block);
+      animation-range: 0 85vh;
+    }
+  }
+}
+
+@keyframes hero-depth {
+  to {
+    opacity: 0;
+    transform: translateY(-36px) scale(0.985);
+  }
+}
+
+/* ============================================================================
+   ⑨ 颗粒纹理层（对应《动效升级方案》§4-9）
+   ----------------------------------------------------------------------------
+   一张静态 SVG 噪声（feTurbulence，无损、无请求）铺满视口，用 overlay 混合、
+   3.2% 强度，压掉大面积渐变与暗底上的"塑料感"。
+   静态图层只合成一次，滚动不重绘；pointer-events:none 不影响任何交互。
+   注：首页波浪 shader 自带 --ds-wave-grain(0.002) 颗粒，两者叠加后仍很轻。
+   ============================================================================ */
+
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 9;
+  pointer-events: none;
+  opacity: 0.032;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/></filter><rect width='140' height='140' filter='url(%23n)'/></svg>");
+}
+
+/* ============================================================================
+   ⑩ 技术栈跑马灯（对应《动效升级方案》§4-10）
+   ----------------------------------------------------------------------------
+   纯 CSS 无缝循环：轨道里放两份相同内容，平移 -50% 即无缝衔回。
+   两端用 mask-image 渐隐（参考站里连跑马灯都做边缘渐隐）。整条 aria-hidden，
+   技术栈在下面的 Skills 区块已有正文，读屏器不需要读两遍。
+   ============================================================================ */
+
+.tech-ticker {
+  overflow: hidden;
+  padding: 14px 0;
+  border-top: 1px solid var(--home-border);
+  border-bottom: 1px solid var(--home-border);
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent);
+          mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent);
+}
+
+.tech-ticker-track {
+  display: flex;
+  width: max-content;
+  animation: ticker-slide 34s linear infinite;
+}
+
+/* 每组内部留 gap，组尾再补一份等宽 gap：两份分组因此严格等宽，
+   translateX(-50%) 才能无缝衔回（若把 gap 放在 track 上，中点会偏移 gap/2 而抖动） */
+.tech-ticker-group {
+  display: flex;
+  align-items: center;
+  gap: 26px;
+  padding-right: 26px;
+}
+
+.tech-ticker-item {
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
+  color: var(--home-muted);
+  white-space: nowrap;
+}
+
+.tech-ticker-sep {
+  color: var(--home-faint);
+}
+
+@keyframes ticker-slide {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+/* 指针悬停时暂停，方便看清内容（触屏不适用，不做） */
+@media (hover: hover) and (pointer: fine) {
+  .tech-ticker:hover .tech-ticker-track {
+    animation-play-state: paused;
+  }
+}
+
+/* 减少动态：不滚动，静态铺成一行居中（内容照常可见） */
+@media (prefers-reduced-motion: reduce) {
+  .tech-ticker {
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+  .tech-ticker-track {
+    animation: none;
+    width: auto;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+}
+
+

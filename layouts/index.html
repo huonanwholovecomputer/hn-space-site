@@ -191,6 +191,24 @@
     </div>
   </section>
 
+  {{/* ================= 技术栈跑马灯 ================= */}}
+  {{/* 纯装饰（重复两份做无缝循环），读屏器跳过——技术栈在下面 Skills 区块里已有正文。
+       内容来自 data/profile.yaml 的 ticker 列表。 */}}
+  {{- with $p.ticker }}
+  <div class="home-container">
+    <div class="tech-ticker" aria-hidden="true">
+      <div class="tech-ticker-track">
+        {{/* 两份等宽分组：translateX(-50%) 才能精确衔回（用 flex gap 会让中点偏移 gap/2） */}}
+        {{- range seq 2 }}
+        <div class="tech-ticker-group">
+          {{- range $p.ticker }}<span class="tech-ticker-item">{{ . }}</span><span class="tech-ticker-sep">·</span>{{- end }}
+        </div>
+        {{- end }}
+      </div>
+    </div>
+  </div>
+  {{- end }}
+
   {{/* ================= Content ================= */}}
   <section class="home-section home-content" id="content" aria-labelledby="content-title">
     <div class="home-container">

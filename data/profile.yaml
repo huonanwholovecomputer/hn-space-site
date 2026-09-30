@@ -127,3 +127,20 @@ links:
   blog: "/posts/"
   projects: "/projects/"
   friends: "/friends/"
+
+# 首页技术栈跑马灯（在两段内容之间滚动一条，仅装饰，读屏器不读）
+# 只放站内已经公开的技术栈；改这里就能改跑马灯内容
+ticker:
+  - "Hugo"
+  - "Python"
+  - "C / C++"
+  - "微信小程序"
+  - "HTML / CSS / JS"
+  - "Linux"
+  - "Shell"
+  - "Windows"
+  - "Nginx"
+  - "Umami"
+  - "GitHub Actions"
+  - "VS Code"
+

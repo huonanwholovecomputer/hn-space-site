@@ -319,6 +319,19 @@
   .math-lb-prev:hover { background: rgba(255,255,255,0.3); transform: translateY(-50%) scale(1.06); }
   .math-lb-next:hover { background: rgba(255,255,255,0.3); transform: translateY(-50%) scale(1.06); }
 
+  /* ---------- 雪佛龙的视觉修正（optical alignment）----------
+     几何居中（图标盒与按钮盒中心偏差 0px）不等于"看起来居中"：
+     雪佛龙两臂夹出的楔形面积，其质心在**开口方向**、比包围盒中心偏 1/3 处。
+       ‹ 顶点在左、开口在右 → 楔形质心偏右 1 个单位（24 网格 = 1px）→ 看起来偏右；
+       › 对称 → 看起来偏左。
+     所以各自往"指向的方向"挪 1px，把**感知**中心拉回圆心。
+     1px = 半个描边宽（stroke-width: 2），也是上面那个 1/3 偏移算出来的量；
+     觉得不够就调这两个值（--lb-chevron-nudge）。 */
+  .math-lb-prev,
+  .math-lb-next { --lb-chevron-nudge: 1px; }
+  .math-lb-prev svg { transform: translateX(calc(-1 * var(--lb-chevron-nudge))); }
+  .math-lb-next svg { transform: translateX(var(--lb-chevron-nudge)); }
+
   .math-lb-caption { position: absolute; left: 50%; bottom: 86px; z-index: 3;
     transform: translateX(-50%);
     display: none; align-items: center; gap: 12px; max-width: min(86%, 640px);

@@ -394,22 +394,101 @@
     }
 
     /* ------------------------------------------------------------------------
-       防御二：自愈。若 targetScroll/animatedScroll 已经被写成非数字（旧缓存文件
-       留下的坏状态、或将来别处又写坏），滚轮会永远抛错、页面永远卡在顶部。
-       这里在**捕获阶段**先于 Lenis 自己的 wheel 处理器跑一次，发现异常立刻按当前
-       真实滚动位置复位 —— 等于"下一次滚轮就恢复"，不需要刷新页面。
-       capture + passive：必定最先执行，且不干扰滚动性能。 */
+       防御二：自愈 + 溯源 + 兜底。
+
+       背景（线上实测）：某些环境里的外部脚本会**直接往 Lenis 内部字段里写非数字**
+       ——不是调用 scrollTo，所以防御一拦不到。而 Lenis 每次 resize/raf 都会
+       `targetScroll = actualScroll`，坏值因此不断回来；每个滚轮事件又在
+       `targetScroll + delta` 上做字符串拼接、送进 querySelector 抛错
+       → 滚动失效、页面卡在顶部。用户侧实测同一页面连报 69 次。
+
+       三层处理：
+         ① 捕获阶段拦 wheel，发现异常先按真实位置复位（"下一次滚轮就恢复"）；
+         ② 首次异常时打印现场（各字段类型 + 原生滚动属性是否被外部覆写），并给
+            targetScroll/animatedScroll 装访问器，**把写入者的调用栈打出来**
+            —— 这是唯一能把"谁写坏的"钉死的办法；
+         ③ 异常反复出现（≥3 次）说明有东西在持续破坏它：destroy Lenis 退回原生
+            滚动，并摘掉它加在 <html> 上的类（否则 .lenis-stopped 的
+            overflow:hidden 会把页面锁死）。宁可少一层平滑，也不能让页面卡住。 */
+    function describeLenisState(lenis) {
+      var info = {};
+      ['targetScroll', 'animatedScroll', 'actualScroll', 'scroll', 'velocity'].forEach(function (k) {
+        var v = lenis[k];
+        info[k] = (typeof v === 'number') ? v : (typeof v + ' → ' + String(v).slice(0, 80).replace(/\s+/g, ' '));
+      });
+      /* 原生滚动属性被外部脚本覆写的迹象：正常时 scrollY/scrollTo 都不在 window 自身上 */
+      try {
+        info['window 自有 scrollY'] = Object.prototype.hasOwnProperty.call(window, 'scrollY');
+        info['window 自有 scrollTo'] = Object.prototype.hasOwnProperty.call(window, 'scrollTo');
+        info['typeof documentElement.scrollTop'] = typeof document.documentElement.scrollTop;
+        info['typeof window.scrollY'] = typeof window.scrollY;
+      } catch (eDesc) { /* 忽略 */ }
+      return info;
+    }
+
+    /* 把写入者钉死：装在字段上的访问器会把"写非数字"的调用栈打出来。
+       只打前 3 次——目的是点名，不是刷屏（外部脚本可能每帧都写）。 */
+    function trapLenisWrites(lenis) {
+      if (window.__hnLenisTrapped) return;
+      window.__hnLenisTrapped = true;
+      var logged = 0;
+      ['targetScroll', 'animatedScroll'].forEach(function (key) {
+        var desc = Object.getOwnPropertyDescriptor(lenis, key);
+        if (!desc || !desc.configurable) return;
+        var value = lenis[key];
+        Object.defineProperty(lenis, key, {
+          configurable: true,
+          get: function () { return value; },
+          set: function (v) {
+            if (typeof v !== 'number' && logged < 3) {
+              logged++;
+              try {
+                console.warn('[hn] 有人往 Lenis.' + key + ' 写入非数字：', v,
+                  '\n写入栈：', new Error().stack,
+                  logged === 3 ? '\n（同类写入后续不再打印）' : '');
+              } catch (eTrap) { /* 忽略 */ }
+            }
+            value = v;
+          }
+        });
+      });
+    }
+
+    /* 兜底：退回浏览器原生滚动（先摘掉 Lenis 加在 <html> 上的类，避免锁死页面） */
+    function degradeToNativeScroll(lenis, count) {
+      if (window.__hnLenisDegraded) return;
+      window.__hnLenisDegraded = true;
+      try { if (typeof lenis.destroy === 'function') lenis.destroy(); } catch (eDestroy) { /* 忽略 */ }
+      window.__hnLenis = null;
+      var cl = document.documentElement.classList;
+      ['lenis', 'lenis-smooth', 'lenis-stopped', 'lenis-scrolling'].forEach(function (c) { cl.remove(c); });
+      try {
+        console.warn('[hn] Lenis 内部状态被外部脚本反复写坏（已 ' + count +
+          ' 次），已退回浏览器原生滚动——功能不受影响，只是少了平滑缓动。');
+      } catch (eWarn) { /* 忽略 */ }
+    }
+
     if (!window.__hnLenisSelfHeal) {
       window.__hnLenisSelfHeal = true;
+      var anomalies = 0;
       window.addEventListener('wheel', function () {
         var lenis = window.__hnLenis;
         if (!lenis) return;
         if (typeof lenis.targetScroll === 'number' && typeof lenis.animatedScroll === 'number') return;
+        anomalies++;
+        /* 先取证（此时字段还是坏的），再复位——顺序反了就只能看到修好的值 */
+        var snapshot = anomalies === 1 ? describeLenisState(lenis) : null;
         var y = typeof lenis.actualScroll === 'number'
           ? lenis.actualScroll
           : (window.scrollY || document.documentElement.scrollTop || 0);
         lenis.targetScroll = lenis.animatedScroll = y;
-        try { console.warn('[hn] 检测到 Lenis 内部滚动值被写坏，已复位到', y); } catch (errHeal) { /* 忽略 */ }
+        if (anomalies === 1) {
+          try {
+            console.warn('[hn] Lenis 内部滚动值被写坏，已复位到', y, '——现场（复位前）：', snapshot);
+          } catch (eLog) { /* 忽略 */ }
+          trapLenisWrites(lenis);
+        }
+        if (anomalies >= 3) degradeToNativeScroll(lenis, anomalies);
       }, { capture: true, passive: true });
     }
   }

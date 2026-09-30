@@ -148,7 +148,7 @@
   var lbStage = null;
   var lbState = { scale: 1, tx: 0, ty: 0 };
   var lbDrag = null;
-  var wasDragging = false;
+  var lbPress = null;   /* {x, y, moved}：最近一次按下的起点与最大位移（用于区分点击/拖动） */
   var lbClosing = false;
   var lbItems = [];        /* [{img, alt, label}] */
   var lbIndex = 0;
@@ -208,9 +208,11 @@
     lbCapText = lightboxEl.querySelector('.math-lb-cap-text');
     lbCapIdx = lightboxEl.querySelector('.math-lb-cap-idx');
 
-    /* 关闭：点遮罩 / 关按钮 / Esc；另含缩放与画廊切换 */
+    /* 点击：缩放/切图等控件优先；其余按**几何位置**判定——
+       图片内的点击什么都不做（哪怕图片还只是 1:1），图片外（舞台空白/遮罩）才关闭。
+       刚发生过拖动（>6px）不算点击，避免"把图拖到图外松手"被误判成点图外而关闭。 */
     lightboxEl.addEventListener('click', function (e) {
-      var act = e.target.closest('[data-act]');
+      var act = e.target.closest ? e.target.closest('[data-act]') : null;
       if (act) {
         if (act.getAttribute('data-act') === 'close') { closeLightbox(); }
         else if (act.getAttribute('data-act') === 'zoomin') { zoomBy(1.4); }
@@ -220,10 +222,9 @@
         else if (act.getAttribute('data-act') === 'prev') { showItem(lbIndex - 1, -1); }
         return;
       }
-      if (e.target === lightboxEl || e.target.classList.contains('math-lightbox-mask')) {
-        if (wasDragging) return;  /* 刚拖完的 click 是 setPointerCapture 副产物，忽略不关 */
-        closeLightbox();
-      }
+      if (lbPress && lbPress.moved > 6) return;
+      if (hitImage(e.clientX, e.clientY)) return;
+      closeLightbox();
     });
     document.addEventListener('keydown', function (e) {
       if (e.key === 'Escape' && lightboxEl.style.display !== 'none') { closeLightbox(); }
@@ -235,7 +236,32 @@
     });
   }
 
+  /* 命中判定：指针是否落在图片的**视觉矩形**内（getBoundingClientRect 含 transform）。
+     为什么不看事件 target：pointerdown 里对 lightboxEl 调了 setPointerCapture，
+     之后的 click 会被重定向到 lightboxEl——"点图片"与"点图片外"在 target 上分不开，
+     这正是"点/拖图片会误关闭""放大后点图外关不掉"的共同根源。 */
+  function hitImage(x, y) {
+    if (!lbImg) return false;
+    var r = lbImg.getBoundingClientRect();
+    return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+  }
+
+  /* 缩放/平移后把位移夹回可视范围：
+     · 某轴上图片比视口小 → 该轴位移归零（保持居中），因此"缩小到画面外"不可能发生；
+     · 比视口大 → 位移夹在 ±(视觉尺寸 - 视口)/2，图片边缘不会被拖进画面内部。
+     offsetWidth/Height 是**未变换**的布局尺寸（= 初始显示尺寸），乘 scale 即当前视觉尺寸。 */
+  function clampPan() {
+    if (!lbImg) return;
+    var vw = window.innerWidth;
+    var vh = window.innerHeight;
+    var maxX = Math.max(0, (lbImg.offsetWidth * lbState.scale - vw) / 2);
+    var maxY = Math.max(0, (lbImg.offsetHeight * lbState.scale - vh) / 2);
+    lbState.tx = Math.min(maxX, Math.max(-maxX, lbState.tx || 0));
+    lbState.ty = Math.min(maxY, Math.max(-maxY, lbState.ty || 0));
+  }
+
   function applyView() {
+    clampPan();
     lbImg.style.transform =
       'translate(' + lbState.tx + 'px, ' + lbState.ty + 'px) scale(' + lbState.scale + ')';
   }
@@ -344,7 +370,14 @@
 
     document.addEventListener('pointerdown', function (e) {
       if (!lightboxEl || lightboxEl.style.display === 'none') return;
-      if (!e.target.closest('.math-lb-stage')) return;
+      if (!e.target.closest || !e.target.closest('.math-lb-stage')) return;
+      var inside = hitImage(e.clientX, e.clientY);
+      lbPress = { x: e.clientX, y: e.clientY, moved: 0 };
+
+      /* 按下点在图片之外（舞台空白 / 遮罩）：直接关闭——点击与拖动都算。
+         控制条、关闭按钮、画廊左右键都不在 .math-lb-stage 里，不会被这里误伤。 */
+      if (!inside) { closeLightbox(); return; }
+
       var id = e.pointerId;
       lbPointers[id] = { x: e.clientX, y: e.clientY };
       lbStage.classList.add('is-dragging');
@@ -356,16 +389,25 @@
         lbPinchScale = lbState.scale;
         lbDrag = null;
       } else {
-        /* 单指：记录平移起点（放大 / 两指中剩一指时也能拖） */
-        if (lbState.scale > 1) {
-          lbDrag = { x: e.clientX, y: e.clientY, tx: lbState.tx, ty: lbState.ty };
-        }
+        /* 记录平移起点。能移动多少由 clampPan 决定：图片小于视口时位移恒为 0，
+           所以"图片不大时拖动没效果"是自然结果，不需要额外开关。 */
+        lbDrag = { x: e.clientX, y: e.clientY, tx: lbState.tx, ty: lbState.ty };
       }
-      lightboxEl.setPointerCapture && lightboxEl.setPointerCapture(e.pointerId);
+      /* 合成事件/异常指针会让 setPointerCapture 抛错，别因此中断整个按下流程 */
+      try {
+        lightboxEl.setPointerCapture && lightboxEl.setPointerCapture(e.pointerId);
+      } catch (errCap) { /* 忽略 */ }
     });
 
     document.addEventListener('pointermove', function (e) {
       if (!lightboxEl || lightboxEl.style.display === 'none') return;
+      /* 记录本此按压的最大位移：供 click 判定"这是点击还是拖动" */
+      if (lbPress) {
+        lbPress.moved = Math.max(
+          lbPress.moved,
+          Math.abs(e.clientX - lbPress.x) + Math.abs(e.clientY - lbPress.y)
+        );
+      }
       var pt = lbPointers[e.pointerId];
       if (!pt) return;
       pt.x = e.clientX; pt.y = e.clientY;
@@ -381,8 +423,8 @@
         }
         return;
       }
-      /* 单指平移 */
-      if (lbDrag && lbState.scale > 1) {
+      /* 单指平移（位移在 applyView → clampPan 里被夹住） */
+      if (lbDrag) {
         lbState.tx = lbDrag.tx + (e.clientX - lbDrag.x);
         lbState.ty = lbDrag.ty + (e.clientY - lbDrag.y);
         applyView();
@@ -398,19 +440,16 @@
     document.addEventListener('pointerup', function (e) {
       delete lbPointers[e.pointerId];
       if (lbStage) lbStage.classList.remove('is-dragging');
-      /* 若双指变单指：让剩余那根接管平移，并抑制随后 click 防误关 */
       var ids = Object.keys(lbPointers);
       if (ids.length === 1) {
+        /* 双指变单指：剩下那根接管平移 */
         var p = lbPointers[ids[0]];
         lbDrag = { x: p.x, y: p.y, tx: lbState.tx, ty: lbState.ty };
-        wasDragging = true;
-        window.setTimeout(function () { wasDragging = false; }, 60);
       } else if (ids.length === 0) {
-        if (lbDrag) { wasDragging = true; }
         lbDrag = null;
-        if (wasDragging) {
-          window.setTimeout(function () { wasDragging = false; }, 50);
-        }
+        /* 焦点/状态收尾：lbPress 保留到下一次 pointerdown 覆盖即可（click 紧随其后） */
+        var pressed = lbPress;
+        window.setTimeout(function () { if (lbPress === pressed) lbPress = null; }, 350);
       }
     });
     document.addEventListener('pointercancel', function (e) {
@@ -425,6 +464,11 @@
       if (!lightboxEl || lightboxEl.style.display === 'none') return;
       if (!e.target.closest('.math-lb-stage')) return;
       if (lbState.scale > 1) { resetView(); } else { zoomBy(2); }
+    });
+
+    /* 视口尺寸变化后重算一次位移上界，避免放大状态下窗口变小把图片挤出画面 */
+    window.addEventListener('resize', function () {
+      if (lightboxEl && lightboxEl.style.display !== 'none') applyView();
     });
   }
 

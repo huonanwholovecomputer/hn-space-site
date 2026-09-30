@@ -377,17 +377,40 @@
     var rawScrollTo = window.__hnLenis && window.__hnLenis.scrollTo;
     if (typeof rawScrollTo === 'function') {
       var boundScrollTo = rawScrollTo.bind(window.__hnLenis);
+      var badTargetLogged = 0;
       window.__hnLenis.scrollTo = function (target, opts) {
-        if (typeof target !== 'number' && typeof target !== 'string' && !(target instanceof Element)) {
-          try {
-            console.warn(
-              '[hn] Lenis.scrollTo 收到非法滚动目标，已按 0 处理：',
-              target,
-              '\n调用栈：',
-              new Error().stack
-            );
-          } catch (errWarn) { /* 警告本身失败不影响滚动 */ }
-          target = 0;
+        var why = '';
+        if (typeof target !== 'number') {
+          if (typeof target === 'string') {
+            /* 字符串是 Lenis 的合法用法，但**必须是能解析的选择器**：
+               一旦内部值被写坏，滚轮路径会算出 `targetScroll + delta` 这种
+               垃圾字符串，Lenis 拿去 document.querySelector 会抛 SyntaxError
+               ——每个滚轮事件都抛，肉眼就是"卡住不动"。所以这里先试解析。 */
+            try {
+              document.querySelector(target);
+            } catch (errSel) {
+              why = '字符串不是合法选择器';
+            }
+          } else if (!(target instanceof Element)) {
+            why = '既不是数字也不是元素';
+          }
+        }
+        if (why) {
+          if (badTargetLogged < 3) {
+            badTargetLogged++;
+            try {
+              console.warn('[hn] Lenis.scrollTo 收到非法滚动目标（' + why + '），本次滚动已丢弃：',
+                target, '\n调用栈：', new Error().stack);
+            } catch (errWarn) { /* 警告本身失败不影响滚动 */ }
+          }
+          /* 关键：**不能**把它当成 0 —— 那会让每次滚轮都"跳回顶部"，
+             正是用户看到的"卡在顶部"。直接丢弃这一次滚动，并计入兜底计数
+             （累计 3 次就退回原生滚动，之后滚轮由浏览器接管，行为完全正常）。 */
+          window.__hnLenisAnomalies = (window.__hnLenisAnomalies || 0) + 1;
+          if (window.__hnLenisAnomalies >= 3 && window.__hnLenis) {
+            degradeToNativeScroll(window.__hnLenis, window.__hnLenisAnomalies);
+          }
+          return undefined;
         }
         return boundScrollTo(target, opts);
       };
@@ -443,7 +466,19 @@
             if (typeof v !== 'number' && logged < 3) {
               logged++;
               try {
+                /* 把"这是不是那个全局函数"和"同一刻其它字段长什么样"一起打出来——
+                   下一次复现就能直接定案，不用再猜。 */
+                var isGlobalFuse = (typeof window.Fuse === 'function' && v === window.Fuse);
+                var peer = {};
+                ['targetScroll', 'animatedScroll', 'actualScroll', 'scroll'].forEach(function (k) {
+                  try {
+                    var pv = lenis[k];
+                    peer[k] = (typeof pv === 'number') ? pv : (typeof pv);
+                  } catch (ePeer) { peer[k] = '（读取失败）'; }
+                });
                 console.warn('[hn] 有人往 Lenis.' + key + ' 写入非数字：', v,
+                  '\n是否就是 window.Fuse：', isGlobalFuse,
+                  '\n同一刻各字段类型：', peer,
                   '\n写入栈：', new Error().stack,
                   logged === 3 ? '\n（同类写入后续不再打印）' : '');
               } catch (eTrap) { /* 忽略 */ }

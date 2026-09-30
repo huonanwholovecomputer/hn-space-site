@@ -257,23 +257,44 @@
   function runCount(el) {
     var info = parseCount(el.textContent.trim());
     if (!info || info.num <= 0) return;
+
     var target = info.num;
-    var t0 = 0;
     var fmt = function (v) {
       return info.grouped ? v.toLocaleString('en-US') : String(v);
     };
+    var finalText = info.pre + fmt(target) + info.post;
+    var t0 = 0;
+    var settled = false;
+    var guard;
+
+    var settle = function () {
+      if (settled) return;
+      settled = true;
+      el.textContent = finalText; /* 收尾写精确值，不用插值结果 */
+      window.clearTimeout(guard);
+    };
+
     var frame = function (t) {
-      if (!t0) t0 = t;
+      if (settled) return;
+      if (!t0) {
+        t0 = t;
+        /* 起跳的 0 放在「第一帧真跑起来」时才写：万一 rAF 没被调度
+           （后台标签页、省电模式等），卡片上留下的仍是真实数值，
+           而不是一个会骗人的 0 —— 这是数据正确性问题，不只是观感问题。 */
+        el.textContent = info.pre + fmt(0) + info.post;
+      }
       var k = Math.min(1, (t - t0) / COUNT_MS);
-      var e = 1 - Math.pow(1 - k, 3); /* easeOutCubic：起快收慢，符合"数字落定"的观感 */
-      el.textContent = info.pre + fmt(Math.round(target * e)) + info.post;
       if (k < 1) {
+        var e = 1 - Math.pow(1 - k, 3); /* easeOutCubic：起快收慢，符合"数字落定"的观感 */
+        el.textContent = info.pre + fmt(Math.round(target * e)) + info.post;
         window.requestAnimationFrame(frame);
       } else {
-        el.textContent = info.pre + fmt(target) + info.post; /* 收尾写精确值 */
+        settle();
       }
     };
-    el.textContent = info.pre + fmt(0) + info.post;
+
+    /* 兜底：即使 rAF 中途不再被调度，也保证最终落到精确值 */
+    guard = window.setTimeout(settle, COUNT_MS + 400);
     window.requestAnimationFrame(frame);
   }
 

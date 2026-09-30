@@ -5,7 +5,9 @@
 */ -}}
 {{- $toc := .Page.TableOfContents -}}
 {{- if $toc -}}
-<nav class="post-toc" aria-label="目录">
+{{- /* data-lenis-prevent：宽屏下这块目录会变成左侧常驻栏（见 motion.css 的 §4-11），
+       比视口高时需要它自身能原生滚动——否则 Lenis 会把滚轮事件吃掉。 */}}
+<nav class="post-toc" aria-label="目录" data-lenis-prevent>
   <div class="post-toc-title">目录</div>
   {{- $toc | safeHTML -}}
 </nav>

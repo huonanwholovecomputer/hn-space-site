@@ -331,6 +331,80 @@
     initCountUp();
   };
 
+  /* --------------------------------------------------------------------------
+   * 平滑滚动（Lenis）——《动效升级方案》§6.4
+   * Lenis 驱动的是**真实滚动位置**（不是 transform 假滚动），所以
+   * position: sticky、animation-timeline: scroll()/view()、IntersectionObserver
+   * 全部照常工作；触屏不接管（本版已移除 smoothTouch，syncTouch 默认关）。
+   * 减少动态 / 没加载到 lenis.min.js / 初始化失败 → 一律退回浏览器原生滚动。
+   * ------------------------------------------------------------------------ */
+  function initSmoothScroll() {
+    if (reduceMotion()) return;
+    if (typeof window.Lenis !== 'function') return;
+    if (window.__hnLenis) return;
+
+    try {
+      window.__hnLenis = new window.Lenis({
+        /* lerp 越小越跟手、越大越滑；0.1 是接近原生手感的保守值
+           （参考站多在 0.06~0.1） */
+        lerp: 0.1,
+        wheelMultiplier: 1,
+        smoothWheel: true,
+        autoRaf: true,
+        /* anchors 保持关闭：目录锚点由 math-image.js 统一负责
+           （那里要减掉 92px 导航偏移，而且刻意用"即时跳转"来躲开
+             懒加载图片导致的高度漂移），两套都开会互相抢。 */
+        anchors: false
+      });
+    } catch (err) {
+      window.__hnLenis = null;
+    }
+  }
+
+  /* 统一的"跳到某个滚动位置"入口：有 Lenis 时交给它（同时同步它内部的目标值，
+     否则它的下一帧会把位置拉回去），没有则退回原生 scrollTo。
+     immediate=true 表示不做平滑动画（换页回页首、锚点跳转都用它）。 */
+  window.__hnScrollTo = function (y, immediate) {
+    var lenis = window.__hnLenis;
+    if (lenis && typeof lenis.scrollTo === 'function') {
+      lenis.scrollTo(y, { immediate: !!immediate });
+      return;
+    }
+    window.scrollTo(0, y);
+  };
+
+  /* --------------------------------------------------------------------------
+   * 首页轻量开场——《动效升级方案》§4-13
+   * 只在首页、每次会话一次、约 520ms、纯遮罩揭幕。
+   * 只在本页脚本执行时跑一次；PJAX 换页不会再播（脚本不会重新执行）。
+   * ------------------------------------------------------------------------ */
+  function initOpener() {
+    if (reduceMotion()) return;
+    if (!document.querySelector('.home-page')) return;
+    try {
+      if (window.sessionStorage.getItem('hn-opener')) return;
+      window.sessionStorage.setItem('hn-opener', '1');
+    } catch (err) {
+      return; /* 隐私模式等 sessionStorage 不可用：不播 */
+    }
+
+    var el = document.createElement('div');
+    el.className = 'home-opener';
+    el.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(el);
+
+    /* 两帧后再揭幕：保证遮罩先被绘制过一帧，动画才有起点 */
+    window.requestAnimationFrame(function () {
+      window.requestAnimationFrame(function () {
+        el.classList.add('is-open');
+      });
+    });
+    /* 动画结束就摘掉节点（不依赖 transitionend，避免掉帧时残留） */
+    window.setTimeout(function () {
+      if (el.parentNode) el.parentNode.removeChild(el);
+    }, 700);
+  }
+
   function init() {
     /* 目录高亮是功能性指示：减少动态下也保留（CSS 只去掉那条竖条的过渡） */
     initTocSpy();
@@ -381,7 +455,9 @@
   window.__motionInit = init;
 
   /* 首屏：DOM 已解析（defer 脚本在解析完成后按序执行） */
+  initSmoothScroll(); /* 先起滚动引擎，再进场动画，避免首屏滚动手感不一致 */
   init();
+  initOpener(); /* 必须在 init() 之后：遮罩要盖住已经就位的布局 */
 
   window.addEventListener('resize', onResize);
   window.addEventListener('orientationchange', onResize);

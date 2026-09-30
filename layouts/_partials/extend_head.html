@@ -20,11 +20,15 @@
   })();
 </script>
 <script defer src="{{ "js/mouse-trail.js" | relURL }}?v=9"></script>
+{{- /* 平滑滚动引擎（Lenis 1.3.11，MIT，本地托管：static/js/lenis.min.js）。
+       必须排在 motion.js 之前——motion.js 初始化时就要用 window.Lenis。
+       减少动态时不初始化（motion.js 里判断），保持浏览器原生滚动。 */}}
+<script defer src="{{ "js/lenis.min.js" | relURL }}"></script>
 {{- /* 动效层（第一批）：标题逐行遮罩上推。必须在 site.js 之前加载——
        它要在 site.js 绑定滚动入场前完成拆行，pjax:done 时同理。 */}}
-<script defer src="{{ "js/motion.js" | relURL }}?v=3"></script>
+<script defer src="{{ "js/motion.js" | relURL }}?v=4"></script>
 <script defer src="{{ "js/site.js" | relURL }}?v=22"></script>
-<script defer src="{{ "js/pjax.js" | relURL }}?v=6"></script>
+<script defer src="{{ "js/pjax.js" | relURL }}?v=7"></script>
 <script defer src="{{ "js/deepseek-effects.js" | relURL }}?v=16"></script>
 {{- /* 自定义事件埋点（外链 / 邮件 / 代码复制 / 图片放大 / 站内搜索 / 404）。
        Umami 脚本在本文件末尾才加载，所以 track.js 里对 window.umami 是懒调用：
@@ -47,7 +51,7 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
-<script defer src="{{ "js/math-image.js" | relURL }}?v=10"></script>
+<script defer src="{{ "js/math-image.js" | relURL }}?v=11"></script>
 <style>
   /* 公式在深色主题下用亮色，避免黑字看不清 */
   html[data-theme="dark"] .katex { color: #e6edf3; }

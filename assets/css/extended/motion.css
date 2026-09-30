@@ -439,4 +439,109 @@ html.is-nav-loading .read-progress {
   }
 }
 
+/* ============================================================================
+   Lenis 平滑滚动（对应《动效升级方案》§6.4）——本地托管 1.3.11，仅宽屏之外的
+   滚动引擎，样式取官方推荐；只保留对本站有实际意义的三条：
+     · scroll-behavior 必须置 auto：否则原生平滑滚动与 Lenis 的缓动互相打架
+     · data-lenis-prevent 的容器保留原生滚动（粘性目录栏内部滚动就靠它）
+     · Lenis 停止时锁住滚动
+   刻意不抄官方的 `.lenis.lenis-smooth iframe { pointer-events: none }`：
+   以后若在文章里嵌 B 站/YouTube 播放器，那会让播放器点不动；
+   真出现滚动卡顿，给嵌入容器加 data-lenis-prevent 即可。
+   ============================================================================ */
+
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+
+.lenis.lenis-stopped {
+  overflow: hidden;
+}
+
+/* ============================================================================
+   ⑪ 粘性滚动叙事：文章目录变成左侧常驻栏（对应《动效升级方案》§4-11）
+   ----------------------------------------------------------------------------
+   为什么是文章页、而不是关于页：实测关于页各章节只有 280~406px（视口 900），
+   吸顶几乎看不出来；文章页滚动高度 15548px、目录 20 项，才值得做。
+
+   实现方式实测选型（合成页测过 grid 与 float 两条路径，都成立）：
+   取 float + sticky —— grid 方案会把正文的每个块变成 grid item，
+   相邻块的外部边距不再合并（文章段落间距会整体变大），float 不碰正文流。
+   吸附范围 = 父容器 .post-content 的高度，也就是整篇，与正文块数无关。
+
+   只对「带目录的文章」生效，且只在 ≥1280px 生效：
+   正文仍是 960px 不变，目录栏挂在正文左侧 240px 的留白里。
+   ============================================================================ */
+
+@media (min-width: 1280px) {
+  /* 文章外壳让出左侧通道：main 1120 → 1280，文章块 1200（= 目录 200 + 间距 40 + 正文 960） */
+  body.page-posts main.main:has(.post-content > .post-toc) {
+    max-width: 1280px;
+  }
+
+  body.page-posts .post-single:has(.post-content > .post-toc) {
+    max-width: 1200px;
+    margin-inline: auto;
+  }
+
+  body.page-posts .post-single .post-content:has(> .post-toc) {
+    max-width: none;
+    width: 100%;
+    padding-left: 240px; /* 目录栏 + 间距的通道 */
+  }
+
+  /* 顶部标题卡片与底部翻页保持与正文同宽同起点，避免"头宽身窄"的错位 */
+  body.page-posts .post-single:has(.post-content > .post-toc) .post-header,
+  body.page-posts .post-single:has(.post-content > .post-toc) .post-footer {
+    max-width: 1200px;
+    margin-inline: auto;
+    padding-left: 240px;
+  }
+
+  body.page-posts .post-content > .post-toc {
+    float: left;                 /* 出流到左侧留白，正文流不受影响 */
+    width: 200px;
+    margin: 0 40px 0 -240px;
+    position: sticky;            /* 吸附范围 = .post-content 整篇高度 */
+    top: 84px;                   /* 让开悬浮导航（44px + 10px 顶距 + 余量） */
+    max-height: calc(100vh - 120px);
+    overflow-y: auto;            /* 目录比视口高时自身滚动（配合 data-lenis-prevent） */
+    padding: 14px 16px;
+    font-size: 0.88rem;
+  }
+}
+
+/* ============================================================================
+   ⑬ 首页轻量开场（对应《动效升级方案》§4-13）
+   ----------------------------------------------------------------------------
+   严格限定：仅首页、每次会话一次、约 520ms、只是"与底色相同的遮罩向上揭开"，
+   不做计数 / 不显示加载字样 / 不等任何资源；减少动态、隐私模式下都不播。
+   节点由 motion.js 运行时插入，所以无 JS 时不存在这层东西。
+   想彻底关掉：删掉本段 + motion.js 里的 initOpener() 调用即可。
+   ============================================================================ */
+
+.home-opener {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  pointer-events: none; /* 揭幕期间不拦交互 */
+  background: var(--theme);
+  transform: translateY(0);
+}
+
+.home-opener.is-open {
+  transform: translateY(-100%);
+  transition: transform 520ms var(--home-ease-in-out);
+}
+
+
 

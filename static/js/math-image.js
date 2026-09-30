@@ -368,7 +368,14 @@
     var NAV_OFFSET = 92; /* 顶部悬浮导航高度 + 余量 */
     function scrollToTarget() {
       var top = target.getBoundingClientRect().top + (window.scrollY || window.pageYOffset);
-      window.scrollTo(0, Math.max(0, top - NAV_OFFSET));
+      var y = Math.max(0, top - NAV_OFFSET);
+      /* 有 Lenis 时交给 motion.js 的入口做即时跳转（同步它的内部目标值，
+         否则它的下一帧会把位置拉回去）；没有则退回原生 scrollTo。 */
+      if (typeof window.__hnScrollTo === 'function') {
+        window.__hnScrollTo(y, true);
+      } else {
+        window.scrollTo(0, y);
+      }
     }
     scrollToTarget();
     /* 只保留第一次即时跳转，取消 120/400/900ms 的多次延迟校正：

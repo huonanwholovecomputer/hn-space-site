@@ -189,6 +189,17 @@
     });
   }
 
+  /* 换页时的滚动定位：优先交给 motion.js 的 __hnScrollTo
+     （有 Lenis 时由它即时跳转并同步内部目标值，否则 Lenis 下一帧会把位置拉回去），
+     没有该入口时就是原生 scrollTo。 */
+  function jumpTo(y) {
+    if (typeof window.__hnScrollTo === 'function') {
+      window.__hnScrollTo(y, true);
+      return;
+    }
+    window.scrollTo(0, y);
+  }
+
   function navigate(url, push) {
     if (push) {
       history.pushState({ url: url.href }, '', url.href);
@@ -253,11 +264,11 @@
              因内容变更自动跳顶）。 */
           var isArticle = isArticleUrl(url);
           if (isArticle) {
-            window.scrollTo(0, 0);
+            jumpTo(0);
           } else {
             var targetY = Math.min(prevScrollY, document.body.scrollHeight - window.innerHeight);
             if (targetY > 0) {
-              window.scrollTo(0, targetY);
+              jumpTo(targetY);
             }
           }
 

@@ -320,20 +320,51 @@ var revealClassify = function (rect, vh) {
     mouseX = e.clientX;
     mouseY = e.clientY;
     mouseReady = true;
+    /* 滚动期间只记坐标、不写光效：radial-gradient 重绘 + 平滑滚动叠在一起最掉帧。
+       停止滚动后由 restoreAfterScroll() 按这个最新坐标重新点亮一次。 */
+    if (scrolling) return;
     updateAll();
   }
 
-  /* 滚动时（滚轮/惯性/滚动条/跳转）卡片相对鼠标的位置会变，
-     但 pointermove 不会因滚动触发——若不重算，光斑会停留在滚动前
-     的最后坐标，看起来「卡在十字中心」。这里用 rAF 节流按最新
-     getBoundingClientRect 重算，让光斑始终跟随鼠标的视觉位置。 */
-  var scrollRaf = null;
-  function onScroll() {
-    if (scrollRaf) return;
-    scrollRaf = window.requestAnimationFrame(function () {
-      scrollRaf = null;
+  /* --------------------------------------------------------------------------
+     滚动期间关闭手电筒光效（性能优化）
+
+     为什么：光斑是 radial-gradient，每次更新都要按 --gx/--gy 重算并重绘整层；
+     平滑滚动本身每帧都在动，两者叠加就是滚动卡顿的主要来源。
+     做法：
+       · 滚动一开始就给 <html> 加 is-scrolling —— CSS 让光斑按
+         transform-origin: var(--gx) var(--gy) 做 scale 缩小 + 淡出，走合成层，
+         视觉上是"光斑从鼠标位置迅速缩小消失"；
+       · 同时**完全停掉每帧的 updateAll()**（它会为每张卡片调
+         getBoundingClientRect 并写内联样式，这才是滚动期间的主要开销）；
+       · 滚动停止（140ms 无滚动）后移除类，并按最后的指针位置重新渲染一次，
+         光斑就"重新从鼠标处点亮"，而不是停在滚动前的旧坐标。
+     -------------------------------------------------------------------------- */
+  var scrolling = false;
+  var scrollIdleTimer = null;
+  var SCROLL_IDLE_MS = 140;
+
+  function markScrolling() {
+    if (!scrolling) {
+      scrolling = true;
+      document.documentElement.classList.add('is-scrolling');
+    }
+    if (scrollIdleTimer) window.clearTimeout(scrollIdleTimer);
+    scrollIdleTimer = window.setTimeout(function () {
+      scrollIdleTimer = null;
+      scrolling = false;
+      document.documentElement.classList.remove('is-scrolling');
+      /* 用最新指针位置重新点亮（mouseReady 为假时说明指针不在窗口内，不点亮） */
       if (mouseReady) updateAll();
-    });
+    }, SCROLL_IDLE_MS);
+  }
+
+  /* 滚动时（滚轮/惯性/滚动条/跳转）只标记状态，停稳后再重算一次。
+     注意：函数名必须与页头导航那个 onScroll 区分开——同一 IIFE 作用域里
+     已有一个 `var onScroll`（页头收缩用），重名会让这里的声明被它覆盖，
+     绑上去的就成了页头那个，is-scrolling 永远不会被加上。 */
+  function onCardsScroll() {
+    markScrolling();
   }
 
   function initTilt() {
@@ -350,7 +381,7 @@ var revealClassify = function (rect, vh) {
       globalBound = true;
       window.addEventListener('pointermove', onGlobalMove, { passive: true });
       /* capture：捕获任意滚动容器（window / 内部滚动区）的滚动 */
-      window.addEventListener('scroll', onScroll, { passive: true, capture: true });
+      window.addEventListener('scroll', onCardsScroll, { passive: true, capture: true });
       /* 指针移出窗口：清掉光效态（is-pointed 由 JS 控制，不会像 :hover 自动消失） */
       document.documentElement.addEventListener('mouseleave', function () {
         mouseReady = false;

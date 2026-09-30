@@ -550,7 +550,12 @@
           } catch (eLog) { /* 忽略 */ }
           trapLenisWrites(lenis);
         }
-        if (anomalies >= 3) degradeToNativeScroll(lenis, anomalies);
+        /* 第一次异常就降级，不再等第 3 次：
+           实测坏值是在**滚轮路径内部**写入的，而这里的捕获检查每轮最多只能记 1 次，
+           于是"满 3 次才降级"意味着要连滚 3 次才可能触发 —— 用户在那之前就一直卡着。
+           只要能出现这种写入，就说明这台机器上 Lenis 已经不可信：立刻退回原生滚动，
+           把滚动交回浏览器。 */
+        degradeToNativeScroll(lenis, anomalies);
       }, { capture: true, passive: true });
     }
   }

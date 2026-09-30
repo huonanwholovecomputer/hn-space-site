@@ -95,6 +95,15 @@ html.type-large .hero-title {
   letter-spacing: -0.03em; /* 参考站是 -0.06~-0.08em；中文标题压太狠会挤，取中间值 */
 }
 
+/* 反色光标环跟着标题一起放大。
+   原比例：64px 光圈 / 53.6px 标题 = 1.19×，放大版标题是 clamp(2.3rem, 6.2vw, 5rem)，
+   同款 clamp ×1.2 = clamp(44px, 7.44vw, 96px) —— 比例保持不变，只是整体放大。
+   变量默认值是 64px（见 deepseek-effects.css），所以切回基准档 / 关掉实验时
+   光圈自动回到原尺寸，不需要另一条规则。只在悬停设备上可见，触屏本来就隐藏。 */
+html.type-large {
+  --ds-ring-blend: clamp(44px, 7.44vw, 96px);
+}
+
 html.type-large .section-title {
   font-size: clamp(1.7rem, 3.6vw, 2.75rem);
   letter-spacing: -0.02em;

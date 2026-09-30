@@ -158,12 +158,14 @@ html.js .home-hero.has-ds-grid::before {
     opacity 0.3s ease;
 }
 
-/* 悬停在 [data-cursor="blend"] 元素上：64px 白色圆，difference 反色 */
+/* 悬停在 [data-cursor="blend"] 元素上：白色圆，difference 反色。
+   尺寸走变量：默认 64px 对应基准标题 53.6px（约 1.19×）；放大版标题在
+   type-scale.css 里把 --ds-ring-blend 调大，比例保持不变，切回基准档自动复原。 */
 .ds-cursor-ring.is-blend {
-  width: 64px;
-  height: 64px;
-  margin-left: -32px;
-  margin-top: -32px;
+  width: var(--ds-ring-blend, 64px);
+  height: var(--ds-ring-blend, 64px);
+  margin-left: calc(var(--ds-ring-blend, 64px) / -2);
+  margin-top: calc(var(--ds-ring-blend, 64px) / -2);
   border-color: transparent;
   background: #fff;
   mix-blend-mode: difference;

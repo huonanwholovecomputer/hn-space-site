@@ -404,10 +404,14 @@
             } catch (errWarn) { /* 警告本身失败不影响滚动 */ }
           }
           /* 关键：**不能**把它当成 0 —— 那会让每次滚轮都"跳回顶部"，
-             正是用户看到的"卡在顶部"。直接丢弃这一次滚动，并计入兜底计数
-             （累计 3 次就退回原生滚动，之后滚轮由浏览器接管，行为完全正常）。 */
+             正是用户看到的"卡在顶部"。
+             也不能只是"丢弃这一次"：丢弃意味着这一下滚轮滚不动，注入者若持续
+             写入，用户看到的就是"滚轮没反应"（另一种卡住）。
+             所以在滚轮路径上发现坏目标，直接判定 Lenis 已被污染、立即退回浏览器
+             原生滚动：之后滚轮完全由浏览器接管，滚动一定正常，只是少了缓动。
+             这是"保证可用"优先于"保住平滑"的取舍。 */
           window.__hnLenisAnomalies = (window.__hnLenisAnomalies || 0) + 1;
-          if (window.__hnLenisAnomalies >= 3 && window.__hnLenis) {
+          if (window.__hnLenis) {
             degradeToNativeScroll(window.__hnLenis, window.__hnLenisAnomalies);
           }
           return undefined;
@@ -476,12 +480,24 @@
                     peer[k] = (typeof pv === 'number') ? pv : (typeof pv);
                   } catch (ePeer) { peer[k] = '（读取失败）'; }
                 });
+                /* peer 用 JSON 序列化：对象在控制台里是折叠的，用户复制日志时只剩一个
+                   "Object"，等于没打。 */
                 console.warn('[hn] 有人往 Lenis.' + key + ' 写入非数字：', v,
                   '\n是否就是 window.Fuse：', isGlobalFuse,
-                  '\n同一刻各字段类型：', peer,
+                  '\n同一刻各字段类型：', JSON.stringify(peer),
                   '\n写入栈：', new Error().stack,
                   logged === 3 ? '\n（同类写入后续不再打印）' : '');
               } catch (eTrap) { /* 忽略 */ }
+            }
+            /* 写入层兜底：Lenis 的全部内部运算都建立在"这些字段是数字"之上。
+               既然坏值必然经过这里，那就在这里把它换成一个合法数字（当前真实滚动
+               位置），而不是让它落进去——这样无论上游是谁、从哪条路写进来，
+               `targetScroll + delta` 都不可能再变成字符串，
+               滚轮也就不会抛 SyntaxError、不会跳回顶部。 */
+            if (typeof v !== 'number') {
+              var fallbackY = (typeof lenis.actualScroll === 'number') ? lenis.actualScroll
+                : (window.scrollY || document.documentElement.scrollTop || 0);
+              v = fallbackY;
             }
             value = v;
           }

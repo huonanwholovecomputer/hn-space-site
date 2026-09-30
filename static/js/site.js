@@ -370,6 +370,13 @@ var revealClassify = function (rect, vh) {
       function (el) {
         if (el.__tiltBound) return;
         el.__tiltBound = true;
+        /* 逃生口：已经不是"卡片"的元素可以声明 data-no-tilt 跳过 3D 倾斜与光效。
+           首页「开源项目」那条全宽 featured 出血带（③）就用它——卡片语言里 2.5° 的
+           透视旋转放在 1425px 宽的元素上会让整幅画面形变（实测观感就是"横条变卡片"），
+           而且它已经不是一个可以整体悬浮的卡片了。
+           这里 return 掉就不会插 .ds-glow-border，也不会进入 cards 列表，
+           因此手电筒光晕与倾斜都不会作用到它。 */
+        if (el.hasAttribute('data-no-tilt')) return;
         /* 边框渐变高亮层：光斑照到边缘时点亮卡片边框（见 home.css .ds-glow-border） */
         if (!el.querySelector(':scope > .ds-glow-border')) {
           var glowBorder = document.createElement('span');

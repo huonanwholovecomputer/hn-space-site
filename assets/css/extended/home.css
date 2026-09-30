@@ -777,6 +777,12 @@ main.main:has(.home-page) {
     border-inline: none;
     border-radius: 0;
     box-shadow: none;
+    /* 彻底退出卡片语言：去掉 3D 透视基变换与悬停抬升。
+       1425px 宽的元素做 2.5° 透视旋转会让整幅形变（观感就是"横条变卡片"）；
+       site.js 那边同时用 index.html 的 data-no-tilt 跳过注册（不插光斑描边、
+       不进倾斜列表）。transform:none 是兜底：即使 JS 没跑/旧版缓存，也不会形变。 */
+    transform: none;
+    --home-lift: 0px;
   }
 }
 

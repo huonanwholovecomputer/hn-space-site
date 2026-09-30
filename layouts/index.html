@@ -1,6 +1,6 @@
 {{- define "main" }}
 {{- $p := hugo.Data.profile }}
-{{- $posts := first 2 (where site.RegularPages "Type" "posts") }}
+{{- $posts := first 4 (where site.RegularPages "Type" "posts") }}
 <div class="home-page">
   <noscript><style>[data-reveal]{opacity:1;transform:none}</style></noscript>
   {{/* ================= Hero（含向下延伸的流体背景） ================= */}}
@@ -42,9 +42,10 @@
         </div>
         <div class="hero-code-card" aria-hidden="true">
           <div class="code-dots"><i></i><i></i><i></i></div>
+          {{/* 数字改成实时统计：原来写死"2 篇长教程"，已经有 4 篇了 */}}
           <pre>~/HN
-├── posts/      2 篇长教程
-├── projects/   10 个开源项目
+├── posts/      {{ len (where site.RegularPages "Type" "posts") }} 篇长教程
+├── projects/   {{ len $p.projects }} 个开源项目
 └── tools/      h_n-printer 内测中</pre>
         </div>
       </div>
@@ -217,35 +218,37 @@
         <h2 id="content-title" class="section-title" data-reveal>教程与内容</h2>
         <a class="section-more" href="{{ $p.links.blog | relURL }}" data-reveal>全部文章 <span aria-hidden="true">→</span></a>
       </div>
-      <div class="content-grid">
-        {{- range $posts }}
-        <a class="content-card" href="{{ .RelPermalink }}" data-reveal>
-          <div class="content-card-meta">
-            <span class="content-tag">教程</span>
-            <time datetime="{{ .Date.Format "2006-01-02" }}">{{ .Date.Format "2006-01" }}</time>
-          </div>
-          <h3>{{ .Title }}</h3>
-          <p>{{ .Description }}</p>
-          <span class="card-more">阅读全文 <span aria-hidden="true">→</span></span>
-        </a>
+      {{/* ② 行式索引：与上面几段的卡片栅格形成节奏对比。
+           data-reveal 放在 <li> 上而不是里面的 <a> 上——site.js 的同级错峰是
+           按"元素在父节点里的下标"算的，放在 <a> 上每行都是下标 0、不会错峰。 */}}
+      <ol class="content-index">
+        {{- range $i, $post := $posts }}
+        <li class="content-index-item" data-reveal>
+          <a class="content-row" href="{{ $post.RelPermalink }}">
+            <span class="content-row-num" aria-hidden="true">{{ printf "%02d" (add $i 1) }}</span>
+            <span class="content-row-body">
+              <span class="content-row-title">{{ $post.Title }}</span>
+              <span class="content-row-summary">{{ $post.Description }}</span>
+            </span>
+            <span class="content-row-meta">
+              <time datetime="{{ $post.Date.Format "2006-01-02" }}">{{ $post.Date.Format "2006-01" }}</time>
+              <span class="content-row-dot" aria-hidden="true">·</span>
+              <span class="content-row-time">{{ $post.ReadingTime }} min</span>
+            </span>
+            <span class="content-row-arrow" aria-hidden="true">→</span>
+          </a>
+        </li>
         {{- end }}
-        <a class="content-card content-card--channel" href="{{ $p.links.github }}" rel="noopener" target="_blank" data-reveal>
-          <div class="content-card-meta">
-            <span class="content-tag">GitHub</span>
-          </div>
-          <h3>开源项目主页</h3>
-          <p>10 个开源项目与更多实验，欢迎 Star 与交流。</p>
-          <span class="card-more">打开主页 <span aria-hidden="true">↗</span></span>
-        </a>
-        <a class="content-card content-card--channel" href="{{ $p.links.bilibili }}" rel="noopener" target="_blank" data-reveal>
-          <div class="content-card-meta">
-            <span class="content-tag">Bilibili</span>
-          </div>
-          <h3>B 站主页</h3>
-          <p>视频与动态，欢迎关注。</p>
-          <span class="card-more">打开主页 <span aria-hidden="true">↗</span></span>
-        </a>
-      </div>
+      </ol>
+
+      {{/* 原来这两条是虚线卡片；改成索引下面的一行次要入口，把主次关系拉开 */}}
+      <p class="content-channels" data-reveal>
+        也可以在
+        <a href="{{ $p.links.github }}" rel="noopener" target="_blank">GitHub<span aria-hidden="true">↗</span></a>
+        <span class="content-channels-sep" aria-hidden="true">/</span>
+        <a href="{{ $p.links.bilibili }}" rel="noopener" target="_blank">B&nbsp;站<span aria-hidden="true">↗</span></a>
+        找到我。
+      </p>
     </div>
   </section>
 

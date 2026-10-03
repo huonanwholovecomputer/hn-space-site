@@ -1,4 +1,9 @@
 <script>document.documentElement.classList.add('js');</script>
+{{- /* 注意：RSS 自动发现（<link rel="alternate" type="application/rss+xml">）由主题的
+       head.html 通过 .AlternativeOutputFormats 逐页输出，**不要**在这里再加一条，
+       否则每个页面都会出现两个指向同一订阅源的 alternate 链接。
+       主题输出的 title 取的是 output 名（"rss"）而不是站点标题，不影响
+       浏览器与阅读器识别（它们看的是 type 和 href）。 */}}
 {{- /* URL 加 ?dark 可强制深色主题预览（theme 脚本在 head.html 先执行，这里覆盖） */}}
 <script>if (new URLSearchParams(location.search).has('dark')) document.documentElement.dataset.theme = 'dark';</script>
 {{- /* 实时跟随系统主题变化（auto 模式）：仅在用户未手动指定主题时生效，

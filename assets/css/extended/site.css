@@ -670,6 +670,16 @@ details.toc summary:hover {
    桌面端生效；移动端菜单为纵向折叠，保持激活项背景色即可。 */
 #menu {
   position: relative;
+  /* 导航高度只由这条 line-height 决定，显式写死避免任何继承来的行高把胶囊撑高
+     （用户报过「切 tab 后 tab 变高」；虽然多次测量未能复现，这里做成确定性约束）。 */
+  line-height: 44px;
+  height: 44px;
+}
+
+/* 胶囊高度同样钉死：44(menu) + 4 + 4(padding) + 2(上下边框) = 54px。
+   浮动的 max-width 交给下面的 --nav-width 控制，不参与高度计算。 */
+.header-nav {
+  height: 54px;
 }
 
 .menu-indicator {

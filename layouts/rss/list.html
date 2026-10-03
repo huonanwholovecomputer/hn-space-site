@@ -1,0 +1,201 @@
+{{- define "main" }}
+{{- /* /rss/ 订阅页：把博客原生的 index.xml 包一层“人看的”说明页。
+       为什么需要它：RSS 地址在浏览器里是一屏 XML，普通访客看不懂也不知道该拿它做什么。
+       本页给出①订阅地址（可一键复制）②分栏与标签的额外订阅源③最新几篇预览
+       ④RSS 是什么/怎么用 ⑤阅读器推荐 ⑥通往原始 XML 的链接。
+
+       设计取舍：不做"输入 RSS 地址试试看"的在线预览——同源抓取 XML 在
+       file:// 预览、CORS、以及"本地预览跳线上"这些场景里很容易哑火，
+       而下面的静态预览已经能说明"订阅后能看到什么"。 */}}
+
+{{- $mainFeed := "" }}
+{{- with site.Home.OutputFormats.Get "rss" }}{{ $mainFeed = .Permalink }}{{ end }}
+
+{{- /* 分栏订阅源：只列“真的是一串内容”的栏目——
+       像 /about/ /stats/ 这种只有一页说明的 section 也有 RSS 输出，
+       但订阅它没有任何意义（永远只有一条），所以按“该栏目下是否有页面”过滤掉。
+       注意 $ 在 with 内部指向的是模板上下文（本页），不是 range 出来的页面，
+       所以这里先把 section 存进 $top 再用，别写成 $.Title（会渲染成“RSS 订阅”）。 */}}
+{{- $feedSections := slice }}
+{{- range site.Sections }}
+  {{- $top := . }}
+  {{- if gt (len $top.Pages) 0 }}
+  {{- with $top.OutputFormats.Get "rss" }}
+    {{- $feedSections = $feedSections | append (dict "title" $top.Title "url" .Permalink) }}
+  {{- end }}
+  {{- end }}
+{{- end }}
+{{- /* 标签订阅源：按文章数从多到少（site.Taxonomies 本身就是这个顺序） */}}
+{{- $feedTags := slice }}
+{{- range site.Taxonomies.tags }}
+  {{- $term := . }}
+  {{- with $term.Page.OutputFormats.Get "rss" }}
+    {{- $feedTags = $feedTags | append (dict "title" $term.Page.Title "url" .Permalink "page" $term.Page.RelPermalink "count" (len $term.Pages)) }}
+  {{- end }}
+{{- end }}
+
+{{- $latest := first 5 (where site.RegularPages "Type" "posts") }}
+
+<article class="rss-page">
+
+  <header class="rss-hero">
+    <span class="rss-hero-icon" aria-hidden="true">{{ partial "icon.html" (dict "name" "rss") }}</span>
+    <h1>{{ .Title }}</h1>
+    <p class="rss-hero-sub">{{ .Description }}</p>
+  </header>
+
+  {{- /* ---------- 主订阅地址 + 一键复制 ---------- */}}
+  <section class="rss-card rss-card--primary" aria-labelledby="rss-main-feed">
+    <div class="rss-card-head">
+      <span class="rss-card-icon" aria-hidden="true">{{ partial "icon.html" (dict "name" "link") }}</span>
+      <div class="rss-card-headtext">
+        <h2 id="rss-main-feed" class="rss-card-title">订阅地址</h2>
+        <p class="rss-card-desc">复制这个地址，粘进你的 RSS 阅读器就行</p>
+      </div>
+    </div>
+    <div class="rss-feedrow">
+      <code class="rss-url" id="rss-main-url">{{ $mainFeed }}</code>
+      <button type="button" class="rss-copy" data-copy="{{ $mainFeed }}">
+        <span class="rss-copy-txt">复制链接</span>
+      </button>
+    </div>
+    {{- if $mainFeed }}
+    <p class="rss-hint">
+      想直接看原始内容？这里是 <a href="{{ $mainFeed }}">RSS XML 源文件</a>（浏览器会显示成 XML，属正常现象）。
+    </p>
+    {{- end }}
+  </section>
+
+  {{- /* ---------- 分栏 / 标签订阅源 ---------- */}}
+  {{- if or $feedSections $feedTags }}
+  <section class="rss-card" aria-labelledby="rss-more-feeds">
+    <div class="rss-card-head">
+      <span class="rss-card-icon" aria-hidden="true">{{ partial "icon.html" (dict "name" "article") }}</span>
+      <div class="rss-card-headtext">
+        <h2 id="rss-more-feeds" class="rss-card-title">只要某一部分？</h2>
+        <p class="rss-card-desc">每个栏目、每个标签都有自己的订阅源，可以只订你关心的那部分</p>
+      </div>
+    </div>
+
+    {{- with $feedSections }}
+    <ul class="rss-feedlist">
+      {{- range . }}
+      <li class="rss-feeditem">
+        <span class="rss-feedname">{{ .title }}</span>
+        <code class="rss-feedurl">{{ .url }}</code>
+        <button type="button" class="rss-copy rss-copy--mini" data-copy="{{ .url }}" aria-label="复制「{{ .title }}」的订阅地址">
+          <span class="rss-copy-txt">复制</span>
+        </button>
+      </li>
+      {{- end }}
+    </ul>
+    {{- end }}
+
+    {{- with $feedTags }}
+    {{- /* 标签数量多（当前 19 个），竖排一列会把页面拉得很长，改成自适应网格的小卡片。
+           地址显示：这些标签名是中文，Hugo 生成的订阅地址里带百分号编码
+           （/tags/u%EF%BC%9A%E7%9B%98/index.xml），直接显示没法读；Hugo 模板里
+           又没有可用的 URL 解码函数（urls.QueryUnescape / PathUnescape 都不存在），
+           所以显示该标签的页面地址（干净、可读），而「复制」按钮复制的仍是真正的
+           订阅地址——阅读器也能从那个页面自动发现 RSS。 */}}
+    <p class="rss-subhead" id="rss-tag-feeds">按标签订阅</p>
+    <ul class="rss-taglist" aria-labelledby="rss-tag-feeds">
+      {{- range . }}
+      <li class="rss-tagitem">
+        <span class="rss-tagtop">
+          <span class="rss-tagname">{{ .title }}</span>
+          <span class="rss-feedcount" title="{{ .count }} 篇文章">{{ .count }}</span>
+        </span>
+        <code class="rss-tagurl">{{ .page }}</code>
+        <button type="button" class="rss-copy rss-copy--mini" data-copy="{{ .url }}" aria-label="复制标签「{{ .title }}」的订阅地址">
+          <span class="rss-copy-txt">复制订阅地址</span>
+        </button>
+      </li>
+      {{- end }}
+    </ul>
+    {{- end }}
+  </section>
+  {{- end }}
+
+  {{- /* ---------- 最新文章预览：说明"订阅后能收到什么" ---------- */}}
+  {{- with $latest }}
+  <section class="rss-card" aria-labelledby="rss-latest">
+    <div class="rss-card-head">
+      <span class="rss-card-icon" aria-hidden="true">{{ partial "icon.html" (dict "name" "article") }}</span>
+      <div class="rss-card-headtext">
+        <h2 id="rss-latest" class="rss-card-title">最新文章</h2>
+        <p class="rss-card-desc">订阅后，新内容会像下面这样推到你的阅读器</p>
+      </div>
+    </div>
+    <ul class="rss-posts">
+      {{- range . }}
+      <li class="rss-post">
+        <a class="rss-post-title" href="{{ .RelPermalink }}">{{ .Title }}</a>
+        {{- with .Description }}<p class="rss-post-desc">{{ . }}</p>{{ end }}
+        <time class="rss-post-date" datetime="{{ .Date.Format "2006-01-02" }}">{{ .Date.Format "2006-01-02" }}</time>
+      </li>
+      {{- end }}
+    </ul>
+  </section>
+  {{- end }}
+
+  {{- /* ---------- 什么是 RSS ---------- */}}
+  <section class="rss-card" aria-labelledby="rss-what">
+    <div class="rss-card-head">
+      <span class="rss-card-icon" aria-hidden="true">{{ partial "icon.html" (dict "name" "rss") }}</span>
+      <div class="rss-card-headtext">
+        <h2 id="rss-what" class="rss-card-title">什么是 RSS？怎么用？</h2>
+      </div>
+    </div>
+    <p class="rss-bodytext">
+      RSS 是一种“订阅更新”的老牌标准（Really Simple Syndication）。你不需要注册账号、
+      也留不下邮箱，只要把上面的地址交给一个 RSS 阅读器，它就替你盯着本站，
+      有新文章就推给你。
+    </p>
+    <ol class="rss-steps">
+      <li>选一个 RSS 阅读器（下面有推荐），网页版或手机 App 都行。</li>
+      <li>在阅读器里找到「添加订阅源 / Add feed」，把上面的订阅地址粘进去。</li>
+      <li>完成。之后打开阅读器就能看到本站新文章，不用再一页页回来翻。</li>
+    </ol>
+    <p class="rss-bodytext">
+      适合这样的场景：你同时关注好几个博客、想在一个地方统一看更新，
+      或者只是不想错过新文章、也不想把自己的邮箱交出去。本站 RSS 输出全文摘要，
+      点开即读，没有广告和弹窗。
+    </p>
+  </section>
+
+  {{- /* ---------- 阅读器推荐 ---------- */}}
+  <section class="rss-card" aria-labelledby="rss-readers">
+    <div class="rss-card-head">
+      <span class="rss-card-icon" aria-hidden="true">{{ partial "icon.html" (dict "name" "globe") }}</span>
+      <div class="rss-card-headtext">
+        <h2 id="rss-readers" class="rss-card-title">RSS 阅读器推荐</h2>
+        <p class="rss-card-desc">挑一个顺手的即可，都为免费入门档</p>
+      </div>
+    </div>
+    <ul class="rss-readers">
+      <li>
+        <a href="https://feedly.com/" target="_blank" rel="noopener noreferrer">Feedly</a>
+        <span>网页 / iOS / Android，老牌稳定，界面清爽</span>
+      </li>
+      <li>
+        <a href="https://www.inoreader.com/" target="_blank" rel="noopener noreferrer">Inoreader</a>
+        <span>网页 / App，功能强，适合订阅源多的重度用户</span>
+      </li>
+      <li>
+        <a href="https://follow.is/" target="_blank" rel="noopener noreferrer">Follow</a>
+        <span>新一代阅读器，支持 RSS 与社交动态混合订阅</span>
+      </li>
+      <li>
+        <a href="https://github.com/yang991178/fluent-reader" target="_blank" rel="noopener noreferrer">Fluent Reader</a>
+        <span>Windows / macOS 桌面客户端，开源、无账号、纯本地</span>
+      </li>
+    </ul>
+  </section>
+
+</article>
+
+{{- /* 复制按钮的脚本在 static/js/site.js 里（事件委托绑在 document 上）。
+       不写成这里的内联 <script>：pjax.js 换页走 innerHTML，内联脚本不会执行，
+       从首页点进本页时按钮会没反应。 */}}
+{{- end }}

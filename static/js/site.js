@@ -603,7 +603,7 @@ var revealClassify = function (rect, vh) {
   window.addEventListener('scroll', onScroll, { passive: true });
 })();
 
-/* 名字"窥视镜"：反色圆环内显示别名（h_n）、圆环外保持原名（霍楠）。
+/* 名字"窥视镜"：反色圆环内显示别名（h_n）、圆环外保持原名（Nan）。
    用两层文本 + 跟随鼠标的圆形遮罩实现：基础层在圆内隐藏、窥视层只在圆内显示，
    圆环的 mix-blend-mode: difference 反色正好落在窥视窗口上。 */
 (function () {
@@ -706,4 +706,101 @@ var revealClassify = function (rect, vh) {
     if (window.__siteInitPeek) window.__siteInitPeek();
     if (window.__dsInitAll) window.__dsInitAll();
   });
+})();
+
+/* 订阅地址「复制」按钮（/rss/ 页面用）。
+   为什么放在这里而不是页面模板里的内联 <script>：
+   pjax.js 换页时用的是 `mainEl.innerHTML = newMain.innerHTML`，
+   innerHTML 里的 <script> **不会执行**——脚本只在直接打开 /rss/ 时跑一次，
+   从首页点进 /rss/ 就没有任何反应。事件委托绑在 document 上只绑一次，
+   换页后按钮照样生效，也不用像内联脚本那样重复绑定。
+   按钮由 .rss-copy[data-copy] 标记；页面里没有该元素时就完全 no-op。 */
+(function () {
+  'use strict';
+  if (window.__hnCopyBound) return;
+  window.__hnCopyBound = true;
+
+  /* execCommand 已废弃，但作为剪贴板 API 不可用时的兜底仍然有效
+     （非 HTTPS 预览、旧浏览器、无权限时都会走到这里）。 */
+  function fallbackCopy(text) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.top = '-1000px';
+    document.body.appendChild(ta);
+    ta.select();
+    var ok = false;
+    try { ok = document.execCommand('copy'); } catch (err) { ok = false; }
+    document.body.removeChild(ta);
+    return ok;
+  }
+
+  function flash(btn, text) {
+    var span = btn.querySelector('.rss-copy-txt');
+    if (!span) return;
+    if (!span.__original) span.__original = span.textContent;
+    span.textContent = text;
+    btn.classList.add('is-done');
+    window.clearTimeout(span.__timer);
+    span.__timer = window.setTimeout(function () {
+      span.textContent = span.__original;
+      btn.classList.remove('is-done');
+    }, 1800);
+  }
+
+  document.addEventListener('click', function (e) {
+    var btn = e.target && e.target.closest ? e.target.closest('.rss-copy') : null;
+    if (!btn) return;
+    var text = btn.getAttribute('data-copy') || '';
+    if (!text) return;
+
+    /* 复制反馈必须可见：失败也要说"复制失败"，不能静默什么都不发生 */
+    function done(ok) {
+      flash(btn, ok ? '已复制' : '复制失败');
+      if (window.__hnTrack) {
+        window.__hnTrack('rss-copy', { ok: ok ? '1' : '0', url: text });
+      }
+    }
+
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).then(function () {
+        done(true);
+      }, function () {
+        done(fallbackCopy(text));
+      });
+    } else {
+      done(fallbackCopy(text));
+    }
+
+    e.preventDefault();
+    btn.blur();
+  });
+
+  /* 标签订阅卡片上的地址显示优化。
+     中文标签生成的订阅地址是百分号编码的（/tags/u%EF%BC%9A%E7%9B%98/index.xml），
+     直接铺在页面上没法读。Hugo 模板里没有可用的 URL 解码函数
+     （urls.QueryUnescape / PathUnescape 都不存在），所以在浏览器端还原成
+     /tags/开发环境/ 这样的可读形式。
+     注意：这里只改"显示"，按钮的 data-copy 仍是原始订阅地址，一个字都不动。 */
+  function prettifyTagUrls() {
+    var nodes = document.querySelectorAll('.rss-tagurl');
+    for (var i = 0; i < nodes.length; i++) {
+      var el = nodes[i];
+      var raw = el.getAttribute('data-raw') || el.textContent;
+      el.setAttribute('data-raw', raw);
+      var m = /^(\/tags\/)(.+?)(\/index\.xml)?\/?$/.exec(raw.trim());
+      if (!m) continue;
+      var name = m[2];
+      try { name = decodeURIComponent(name); } catch (err) { /* 解不开就保留原样 */ }
+      el.textContent = m[1] + name + '/';
+    }
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', prettifyTagUrls);
+  } else {
+    prettifyTagUrls();
+  }
+  /* PJAX 换页后 <main> 里是新节点，重新美化一次 */
+  document.addEventListener('pjax:done', prettifyTagUrls);
 })();

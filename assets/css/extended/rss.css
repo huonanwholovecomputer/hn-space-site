@@ -1,0 +1,439 @@
+/* =========================================================
+   /rss/ RSS 订阅页样式
+   ---------------------------------------------------------
+   全部走主题变量（--entry / --border / --secondary / --primary
+   / --code-bg / --radius），浅色与深色自动适配；
+   强调色复用首页的 --home-accent，取不到时退回品牌蓝。
+   结构：图标头 → 订阅地址卡 → 分栏/标签订阅源 → 最新文章 → 说明 → 阅读器推荐。
+   ========================================================= */
+
+.rss-page {
+  --rss-accent: var(--home-accent, #4d6bfe);
+  /* 顶部导航是 fixed 的（44px 高 + 10px 上边距），main 只让出了 76px；
+     窄屏下图标会钻到导航底下。首页首屏用 .home-hero 的 padding 处理了同一件事，
+     这里照做：给顶部留够导航高度再加一段呼吸空间。 */
+  padding-top: 2.6rem;
+}
+
+/* ---------- 顶部：图标 + 标题 + 一句话 ---------- */
+.rss-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  margin: 0.4rem 0 1.6rem;
+}
+
+.rss-hero-icon {
+  width: 56px;
+  height: 56px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 15px;
+  background: var(--rss-accent);
+  color: #fff;
+  margin-bottom: 1rem;
+}
+
+.rss-hero-icon svg { width: 30px; height: 30px; display: block; }
+
+.rss-hero h1 {
+  font-size: clamp(1.5rem, 3.4vw, 2rem);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--home-heading, var(--primary));
+  margin: 0 0 0.5rem;
+}
+
+.rss-hero-sub {
+  color: var(--home-muted, var(--secondary));
+  max-width: 44ch;
+  margin: 0;
+  line-height: 1.6;
+}
+
+/* ---------- 卡片 ---------- */
+.rss-card {
+  background: var(--entry);
+  border: 1px solid var(--border);
+  border-radius: var(--radius, 12px);
+  padding: 1.35rem 1.5rem;
+  margin-bottom: 1.1rem;
+}
+
+/* 主订阅地址卡：加一圈强调色描边，视觉上区分于其他说明卡 */
+.rss-card--primary {
+  border-color: color-mix(in srgb, var(--rss-accent) 45%, var(--border));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--rss-accent) 10%, transparent);
+}
+
+.rss-card-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  margin-bottom: 1rem;
+}
+
+.rss-card-icon {
+  flex: 0 0 auto;
+  width: 38px;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--rss-accent) 14%, transparent);
+  color: var(--rss-accent);
+}
+
+.rss-card-icon svg { width: 19px; height: 19px; display: block; }
+
+.rss-card-headtext { min-width: 0; }
+
+.rss-card-title {
+  font-size: 1.06rem;
+  font-weight: 700;
+  color: var(--home-heading, var(--primary));
+  margin: 0 0 0.2rem;
+  line-height: 1.35;
+}
+
+.rss-card-desc {
+  font-size: 0.86rem;
+  color: var(--home-muted, var(--secondary));
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* ---------- 订阅地址 + 复制按钮 ---------- */
+.rss-feedrow {
+  display: flex;
+  align-items: stretch;
+  gap: 0.6rem;
+}
+
+.rss-url {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  padding: 0.6rem 0.8rem;
+  font-family: var(--home-font-mono, ui-monospace, SFMono-Regular, Consolas, monospace);
+  font-size: 0.85rem;
+  color: var(--home-text, var(--content));
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  /* 长地址：单行省略，避免把卡片撑破；完整地址仍可通过复制按钮拿到 */
+  overflow-x: auto;
+  white-space: nowrap;
+  scrollbar-width: thin;
+}
+
+.rss-copy {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.6rem 1.1rem;
+  font-size: 0.86rem;
+  font-weight: 600;
+  font-family: inherit;
+  color: #fff;
+  background: var(--rss-accent);
+  border: 1px solid var(--rss-accent);
+  border-radius: 8px;
+  cursor: pointer;
+  white-space: nowrap;
+  /* 反馈文字在「复制链接 / 复制 / 复制订阅地址」与「已复制 / 复制失败」之间切换，
+     长度不同会让按钮宽度跳动；用 min-width 和等宽数字把宽度钉住。 */
+  min-width: 5.5em;
+  font-variant-numeric: tabular-nums;
+  transition: opacity 160ms ease, transform 160ms ease, background-color 160ms ease;
+}
+
+.rss-copy:hover { opacity: 0.88; }
+.rss-copy:active { transform: scale(0.97); }
+
+/* 复制成功后短暂变色（文字由脚本换成「已复制」） */
+.rss-copy.is-done {
+  background: #2ea043;
+  border-color: #2ea043;
+}
+
+.rss-hint {
+  font-size: 0.82rem;
+  color: var(--home-muted, var(--secondary));
+  margin: 0.9rem 0 0;
+  line-height: 1.6;
+}
+
+.rss-hint a {
+  color: var(--rss-accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* ---------- 分栏 / 标签订阅源列表 ---------- */
+.rss-feedlist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.rss-feeditem {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.5rem 0.35rem 0.5rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--code-bg);
+}
+
+.rss-feedname {
+  flex: 0 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--home-heading, var(--primary));
+  white-space: nowrap;
+}
+
+/* 标签名本身可以省略号截断，但后面的篇数徽标必须留在可见范围 */
+.rss-feedname > .rss-feedcount { flex: 0 0 auto; }
+
+.rss-feedurl {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: var(--home-font-mono, ui-monospace, SFMono-Regular, Consolas, monospace);
+  font-size: 0.78rem;
+  color: var(--home-muted, var(--secondary));
+  overflow-x: auto;
+  white-space: nowrap;
+  scrollbar-width: thin;
+}
+
+.rss-copy--mini {
+  padding: 0.32rem 0.7rem;
+  font-size: 0.78rem;
+  font-weight: 500;
+}
+
+/* 标签名后面的篇数：小一号、弱化，用于判断这个标签值不值得订阅 */
+.rss-feedcount {
+  margin-left: 0.4em;
+  padding: 0.05em 0.4em;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--home-muted, var(--secondary));
+  background: var(--entry);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- 按标签订阅：自适应网格 ----------
+   标签多（当前 19 个）时竖排会把页面拉到 5000px，这里一行放 2~3 个。
+   地址显示的是标签页地址（无百分号编码，可读），复制按钮给出的才是订阅地址。 */
+.rss-subhead {
+  margin: 1.3rem 0 0.7rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--home-muted, var(--secondary));
+}
+
+.rss-taglist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(175px, 1fr));
+  gap: 0.55rem;
+}
+
+.rss-tagitem {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--code-bg);
+}
+
+.rss-tagtop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+}
+
+.rss-tagname {
+  font-size: 0.88rem;
+  font-weight: 650;
+  color: var(--home-heading, var(--primary));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rss-tagtop .rss-feedcount { margin-left: 0; flex: 0 0 auto; }
+
+.rss-tagurl {
+  font-family: var(--home-font-mono, ui-monospace, SFMono-Regular, Consolas, monospace);
+  font-size: 0.72rem;
+  color: var(--home-muted, var(--secondary));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rss-tagitem .rss-copy {
+  width: 100%;
+  padding: 0.3rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+/* ---------- 最新文章预览 ---------- */
+.rss-posts {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.rss-post {
+  padding: 0.8rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--code-bg);
+  transition: border-color 220ms ease, transform 220ms ease;
+}
+
+.rss-post:hover {
+  border-color: color-mix(in srgb, var(--rss-accent) 55%, var(--border));
+}
+
+.rss-post-title {
+  display: block;
+  font-size: 1rem;
+  font-weight: 650;
+  color: var(--home-heading, var(--primary));
+  text-decoration: none;
+  line-height: 1.45;
+  transition: color 160ms ease;
+}
+
+.rss-post:hover .rss-post-title { color: var(--rss-accent); }
+
+.rss-post-desc {
+  font-size: 0.85rem;
+  color: var(--home-muted, var(--secondary));
+  margin: 0.35rem 0 0;
+  line-height: 1.55;
+}
+
+.rss-post-date {
+  display: block;
+  margin-top: 0.45rem;
+  font-size: 0.78rem;
+  color: var(--home-faint, var(--secondary));
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- 说明正文与步骤 ---------- */
+.rss-bodytext {
+  font-size: 0.92rem;
+  color: var(--home-text, var(--content));
+  line-height: 1.75;
+  margin: 0.8rem 0 0;
+}
+
+.rss-bodytext:first-of-type { margin-top: 0; }
+
+.rss-steps {
+  margin: 0.9rem 0 0;
+  padding-left: 1.3rem;
+  font-size: 0.92rem;
+  color: var(--home-text, var(--content));
+  line-height: 1.8;
+}
+
+.rss-steps li { margin-bottom: 0.25rem; }
+
+/* ---------- 阅读器推荐 ---------- */
+.rss-readers {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 0.6rem;
+}
+
+.rss-readers li {
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--code-bg);
+}
+
+.rss-readers a {
+  display: inline-block;
+  font-weight: 650;
+  font-size: 0.94rem;
+  color: var(--rss-accent);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: border-color 160ms ease;
+}
+
+.rss-readers a:hover { border-bottom-color: currentColor; }
+
+.rss-readers span {
+  display: block;
+  margin-top: 0.3rem;
+  font-size: 0.82rem;
+  color: var(--home-muted, var(--secondary));
+  line-height: 1.55;
+}
+
+/* ---------- 窄屏 ---------- */
+@media (max-width: 640px) {
+  .rss-card { padding: 1.1rem 1rem; }
+
+  /* 地址与复制按钮改为上下排列：横排时地址会被压得只剩几个字符 */
+  .rss-feedrow { flex-direction: column; align-items: stretch; }
+  .rss-copy { width: 100%; }
+
+  .rss-feeditem { flex-wrap: wrap; }
+  .rss-feedname { max-width: 100%; }
+  .rss-feedurl { flex-basis: 100%; order: 3; }
+
+  .rss-hero-icon { width: 48px; height: 48px; border-radius: 13px; }
+  .rss-hero-icon svg { width: 23px; height: 23px; }
+
+  /* 窄屏标签网格压到两列，省得小卡片挤成一条 */
+  .rss-taglist { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+}
+
+/* 减少动态：去掉悬停位移与过渡 */
+@media (prefers-reduced-motion: reduce) {
+  .rss-copy,
+  .rss-post,
+  .rss-post-title,
+  .rss-readers a { transition: none; }
+  .rss-copy:active { transform: none; }
+}

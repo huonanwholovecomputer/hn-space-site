@@ -13,6 +13,9 @@ nginx-hardening/
 # 本地环境变量（部署服务器地址等）
 .env
 
+# DSH/Mnemon 本地运行记忆（含个人偏好与操作记录，勿提交到公开仓库）
+/.mnemon/
+
 # 本地 VSCode 图片预览用 junction（posts -> static/posts），不进仓库
 /posts/
 

@@ -76,7 +76,7 @@ copyright = "© 2026 HN Space"
     title = "你好，欢迎来到 HN Space"
     subtitle = "技术向个人网站：记录开发环境配置、Windows 系统重装教程与编程实践。"
     imageUrl = "/avatar.png"
-    imageTitle = "霍楠"
+    imageTitle = "Nan"
     imageWidth = 150
     imageHeight = 150
 
@@ -138,6 +138,12 @@ copyright = "© 2026 HN Space"
   name = "关于"
   url = "/about/"
   weight = 60
+
+[[menu.main]]
+  identifier = "rss"
+  name = "RSS"
+  url = "/rss/"
+  weight = 70
 
 [markup]
   [markup.goldmark]

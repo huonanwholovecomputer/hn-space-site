@@ -267,7 +267,7 @@ main.main:has(.home-page) {
   color: var(--home-accent);
   /* 窥视镜参数：圆形遮罩跟随鼠标（--peek-x/--peek-y 由 site.js 写入，相对名字元素坐标）。
      半径**必须**等于反色光圈半径：光圈是"取景窗口"的视觉外框，掩膜决定窗口本身，
-     两者不同步时（例如标题放大后只放大光圈）"霍楠"会在圆环内的外圈与 h_n 重叠。
+     两者不同步时（例如标题放大后只放大光圈）姓名会在圆环内的外圈与 h_n 重叠。
      所以这里直接由 --ds-ring-blend 推导，基准档 64/2=32px（与原来一致），
      放大档自动变 96/2=48px。 */
   --peek-r: calc(var(--ds-ring-blend, 64px) / 2);
@@ -291,7 +291,7 @@ main.main:has(.home-page) {
   mask-image: radial-gradient(circle var(--peek-r) at var(--peek-x) var(--peek-y), #000 0%, #000 97%, transparent 100%);
 }
 
-/* 基础层（原名 霍楠）：在圆形遮罩内隐藏，避免与窥视层重叠 */
+/* 基础层（原名 姓名）：在圆形遮罩内隐藏，避免与窥视层重叠 */
 .hero-name-txt--base {
   -webkit-mask-image: radial-gradient(circle var(--peek-r) at var(--peek-x) var(--peek-y), transparent 0%, transparent 97%, #000 100%);
   mask-image: radial-gradient(circle var(--peek-r) at var(--peek-x) var(--peek-y), transparent 0%, transparent 97%, #000 100%);

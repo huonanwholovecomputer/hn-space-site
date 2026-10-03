@@ -1,9 +1,9 @@
 /* =========================================================
    PJAX 无刷新导航：站内链接点击 → fetch 新页面 → 只替换 <main>
    内容并更新标题/URL，保留 body 上的全局元素（header、footer、
-   鼠标拖尾 canvas 等），滚动位置不重置 → 灵动岛收缩状态、
-   拖尾与点击特效跨页面持续存在。
-   例外：进入 /posts/<slug>/ 正文页时回到页首（见 isArticleUrl）。
+   鼠标拖尾 canvas 等），灵动岛收缩状态、拖尾与点击特效跨页面持续存在。
+   滚动定位：主动点链接回页首（不管是不是文章正文），浏览器前进/后退
+   保持浏览器自己的恢复行为（见 navigate 里 push 参数那段注释）。
    ========================================================= */
 (function () {
   'use strict';
@@ -288,15 +288,17 @@
             ensureSearchReady(doc);
           }
 
-          /* 文章页点击进入正文：固定回到页首。
-             其余页面：尝试恢复到原滚动位置（新页面高度可能更短，
-             超界则由浏览器收紧；在替换后立即执行，此时浏览器尚未
-             因内容变更自动跳顶）。 */
-          /* 先刷新滚动上界，再决定跳到哪里：否则 jumpTo 的 clamp 与随后的
-             滚轮都会用旧页面的 limit（这是"换页后卡住滑不动"的根因）。 */
+          /* 换页后的滚动定位：
+             · 主动点链接（push 模式）：回到页首。之前这里是"尽量恢复原来的滚动位置"
+               （targetY = min(旧 scrollY, 新页最大可滚高度)），从长页切到短页时
+               这个公式刚好等于"新页底部"，表现为「切了 tab 却停在半路 / 直接到页尾」。
+               导航菜单是横跨全站的，点导航项本来就该从新页顶部开始读。
+             · 浏览器前进/后退（popstate，push 为 false）：保持原有深度位置不动，
+               交给浏览器自己的滚动恢复，符合用户对"后退"的预期。
+             · 文章正文页：无论哪种模式都回页首。 */
           refreshScrollBounds();
           var isArticle = isArticleUrl(url);
-          if (isArticle) {
+          if (isArticle || push) {
             jumpTo(0);
           } else {
             var targetY = Math.min(prevScrollY, document.documentElement.scrollHeight - window.innerHeight);

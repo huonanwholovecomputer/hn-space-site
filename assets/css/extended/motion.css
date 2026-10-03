@@ -280,29 +280,18 @@ body.page-posts .read-progress {
 }
 
 /* ============================================================================
-   ⑦ 首屏 Hero 的滚动纵深（对应《动效升级方案》§4-7）
+   ⑦ 首屏 Hero 的滚动纵深 —— 已移除
    ----------------------------------------------------------------------------
-   只给 .hero-copy（首屏文案），**不碰** .hero-visual（它自己带 data-reveal，
-   会和滚动动画抢 transform）；也刻意不碰那三张 canvas——动 WebGL 画布会额外重绘。
-   滚动 0 → 85vh 之间，首屏文案缓慢上移淡出，制造"内容浮到首屏之上"的纵深。
+   原效果（ebd7ec1 引入）：给 .home-hero .hero-copy 挂 animation-timeline: scroll()，
+   在 0 → 85vh 区间把首屏文案淡出到 opacity 0（并上移 -36px / 缩到 0.985）。
+   实测衰减：0 → 1.00、300 → 0.61、500 → 0.35、700 → 0.09、765（=85vh）→ 0。
+
+   移除原因：**它把首屏正文（标题、简介、按钮、标记）整块淡没了**。
+   窄窗口/手机上 85vh 很短，滚一屏内容还在、文案已经透明，观感就像被一层
+   遮罩盖住；而《动效升级方案》§4-7 自己的两条约束是「目的=防止突兀变化」
+   与「滚动视差只给装饰层与首屏，正文永远不做」——正文文案不该承担视差。
+   若日后想恢复"纵深"，只做轻微位移、不要动 opacity。
    ============================================================================ */
-
-@supports (animation-timeline: scroll()) {
-  @media (prefers-reduced-motion: no-preference) {
-    .home-hero .hero-copy {
-      animation: hero-depth linear both;
-      animation-timeline: scroll(root block);
-      animation-range: 0 85vh;
-    }
-  }
-}
-
-@keyframes hero-depth {
-  to {
-    opacity: 0;
-    transform: translateY(-36px) scale(0.985);
-  }
-}
 
 /* ============================================================================
    ⑨ 颗粒纹理层（对应《动效升级方案》§4-9）

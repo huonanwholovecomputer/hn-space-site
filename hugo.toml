@@ -139,12 +139,6 @@ copyright = "© 2026 HN Space"
   url = "/about/"
   weight = 60
 
-[[menu.main]]
-  identifier = "rss"
-  name = "RSS"
-  url = "/rss/"
-  weight = 70
-
 [markup]
   [markup.goldmark]
     [markup.goldmark.renderer]

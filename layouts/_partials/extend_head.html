@@ -1,4 +1,64 @@
 <script>document.documentElement.classList.add('js');</script>
+{{- /* ===== 首页开场遮罩（揭幕）—— 必须在**首帧**就已存在 =========================
+     旧做法：由 motion.js（defer）在 DOM 解析后 createElement 插入 .home-opener。
+     但 defer 脚本要等解析完成才执行，而浏览器在那之前已经画过帧：
+     导航 + hero 网格 + 底色先露一次 → 遮罩整块盖上来（内容消失）→ 再向上揭开。
+     肉眼就是"闪一下"（2026-10-04 用户截图确认的就是那个"露一次"的帧）。
+     新做法：遮罩不由 JS 创建，而是「head 同步脚本挂类 + CSS 伪元素」：
+       · 类是加在 <html> 上的，而 head 里的脚本是 parser-blocking 的
+         ——它在**任何 body 内容被解析、被绘制之前**执行；
+       · 遮罩样式写在本文件的 <style> 里（内联、随 head 生效，不等外部 CSS 下载）。
+     两者都在首帧之前就位 ⇒ 从第一次绘制起遮罩就已经盖着，内容永远没有"先露一次"
+     的机会。这不是靠时序运气，而是结构上不可能：没有遮罩的帧不存在。
+     触发条件（首页 / 每次会话一次 / 减少动态不播）也全部在这段同步脚本里判定，
+     判定失败就不挂类 ⇒ 连伪元素都不会生成（无 JS、无脚本时更是一层都没有）。
+     揭幕：motion.js 在首帧画完后调 window.__hnOpenerOpen()；
+     另有 1.8s 兜底计时器——motion.js 没加载/报错/标签页在后台（rAF 不跑）
+     也一定能揭开，不会把页面永久盖住。 */}}
+{{- if .IsHome }}
+<script>
+  (function () {
+    var root = document.documentElement;
+    try {
+      if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      if (sessionStorage.getItem('hn-opener')) return;
+      sessionStorage.setItem('hn-opener', '1');
+    } catch (err) {
+      return; /* 隐私模式等 sessionStorage 不可用：不播 */
+    }
+    root.classList.add('hn-opener');
+    window.__hnOpenerOpen = function () {
+      if (!root.classList.contains('hn-opener')) return;
+      root.classList.add('hn-opener-open');
+      /* 520ms 动画 + 余量；之后把两个类都摘掉：伪元素彻底消失，
+         PJAX 回首页也不会重播 */
+      window.setTimeout(function () {
+        root.classList.remove('hn-opener', 'hn-opener-open');
+      }, 800);
+    };
+    window.setTimeout(window.__hnOpenerOpen, 1800); /* 兜底揭幕 */
+  })();
+</script>
+<style>
+  /* 遮罩本体：body 的伪元素（与旧的 .home-opener 一样是 body 的子节点，
+     层叠关系完全一致：fixed + z-index 200，低于灯箱 9999 / 光标 9998）。
+     写字面量缓动而不是 var(--home-ease-in-out)：这条样式要独立于外部 CSS 生效，
+     值必须与 home.css 的 --home-ease-in-out 保持一致。 */
+  html.hn-opener body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    pointer-events: none; /* 揭幕期间不拦交互 */
+    background: var(--theme, #0a0d13);
+    transform: translateY(0);
+  }
+  html.hn-opener.hn-opener-open body::before {
+    transform: translateY(-100%);
+    transition: transform 520ms cubic-bezier(0.77, 0, 0.175, 1);
+  }
+</style>
+{{- end }}
 {{- /* 注意：RSS 自动发现（<link rel="alternate" type="application/rss+xml">）由主题的
        head.html 通过 .AlternativeOutputFormats 逐页输出，**不要**在这里再加一条，
        否则每个页面都会出现两个指向同一订阅源的 alternate 链接。

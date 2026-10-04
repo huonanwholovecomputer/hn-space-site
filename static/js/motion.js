@@ -680,33 +680,25 @@
   /* --------------------------------------------------------------------------
    * 首页轻量开场——《动效升级方案》§4-13
    * 只在首页、每次会话一次、约 520ms、纯遮罩揭幕。
-   * 只在本页脚本执行时跑一次；PJAX 换页不会再播（脚本不会重新执行）。
+   * 遮罩本体**不在这里创建**（曾经是，那正是首帧闪烁的根因）：
+   * 它是 extend_head.html 里由 head 同步脚本挂上的 html.hn-opener + body::before，
+   * 首帧就已覆盖；这里只负责"什么时候揭幕"。
+   * 本页脚本只执行一次；PJAX 换页不会再播（脚本不会重新执行）。
    * ------------------------------------------------------------------------ */
   function initOpener() {
     if (reduceMotion()) return;
-    if (!document.querySelector('.home-page')) return;
-    try {
-      if (window.sessionStorage.getItem('hn-opener')) return;
-      window.sessionStorage.setItem('hn-opener', '1');
-    } catch (err) {
-      return; /* 隐私模式等 sessionStorage 不可用：不播 */
-    }
+    var open = window.__hnOpenerOpen;
+    /* 非首页 / 本次会话已播过 / 减少动态 / 隐私模式：head 脚本没挂遮罩，
+       这里也就无从揭幕（顺带说明：遮罩存在与否完全由 head 决定，本文件不参与创建） */
+    if (typeof open !== 'function') return;
 
-    var el = document.createElement('div');
-    el.className = 'home-opener';
-    el.setAttribute('aria-hidden', 'true');
-    document.body.appendChild(el);
-
-    /* 两帧后再揭幕：保证遮罩先被绘制过一帧，动画才有起点 */
+    /* 两帧后再揭幕：保证"遮罩已覆盖"的那一帧真的画过，揭幕动画才有起点。
+       （标签页在后台时 rAF 不跑，由 head 里的 1.8s 兜底计时器负责揭开。） */
     window.requestAnimationFrame(function () {
       window.requestAnimationFrame(function () {
-        el.classList.add('is-open');
+        open();
       });
     });
-    /* 动画结束就摘掉节点（不依赖 transitionend，避免掉帧时残留） */
-    window.setTimeout(function () {
-      if (el.parentNode) el.parentNode.removeChild(el);
-    }, 700);
   }
 
   function init() {

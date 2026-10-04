@@ -524,23 +524,17 @@ html.lenis body {
    ----------------------------------------------------------------------------
    严格限定：仅首页、每次会话一次、约 520ms、只是"与底色相同的遮罩向上揭开"，
    不做计数 / 不显示加载字样 / 不等任何资源；减少动态、隐私模式下都不播。
-   节点由 motion.js 运行时插入，所以无 JS 时不存在这层东西。
-   想彻底关掉：删掉本段 + motion.js 里的 initOpener() 调用即可。
+
+   ⚠️ 这里**没有**任何样式了 —— 2026-10-04 起遮罩改由
+   `layouts/_partials/extend_head.html` 的「head 同步脚本 + 内联 <style>」提供
+   （html.hn-opener body::before）。
+   挪走的原因：遮罩必须**首帧就已覆盖**。放在本文件（外部 CSS）里虽然也是
+   render-blocking、首帧同样生效，但把"首帧相关的两件事（挂类的脚本 + 描述它的
+   样式）"放在同一处、同一份文件里更不容易被人拆散——曾经就是脚本挂类在这里、
+   节点却在 defer 脚本里创建，才有了"内容先露一次再盖遮罩"的闪烁。
+   想彻底关掉：删掉 extend_head.html 里 `{{ if .IsHome }}` 那一段 +
+   motion.js 里的 initOpener() 调用即可。
    ============================================================================ */
-
-.home-opener {
-  position: fixed;
-  inset: 0;
-  z-index: 200;
-  pointer-events: none; /* 揭幕期间不拦交互 */
-  background: var(--theme);
-  transform: translateY(0);
-}
-
-.home-opener.is-open {
-  transform: translateY(-100%);
-  transition: transform 520ms var(--home-ease-in-out);
-}
 
 
 

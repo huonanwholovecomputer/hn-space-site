@@ -5,8 +5,6 @@ description: "GitHub 仓库展示"
 
 这里展示我的开源项目，更多内容见 [GitHub 主页](https://github.com/huonanwholovecomputer)。
 
-## 项目列表
-
 | 项目 | 简介 |
 |---|---|
 | [HN Space（本站）](https://github.com/huonanwholovecomputer/hn-space-site) | 本站点源码，Hugo + PaperMod 深度定制，含液态背景、三态主题切换等自研效果。 |

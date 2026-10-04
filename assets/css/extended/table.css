@@ -1,0 +1,206 @@
+/* ============================================================================
+   正文表格：把"浏览器默认表格"改成本站的设计语言
+   ----------------------------------------------------------------------------
+   起因：/projects/ 与 /resume/ 的项目列表是 Markdown 表格，主题只给了最朴素的
+   一格一框（`border: 1px` + `padding: 6px 13px`），加上 site.css 给表头铺的
+   accent-soft 底色块，整体读起来像电子表格；列宽还被内容牵着走 —— 首列只有
+   260px，「campus-bandwidth-aggregation」被 hyphen 断成两行，而说明列独占
+   860px。
+
+   本文件管两类表格：
+     A. 数据表（文章里的对比表，如 /posts/02-windows11-reinstall/）
+        —— 去掉竖线与表头色块，只留横向分隔线。
+     B. 列表型表格（首列是链接、次列是说明，/projects/ 与 /resume/ 的项目表）
+        —— 在 A 之上把首列固定成「项目名列」、加序号、整行 hover；
+           窄屏堆叠成"名字一行 + 说明一行"，仍然是列表，不是卡片。
+   B 的判据是"首列单元格里只有一个 <a>"（:has() + a:only-child），
+   不需要改 Markdown 结构，也不会误伤数据表。
+
+   ⚠ 选择器里的 `.md-content.md-content.md-content` 是**刻意重复三次**，别简化：
+     主题 md-content.css 管 td 的那条规则写作
+       `.md-content table:not(.highlighttable, .highlight table, .gist .highlight) td`
+     特异性是 (0,3,2) —— 因为 :not() 只记括号里**最具体**的那个参数
+     （`.gist .highlight` 两个类）。要盖过它的 padding / border / min-width，
+     本文件的规则必须同样凑够 3 个类名，重复 .md-content 是最短的写法。
+     本文件按文件名排在 stats.css 之后，特异性相同时后写的胜出；
+     写成单个 .md-content 会静默失效（样式"明明写了却没生效"）。
+     同理，`:has()` 包在 `:where()` 里 —— :has() 的特异性等于括号内最具体的
+     选择器，会高得离谱且难维护，:where() 记 0 分。
+
+   列宽/留白的思路：单元格**左右内边距都为 0**，列与列之间的间隙统一由
+   `td + td` 的 padding-inline-start 提供。这样首列文字自然与上方标题左对齐
+   （不需要 :first-child 去擦外侧留白 —— 那会把特异性抬到 (0,4,x)，
+   窄屏那一段又得再抬一级来覆盖）。
+   ============================================================================ */
+
+/* ---------- A. 通用表格 ---------- */
+
+.md-content table {
+  margin-bottom: 28px;
+  /* 覆盖 reset 的 `word-break: keep-all`：那条规则让中文只能在标点处断行，
+     右边缘参差不齐；换成默认断行后中文按字断，段末才是平的。 */
+  word-break: normal;
+  font-variant-numeric: tabular-nums; /* 数值列按等宽数字对齐 */
+}
+
+.md-content.md-content.md-content table:where(:not(.highlighttable, .highlight table, .gist .highlight)) th,
+.md-content.md-content.md-content table:where(:not(.highlighttable, .highlight table, .gist .highlight)) td {
+  min-width: 0;
+  padding: 13px 0;                    /* 左右留白交给 td + td 那条规则 */
+  border: 0;                          /* 竖线、外框、四周框全部去掉 */
+  border-bottom: 1px solid var(--home-border);
+  line-height: 1.68;
+}
+
+/* 表头：不再是"色块 + 边框"，而是一行安静的小字标签 + 一条分隔线 */
+.md-content.md-content.md-content table:where(:not(.highlighttable, .highlight table, .gist .highlight)) thead th {
+  padding: 0 0 11px;
+  background: transparent;            /* 撤掉 site.css 的 --home-accent-soft 底色块 */
+  border-bottom-color: var(--home-border);
+  color: var(--home-faint);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  vertical-align: bottom;
+}
+
+/* 列与列之间的间隙（比 td 多一个类型选择器，所以能盖过上一条的 padding 简写） */
+.md-content.md-content.md-content table:where(:not(.highlighttable, .highlight table, .gist .highlight)) th + th,
+.md-content.md-content.md-content table:where(:not(.highlighttable, .highlight table, .gist .highlight)) td + td {
+  padding-inline-start: 28px;
+}
+
+/* 数据表：让最后一列吃掉剩余宽度，使表格铺满版心。
+   ❌ 试过、已撤回 —— 不要在数据表上写 `td:last-child { width: 100% }`：
+      auto 布局会把剩余宽度全给最后一列，其它列被压到 min-content，
+      三列对比表的首列从 379px 塌成 80px，整表高度从 720px 涨到 2020px。
+      另外，数据表"比版心窄、靠左"这个现象**不是本次改动引入的**：
+      实测改前首列 406px / 末列右边缘 1099px（版心 360~1320），
+      改后 379px / 1073px，基本一致 —— 外面那个块盒（display: block, width: 100%）
+      本来就一直是满宽的，真正缩小的是它内部那个匿名 table 盒。 */
+
+/* ---------- B. 列表型表格（首列 = 链接，次列 = 说明） ---------- */
+
+/* 首列宽度用百分比而不是固定 px：固定值在窄屏会把表格平分掉一半
+   （800px 视口下说明只剩 348px，名字列里大片空白），百分比则随版心一起收。
+   35% 在 1120px 版心下约 392px，正好让最长的
+   `Countdown-to-College-Entrance-Examination`（约 347px）单行；
+   再窄时该列会按比例缩下去，超长的名字在连字符处折行 ——
+   有下面那条悬挂缩进托着，折行仍然对齐在名字下方，不会挂到序号外面。 */
+.md-content table:where(:has(tbody td:first-child > a:only-child)) thead th:first-child {
+  width: 35%;
+}
+
+/* 序号：用 CSS 计数器生成，Markdown 不用写编号。
+   它对"这是一份列表"的暗示比任何边框都强，也给了每一行同一个阅读起点。 */
+.md-content table:where(:has(tbody td:first-child > a:only-child)) tbody {
+  counter-reset: md-list-row;
+}
+
+.md-content.md-content.md-content table:where(:has(tbody td:first-child > a:only-child)) tbody td:first-child {
+  /* 悬挂缩进：padding 把整格内容推右 28px，text-indent 再把**首行**拉回来 28px，
+     于是序号落在标题的左对齐线上，而折行的名字对齐到名字本身（不是序号）下方。 */
+  padding-inline-start: 28px;
+  text-indent: -28px;
+}
+
+.md-content table:where(:has(tbody td:first-child > a:only-child)) tbody td:first-child::before {
+  counter-increment: md-list-row;
+  content: counter(md-list-row, decimal-leading-zero);
+  display: inline-block;
+  /* ⚠ text-indent 是**继承属性**：td 上那条 -28px 会被 ::before 继承下去，
+     再作用到这个 inline-block 自己的首行 —— 序号会被推出表格的
+     `overflow-x: auto` 裁剪区，结果是"盒子在、字不见"（排查时看起来就像
+     计数器没生效）。这里必须显式归零。 */
+  text-indent: 0;
+  min-width: 28px;                    /* 两位序号 + 与名字之间的固定间距 */
+  color: var(--home-faint);
+  font-family: var(--home-font-mono);
+  font-size: 0.76rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 项目名：正文色 + 半粗，与说明拉开层级；下划线收起来，
+   让"整行 hover 高亮"来承担可点击的提示（触屏另有兜底，见文件末尾） */
+.md-content table:where(:has(tbody td:first-child > a:only-child)) tbody td:first-child > a {
+  color: var(--home-heading);
+  font-size: 0.94rem;
+  font-weight: 600;
+  text-decoration: none;
+  overflow-wrap: break-word;
+}
+
+/* 说明：次要色、略小一号 —— 一行里"名字 > 说明"的主次就出来了 */
+.md-content table:where(:has(tbody td:first-child > a:only-child)) tbody td:first-child + td {
+  color: var(--secondary);
+  font-size: 0.92rem;
+}
+
+/* ---------- B. 列表型表格：鼠标端 hover ---------- */
+
+@media (hover: hover) and (pointer: fine) {
+  .md-content table:where(:has(tbody td:first-child > a:only-child)) tbody tr {
+    transition: background-color 140ms ease;
+  }
+
+  .md-content table:where(:has(tbody td:first-child > a:only-child)) tbody tr:hover td {
+    background: var(--home-accent-soft);
+  }
+
+  .md-content table:where(:has(tbody td:first-child > a:only-child)) tbody tr:hover td:first-child > a {
+    color: var(--home-accent);
+    text-decoration: underline;
+    text-decoration-color: var(--home-accent-line);
+    text-underline-offset: 0.25rem;
+  }
+}
+
+/* 触屏没有 hover，可点击的提示只能靠下划线本身 */
+@media (hover: none), (pointer: coarse) {
+  .md-content table:where(:has(tbody td:first-child > a:only-child)) tbody td:first-child > a {
+    text-decoration: underline;
+    text-decoration-color: var(--home-accent-line);
+    text-underline-offset: 0.25rem;
+  }
+}
+
+/* ---------- B. 列表型表格：窄屏堆叠 ----------
+   两列并排在手机上会把说明挤成很窄的一条（默认还会横向滚动，右侧内容看不全），
+   改成"名字一行、说明一行"的堆叠列表 —— 说明对齐到名字的起点（28px），
+   序号仍留在左对齐线上。
+   数据表不参与：三列对比表的列与列是对应关系，堆叠会丢掉这层含义，
+   保持横向滚动更合适。 */
+
+@media screen and (max-width: 768px) {
+  /* 表头在堆叠布局里没有意义，但不用 display: none —— 那会把表头从无障碍树里
+     一并摘掉；用"视觉隐藏"保留语义。 */
+  .md-content table:where(:has(tbody td:first-child > a:only-child)) thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .md-content.md-content.md-content table:where(:has(tbody td:first-child > a:only-child)) tbody,
+  .md-content.md-content.md-content table:where(:has(tbody td:first-child > a:only-child)) tr,
+  .md-content.md-content.md-content table:where(:has(tbody td:first-child > a:only-child)) td {
+    display: block;
+    width: auto;
+  }
+
+  /* 行间距与分隔线挪到 tr 上（td 的边框要让位） */
+  .md-content table:where(:has(tbody td:first-child > a:only-child)) tr {
+    padding-block: 14px;
+    border-bottom: 1px solid var(--home-border);
+  }
+
+  .md-content.md-content.md-content table:where(:has(tbody td:first-child > a:only-child)) td {
+    padding-block: 0;
+    border-bottom: 0;
+  }
+}

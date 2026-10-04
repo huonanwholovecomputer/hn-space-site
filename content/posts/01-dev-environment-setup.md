@@ -203,17 +203,17 @@ Visual Studio Code的官方网站：[https://code.visualstudio.com/](https://cod
 
 然后，进行环境的配置：右键单击桌面的“**此电脑**”然后点击“**属性**”；或者打开**设置**，点击左侧的“**系统**”，然后下拉找到最后一个“**系统信息**”（如下图）；
 
-![](/posts/01-dev-environment-setup/media/image17.png)
-
 ![](/posts/01-dev-environment-setup/media/image18.png)
 
+![](/posts/01-dev-environment-setup/media/image17.png)
+
 点击“**高级系统设置**”；
+
+![](/posts/01-dev-environment-setup/media/image20.png)
 
 点击“**环境变量**”（如下图1）；
 
 双击“**Path**”；（如下图2）
-
-![](/posts/01-dev-environment-setup/media/image20.png)
 
 ![](/posts/01-dev-environment-setup/media/image19.png)
 

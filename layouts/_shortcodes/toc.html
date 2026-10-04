@@ -2,13 +2,34 @@
   用法：在文章 Markdown 里需要的位置写 {{< toc >}}
   依赖：hugo.toml 的 [markup.tableOfContents] startLevel/endLevel 控制层级
   输出：带样式的目录卡片，每项是锚点链接，点击跳转到对应标题。
+
+  ⚠ 这里刻意**不用 .Page.TableOfContents 的内容**，而是从 .Fragments 自己渲染：
+    在 shortcode 里 .Page.TableOfContents 拿到的是 Hugo 的占位符
+    （形如 "HAHAHUGOSHORTCODE-…"，实测 len=26），真正的目录 HTML 要等这篇的
+    shortcode 全部渲染完才被替换进来 —— 所以对它做 replaceRE / findRE / split
+    全是**静默无效**的（实测：split "PyCharm" 只有 1 段、findRE 命中 0），
+    而 .Fragments 是已经算好的真实数据，可以按需裁剪标题文字。
+    上面那个 with 只用来判断「这篇文章到底有没有目录」，不取它的内容。
+
+  目录条目里去掉标题尾部的「（注：…）」补充说明 —— 具体规则见
+  layouts/_partials/toc-list.html 的头部注释。
+
+  ⚠ 结构必须保持 <nav class="post-toc"> 里再套 <nav id="TableOfContents"><ul>…：
+    extend_head.html 里的目录样式按 #TableOfContents 选层级与圆点，
+    motion.js 的目录滚动高亮也是 document.getElementById('TableOfContents')。
 */ -}}
-{{- $toc := .Page.TableOfContents -}}
-{{- if $toc -}}
+{{- with .Page.TableOfContents -}}
 {{- /* data-lenis-prevent：宽屏下这块目录会变成左侧常驻栏（见 motion.css 的 §4-11），
        比视口高时需要它自身能原生滚动——否则 Lenis 会把滚轮事件吃掉。 */}}
 <nav class="post-toc" aria-label="目录" data-lenis-prevent>
   <div class="post-toc-title">目录</div>
-  {{- $toc | safeHTML -}}
+  <nav id="TableOfContents">
+    {{- /* .Fragments 的顶层是一个 Level=0 的"整篇文档"节点，真正的标题在它的
+           .Headings 里；从它开始递归，才不会多套一层 <ul>（多一层会让 CSS 的
+           `ul ul li::before` 圆点规则套到所有条目上）。 */ -}}
+    {{- $root := slice -}}
+    {{- range $.Page.Fragments.Headings -}}{{- with .Headings -}}{{- $root = . -}}{{- end -}}{{- end -}}
+    {{- with $root -}}{{ partial "toc-list" (dict "nodes" . "min" 2 "max" 4) }}{{ end -}}
+  </nav>
 </nav>
 {{- end -}}

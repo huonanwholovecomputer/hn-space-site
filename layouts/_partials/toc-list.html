@@ -1,0 +1,32 @@
+{{- /* 目录条目列表（递归渲染整段 <ul>…</ul>），供 layouts/_shortcodes/toc.html 调用。
+    入参 dict：
+      nodes   = .Fragments.Headings 的当前一层
+      min/max = 要显示的标题层级，与 hugo.toml 的
+                [markup.tableOfContents] startLevel / endLevel 保持一致（2 / 4）
+
+    为什么要自己渲染：在 shortcode 里 .Page.TableOfContents 拿到的是 Hugo 的
+    占位符，内容在 shortcode 渲染完之后才被替换进来（详见 toc.html 头部说明）。
+
+    这里额外做的一件事：目录条目里去掉标题尾部的「（注：…）」补充说明。
+    这类括号是写给"正在读这一节的人"的提醒（如「此步骤可跳过」），对目录导航
+    没有意义，留着会把条目撑成两三行。只改目录：正文标题一个字不动，
+    锚点取自 .Fragments 的 .ID，与正文标题的 id 完全一致，所以链接照旧。
+    想连正文标题一起去掉的话，应该改 Markdown 源头，而不是往这里加规则。
+
+    层级处理：不在 [min,max] 内的标题本身不出现在目录里，但它的下级仍继续往下走
+    （所以 h1 下的 h2 不会因为 h1 不显示而整段丢掉）。 */ -}}
+<ul>
+  {{- range .nodes -}}
+    {{- $label := string .Title -}}
+    {{- if strings.Contains $label "（注" -}}
+      {{- $label = index (split $label "（注") 0 -}}
+    {{- end -}}
+    {{- if and (ge .Level $.min) (le .Level $.max) }}
+  <li><a {{ printf `href="#%s"` .ID | safeHTMLAttr }}>{{ $label }}</a>
+    {{- with .Headings }}{{ partial "toc-list" (dict "nodes" . "min" $.min "max" $.max) }}{{ end }}
+  </li>
+    {{- else }}
+      {{- with .Headings }}{{ partial "toc-list" (dict "nodes" . "min" $.min "max" $.max) }}{{ end }}
+    {{- end }}
+  {{- end }}
+</ul>

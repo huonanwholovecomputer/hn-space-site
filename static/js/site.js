@@ -146,7 +146,9 @@ var revealClassify = function (rect, vh) {
     '.about-quick-card, .about-dev-card, .about-exp-card, ' +
     '.about-comp-card, .about-comp-featured, ' +
     /* 统计页卡片：只要光效与边框高亮，不做 3D 倾斜（靠 --tilt-max: 0 声明，见 makeState） */
-    '.stats-card, .stats-panel';
+    '.stats-card, .stats-panel, ' +
+    /* 友链页的朋友卡片（链接本身是卡片，倾斜幅度在 friends.css 里调到 3deg） */
+    '.friend-card';
 
   /* 磁吸扩展区（像素）：卡片四周留出该范围，边缘滑动仍视为"在卡片上" */
   var MAGNET = 28;
@@ -708,17 +710,25 @@ var revealClassify = function (rect, vh) {
   });
 })();
 
-/* 订阅地址「复制」按钮（/rss/ 页面用）。
+/* 复制按钮：/rss/ 的订阅地址按钮（.rss-copy）与 /friends/ 的通用按钮（.copy-btn）共用这一处实现。
    为什么放在这里而不是页面模板里的内联 <script>：
    pjax.js 换页时用的是 `mainEl.innerHTML = newMain.innerHTML`，
    innerHTML 里的 <script> **不会执行**——脚本只在直接打开 /rss/ 时跑一次，
    从首页点进 /rss/ 就没有任何反应。事件委托绑在 document 上只绑一次，
    换页后按钮照样生效，也不用像内联脚本那样重复绑定。
-   按钮由 .rss-copy[data-copy] 标记；页面里没有该元素时就完全 no-op。 */
+   按钮由 .rss-copy[data-copy] 或 .copy-btn[data-copy] 标记；页面里没有该元素时就完全 no-op。
+
+   按钮结构约定：<button class="copy-btn" data-copy="原文">
+                   <span class="copy-btn-txt">复制</span>   ← 由脚本改写成反馈文字
+                 </button>
+   成功加 .is-done（绿底对勾），失败加 .is-fail（红字），样式见 site.css / rss.css。 */
 (function () {
   'use strict';
   if (window.__hnCopyBound) return;
   window.__hnCopyBound = true;
+
+  var COPY_BTN_SEL = '.rss-copy, .copy-btn';
+  var COPY_TXT_SEL = '.rss-copy-txt, .copy-btn-txt';
 
   /* execCommand 已废弃，但作为剪贴板 API 不可用时的兜底仍然有效
      （非 HTTPS 预览、旧浏览器、无权限时都会走到这里）。 */
@@ -736,30 +746,36 @@ var revealClassify = function (rect, vh) {
     return ok;
   }
 
-  function flash(btn, text) {
-    var span = btn.querySelector('.rss-copy-txt');
+  /* 反馈：成功 → 绿底对勾 +「已复制」；失败 → 红字「复制失败」。
+     两者必须分开 —— 以前无论成败都加 .is-done，会出现"按钮变绿、文字写着复制失败"。 */
+  function flash(btn, ok) {
+    var span = btn.querySelector(COPY_TXT_SEL);
     if (!span) return;
     if (!span.__original) span.__original = span.textContent;
-    span.textContent = text;
-    btn.classList.add('is-done');
+    span.textContent = ok ? '已复制' : '复制失败';
+    btn.classList.toggle('is-done', ok);
+    btn.classList.toggle('is-fail', !ok);
     window.clearTimeout(span.__timer);
     span.__timer = window.setTimeout(function () {
       span.textContent = span.__original;
-      btn.classList.remove('is-done');
+      btn.classList.remove('is-done', 'is-fail');
     }, 1800);
   }
 
   document.addEventListener('click', function (e) {
-    var btn = e.target && e.target.closest ? e.target.closest('.rss-copy') : null;
+    var btn = e.target && e.target.closest ? e.target.closest(COPY_BTN_SEL) : null;
     if (!btn) return;
     var text = btn.getAttribute('data-copy') || '';
     if (!text) return;
 
     /* 复制反馈必须可见：失败也要说"复制失败"，不能静默什么都不发生 */
     function done(ok) {
-      flash(btn, ok ? '已复制' : '复制失败');
+      flash(btn, ok);
       if (window.__hnTrack) {
-        window.__hnTrack('rss-copy', { ok: ok ? '1' : '0', url: text });
+        window.__hnTrack(btn.classList.contains('rss-copy') ? 'rss-copy' : 'copy', {
+          ok: ok ? '1' : '0',
+          url: text
+        });
       }
     }
 
@@ -803,4 +819,51 @@ var revealClassify = function (rect, vh) {
   }
   /* PJAX 换页后 <main> 里是新节点，重新美化一次 */
   document.addEventListener('pjax:done', prettifyTagUrls);
+})();
+
+/* 友链页（/friends/）的标签筛选。
+   为什么可以只绑一次：事件委托绑在 document 上，而且**点击时才去查当前 DOM**，
+   所以 PJAX 换页后不存在"拿着旧节点过滤"的问题，也不需要任何重新初始化。
+   不这么做的话（比如把卡片列表缓存进闭包），从首页点进 /friends/ 会筛不动。
+   标记：.friends-toolbar 里的 button.friends-chip[data-friend-filter]，
+        卡片上有 data-tags="标签1,标签2"（逗号分隔，与 YAML 里的 tags 一一对应）。 */
+(function () {
+  'use strict';
+
+  /* 筛选条只在标签种类 ≥2 时才渲染（模板里判断）；页面里没有筛选条就完全 no-op */
+  document.addEventListener('click', function (e) {
+    var chip = e.target && e.target.closest ? e.target.closest('.friends-chip') : null;
+    if (!chip) return;
+
+    var grid = document.querySelector('.friends-grid');
+    if (!grid) return;
+    var tag = chip.getAttribute('data-friend-filter') || 'all';
+
+    var items = grid.children;
+    var shown = 0;
+    for (var i = 0; i < items.length; i++) {
+      var card = items[i].querySelector('.friend-card') || items[i];
+      var tags = (card.getAttribute('data-tags') || '').split(',');
+      var hit = tag === 'all' || tags.indexOf(tag) !== -1;
+      items[i].hidden = !hit;
+      if (hit) shown++;
+    }
+
+    var empty = document.querySelector('.friends-empty');
+    if (empty) empty.hidden = shown !== 0;
+
+    var bar = document.querySelector('.friends-toolbar');
+    if (!bar) return;
+    var chips = bar.querySelectorAll('.friends-chip');
+    for (var j = 0; j < chips.length; j++) {
+      var on = chips[j].getAttribute('data-friend-filter') === tag;
+      chips[j].classList.toggle('is-active', on);
+      chips[j].setAttribute('aria-pressed', on ? 'true' : 'false');
+    }
+
+    /* 埋点：记一次筛选（带标签名，方便知道大家都对什么方向感兴趣） */
+    if (window.__hnTrack) {
+      window.__hnTrack('friends-filter', { tag: tag });
+    }
+  });
 })();

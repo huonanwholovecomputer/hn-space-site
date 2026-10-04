@@ -1,0 +1,239 @@
+{{- define "main" }}
+{{- /* ============================================================
+   /friends/ 友链页
+   ------------------------------------------------------------
+   数据源：
+     · 朋友名单 → data/friends.yaml（加人只改那里，不用动模板）
+     · 本站对外信息 → 直接取自站点配置，模板里不写死：
+         站名   site.Title                （hugo.toml 的 title）
+         简介   site.Params.description   （hugo.toml 的 params.description）
+         地址   site.BaseURL              （去掉末尾斜杠）
+         头像   site.BaseURL + avatar.svg
+       这样「添加本站友链」那四行永远跟着站点配置走，不会两边漂移。
+   结构：页头 → 添加本站友链（4 个可复制字段 + 一次复制全部）
+         → 怎么申请（3 步 + 可复制模板） → 我的朋友们（卡片 + 标签筛选）→ 几条约定
+
+   两个硬性约束（踩过坑，别改回去）：
+   1) 复制按钮的脚本必须放在全站 static/js/site.js 里（事件委托绑 document）。
+      写成页面内联 <script> 的话，PJAX 换页走 `mainEl.innerHTML = ...`，
+      内联脚本不会执行 —— 直接打开 /friends/ 能用，从首页点进来就完全没反应。
+   2) 复制按钮的标记是 button.copy-btn[data-copy]，内部必须有
+      <span class="copy-btn-txt"> 作为反馈文字（脚本把它换成「已复制 / 复制失败」），
+      图标则渲染复制/对勾两个、由 .is-done 切换显隐，脚本不碰 SVG。
+   ============================================================ */}}
+
+{{- $siteURL := strings.TrimSuffix "/" site.BaseURL }}
+{{- $siteName := site.Title }}
+{{- $siteDesc := site.Params.description }}
+{{- $siteAvatar := printf "%s/avatar.svg" $siteURL }}
+{{- $email := index site.Data.profile.links "email" }}
+{{- $emailText := strings.TrimPrefix "mailto:" $email }}
+{{- $github := index site.Data.profile.links "github" }}
+{{- $githubIssues := printf "%s/issues/new" $github }}
+
+{{- /* 本站四项对外信息：一次定义，列表渲染 / 整段复制都用它，避免两处手写不同步 */}}
+{{- $fields := slice
+  (dict "label" "站点名称" "value" $siteName)
+  (dict "label" "站点描述" "value" $siteDesc)
+  (dict "label" "站点链接" "value" $siteURL)
+  (dict "label" "头像链接" "value" $siteAvatar)
+}}
+{{- $infoBlock := "" }}
+{{- range $fields }}
+  {{- $infoBlock = printf "%s%s：%s\n" $infoBlock .label .value }}
+{{- end }}
+
+{{- /* 申请模板：给访客填自己的信息用的骨架，不是本站信息 */}}
+{{- $applyTemplate := "站点名称：您的站点名称\n站点描述：您的站点描述\n站点链接：https://您的站点地址\n头像链接：https://您的头像地址\n" }}
+
+{{- $friends := site.Data.friends.friends | default slice }}
+{{- /* 标签池：只有出现 2 个以上不同标签时才显示筛选条（只有一位朋友时不显示，免得整条筛出来的只有一个结果） */}}
+{{- $tags := slice }}
+{{- range $friends }}
+  {{- range .tags }}
+    {{- if not (in $tags .) }}{{ $tags = $tags | append . }}{{ end }}
+  {{- end }}
+{{- end }}
+
+<article class="friends-page">
+
+  <header class="page-header friends-header">
+    {{- partial "breadcrumbs.html" . }}
+    <h1>{{ .Title }}</h1>
+    {{- if .Description }}
+    <div class="post-description">{{ .Description }}</div>
+    {{- end }}
+  </header>
+
+  {{- /* ================= 1. 添加本站友链：四个可复制字段 ================= */}}
+  <section class="friends-section" id="add" aria-labelledby="friends-add-title">
+    <div class="section-head">
+      <p class="section-eyebrow">Add me</p>
+      <h2 id="friends-add-title" class="section-title">先把我加进你的友链</h2>
+    </div>
+
+    <div class="friends-card friends-card--primary">
+      <p class="friends-lead">
+        下面四项就是本站的全部对外信息，点右边的按钮逐项复制；
+        想一次拿走，用最下面那个「复制全部信息」。
+      </p>
+
+      <ul class="friend-info-list" data-about-row>
+        {{- range $fields }}
+        <li class="friend-info-row">
+          <span class="friend-info-label">{{ .label }}</span>
+          <code class="friend-info-value">{{ .value }}</code>
+          <button type="button" class="copy-btn friend-info-copy" data-copy="{{ .value }}"
+                  aria-label="复制{{ .label }}">
+            <span class="copy-btn-ico copy-btn-ico--copy" aria-hidden="true">{{ partial "icon.html" (dict "name" "copy") }}</span>
+            <span class="copy-btn-ico copy-btn-ico--done" aria-hidden="true">{{ partial "icon.html" (dict "name" "check") }}</span>
+            <span class="copy-btn-txt">复制</span>
+          </button>
+        </li>
+        {{- end }}
+      </ul>
+
+      <div class="friends-actions">
+        <button type="button" class="copy-btn copy-btn--strong" data-copy="{{ $infoBlock }}">
+          <span class="copy-btn-ico copy-btn-ico--copy" aria-hidden="true">{{ partial "icon.html" (dict "name" "copy") }}</span>
+          <span class="copy-btn-ico copy-btn-ico--done" aria-hidden="true">{{ partial "icon.html" (dict "name" "check") }}</span>
+          <span class="copy-btn-txt">复制全部信息</span>
+        </button>
+        <p class="friends-actions-hint">复制到的是「字段：值」四行，粘进友链页正好是一段能读的说明。</p>
+      </div>
+    </div>
+  </section>
+
+  {{- /* ================= 2. 怎么申请 ================= */}}
+  <section class="friends-section" id="apply" aria-labelledby="friends-apply-title">
+    <div class="section-head">
+      <p class="section-eyebrow">Apply</p>
+      <h2 id="friends-apply-title" class="section-title">怎么申请</h2>
+    </div>
+
+    <ol class="friends-steps">
+      <li class="friends-step">
+        <span class="friends-step-num" aria-hidden="true">1</span>
+        <div class="friends-step-body">
+          <h3>先把本站加进你的友链页</h3>
+          <p>用上面那四项信息就行。我这边确认的时候会先看你的友链页有没有本站——互相都挂着，链接才有意义。</p>
+        </div>
+      </li>
+      <li class="friends-step">
+        <span class="friends-step-num" aria-hidden="true">2</span>
+        <div class="friends-step-body">
+          <h3>把申请模板填好发给我</h3>
+          <p>
+            发到 <a href="{{ $email }}">{{ $emailText }}</a>，或者到
+            <a href="{{ $githubIssues }}" target="_blank" rel="noopener noreferrer">GitHub 开一个 Issue<span aria-hidden="true"> ↗</span></a>，
+            两种都可以。
+          </p>
+        </div>
+      </li>
+      <li class="friends-step">
+        <span class="friends-step-num" aria-hidden="true">3</span>
+        <div class="friends-step-body">
+          <h3>我确认后把你的站加到这里</h3>
+          <p>一般会在一两天内处理。信息无误的话就直接出现在下面「我的朋友们」一栏里。</p>
+        </div>
+      </li>
+    </ol>
+
+    <div class="friends-card friends-template">
+      <div class="friends-template-head">
+        <div class="friends-template-title">
+          <span class="friends-template-icon" aria-hidden="true">{{ partial "icon.html" (dict "name" "mail") }}</span>
+          <span>申请模板</span>
+        </div>
+        <button type="button" class="copy-btn" data-copy="{{ $applyTemplate }}">
+          <span class="copy-btn-ico copy-btn-ico--copy" aria-hidden="true">{{ partial "icon.html" (dict "name" "copy") }}</span>
+          <span class="copy-btn-ico copy-btn-ico--done" aria-hidden="true">{{ partial "icon.html" (dict "name" "check") }}</span>
+          <span class="copy-btn-txt">复制模板</span>
+        </button>
+      </div>
+      <pre class="friends-template-text">{{ $applyTemplate }}</pre>
+      <p class="friends-template-hint">把四行内容换成你自己的，其余不用改。</p>
+    </div>
+  </section>
+
+  {{- /* ================= 3. 我的朋友们 ================= */}}
+  <section class="friends-section" id="list" aria-labelledby="friends-list-title">
+    <div class="section-head">
+      <p class="section-eyebrow">Friends</p>
+      <h2 id="friends-list-title" class="section-title">我的朋友们</h2>
+      {{- with $friends }}
+      <span class="friends-count">{{ len . }} 位</span>
+      {{- end }}
+    </div>
+
+    {{- if gt (len $tags) 1 }}
+    <div class="friends-toolbar" role="group" aria-label="按标签筛选友链">
+      <button type="button" class="friends-chip is-active" data-friend-filter="all" aria-pressed="true">全部</button>
+      {{- range $tags }}
+      <button type="button" class="friends-chip" data-friend-filter="{{ . }}" aria-pressed="false">{{ . }}</button>
+      {{- end }}
+    </div>
+    {{- end }}
+
+    {{- with $friends }}
+    <ul class="friends-grid" data-about-row>
+      {{- range . }}
+      <li>
+        <a class="friend-card" href="{{ .url }}" target="_blank" rel="noopener noreferrer"
+           data-tags="{{ delimit (.tags | default slice) "," }}">
+          <span class="friend-avatar">
+            {{- /* 首字兜底：头像挂了（外链图床掉线等）时，img 会退化成一块空框，
+                  底下这层首字母仍然可见，卡片不至于开天窗。 */}}
+            <span class="friend-avatar-fallback" aria-hidden="true">{{ index (split .name "") 0 }}</span>
+            {{- with .avatar }}
+            <img src="{{ . | relURL }}" alt="" width="64" height="64" loading="lazy" decoding="async">
+            {{- end }}
+          </span>
+          <span class="friend-body">
+            <span class="friend-name">{{ .name }}<span class="friend-arrow" aria-hidden="true">↗</span></span>
+            <span class="friend-desc">{{ .desc }}</span>
+            {{- with .tags }}
+            <span class="friend-tags">
+              {{- range . }}<span class="friend-tag">{{ . }}</span>{{ end }}
+            </span>
+            {{- end }}
+          </span>
+        </a>
+      </li>
+      {{- end }}
+    </ul>
+    <p class="friends-empty" hidden>没有符合这个标签的友链。</p>
+    {{- else }}
+    <p class="friends-empty">还一位朋友都没有——按上面的方法申请，你的站就会出现在这里。</p>
+    {{- end }}
+  </section>
+
+  {{- /* ================= 4. 几条约定 ================= */}}
+  <section class="friends-section" id="notes" aria-labelledby="friends-notes-title">
+    <div class="section-head">
+      <p class="section-eyebrow">Notes</p>
+      <h2 id="friends-notes-title" class="section-title">几条约定</h2>
+    </div>
+
+    <ul class="friends-notes">
+      <li>
+        <strong>互换原则</strong>
+        <span>请先把本站加进你的友链页，我确认后会回链。只申请不回链的，恕不加。</span>
+      </li>
+      <li>
+        <strong>链接维护</strong>
+        <span>友链长期打不开会被移下来，不另行通知；恢复了随时可以再找我加回去。</span>
+      </li>
+      <li>
+        <strong>内容要求</strong>
+        <span>内容不限主题，但不能含违法违规、低俗擦边或纯采集堆砌的内容。</span>
+      </li>
+      <li>
+        <strong>站点要求</strong>
+        <span>能正常访问的个人站点，有一两篇自己的内容就行，不必是技术博客。</span>
+      </li>
+    </ul>
+  </section>
+
+</article>
+{{- end }}

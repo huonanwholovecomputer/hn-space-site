@@ -832,3 +832,127 @@ details.toc summary:hover {
 :root[data-theme="dark"] .chroma .gd { color: #f87171; }
 :root[data-theme="dark"] .chroma .gi { color: #4ade80; }
 :root[data-theme="dark"] .chroma .gh, :root[data-theme="dark"] .chroma .gu { color: #7aa2f7; }
+
+/* =========================================================
+   复制按钮（全站通用组件）
+   ---------------------------------------------------------
+   标记：<button class="copy-btn" data-copy="原文">
+           <span class="copy-btn-txt">复制</span>
+         </button>
+   行为在 static/js/site.js（事件委托；.rss-copy 与 .copy-btn 共用一处实现）：
+   成功后加 .is-done（绿底 + 对勾 +「已复制」），失败加 .is-fail（红字「复制失败」）。
+
+   为什么放在 site.css 而不是某个页面的样式里：它已经不是某一页的零件了
+   （/friends/ 的字段行与 /rss/ 的订阅地址按钮都是它），放这里才不会被某个
+   页面的样式表绑住。注意 extended/*.css 是按文件名拼的，site.css 排在 rss.css
+   之后，所以下面那条 .rss-copy.is-fail 能稳定盖住 rss.css 里的 .is-done 绿色。 */
+.copy-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0.3rem 0.8rem;
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--home-accent);
+  background: var(--home-accent-soft);
+  border: 1px solid var(--home-accent-line);
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+  /* 反馈文字在「复制 / 已复制 / 复制失败」之间切换，长度不同会让按钮跳动；
+     钉一个最小宽度，行内的几个按钮宽度也就对齐了。 */
+  min-width: 5.9rem;
+  font-variant-numeric: tabular-nums;
+  transition: color 160ms ease, background-color 160ms ease, border-color 160ms ease, transform 160ms ease;
+}
+
+.copy-btn:hover {
+  color: #fff;
+  background: var(--home-accent);
+  border-color: var(--home-accent);
+}
+
+.copy-btn:active {
+  transform: scale(0.97);
+}
+
+.copy-btn svg {
+  /* 内联 SVG 默认坐在文字基线上，会多出一段下沉间隙；块级后由 flex 做几何居中 */
+  display: block;
+  width: 15px;
+  height: 15px;
+}
+
+/* 复制成功：绿底 + 把「复制」图标换成对勾 */
+.copy-btn-ico--done {
+  display: none;
+}
+
+.copy-btn.is-done {
+  color: #fff;
+  background: #2ea043;
+  border-color: #2ea043;
+}
+
+.copy-btn.is-done .copy-btn-ico--copy {
+  display: none;
+}
+
+.copy-btn.is-done .copy-btn-ico--done {
+  display: inline-flex;
+}
+
+/* 复制失败：保持描边风格但转红，文字由脚本写成「复制失败」 */
+.copy-btn.is-fail {
+  color: #d1242f;
+  background: transparent;
+  border-color: currentColor;
+}
+
+:root[data-theme="dark"] .copy-btn.is-fail {
+  color: #f85149;
+}
+
+/* 主行动按钮（「复制全部信息」这类）：实心，跟行内的小按钮分开层次 */
+.copy-btn--strong {
+  color: #fff;
+  background: var(--home-accent);
+  border-color: var(--home-accent);
+  padding: 0.45rem 1.1rem;
+  font-size: 0.86rem;
+}
+
+.copy-btn--strong:hover {
+  background: var(--home-accent-strong);
+  border-color: var(--home-accent-strong);
+}
+
+.copy-btn--strong.is-done {
+  background: #2ea043;
+  border-color: #2ea043;
+}
+
+/* .rss-copy 走的是同一套反馈：它自己的成功态在 rss.css，
+   失败态在这里补上（rss.css 里没有），免得失败时还顶着成功态的绿底。 */
+.rss-copy.is-fail {
+  color: #d1242f;
+  background: transparent;
+  border-color: currentColor;
+}
+
+:root[data-theme="dark"] .rss-copy.is-fail {
+  color: #f85149;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .copy-btn {
+    transition: none;
+  }
+
+  .copy-btn:active {
+    transform: none;
+  }
+}

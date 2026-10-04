@@ -1,7 +1,7 @@
 {{- /* 覆盖主题面包屑：在面包屑上方注入首页同款 mono 眉标 */}}
 {{- $label := "" }}
 {{- if eq .Kind "section" }}
-  {{- if eq .Section "posts" }}{{ $label = "BLOG" }}{{ else if eq .Section "projects" }}{{ $label = "PROJECTS" }}{{ else if eq .Section "about" }}{{ $label = "ABOUT" }}{{ end }}
+  {{- if eq .Section "posts" }}{{ $label = "BLOG" }}{{ else if eq .Section "projects" }}{{ $label = "PROJECTS" }}{{ else if eq .Section "about" }}{{ $label = "ABOUT" }}{{ else if eq .Section "friends" }}{{ $label = "FRIENDS" }}{{ end }}
 {{- else if eq .Kind "taxonomy" }}
   {{- $plural := "" }}{{ with .Data }}{{ $plural = .Plural }}{{ end }}
   {{- if eq $plural "tags" }}{{ $label = "TAGS" }}{{ else if eq $plural "categories" }}{{ $label = "CATEGORIES" }}{{ else if eq $plural "series" }}{{ $label = "SERIES" }}{{ end }}

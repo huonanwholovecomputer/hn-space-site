@@ -1,0 +1,574 @@
+/* =========================================================
+   /friends/ 友链页样式
+   ---------------------------------------------------------
+   沿用站内一套设计语言：主题变量（--entry / --border / --radius）
+   + 首页的 --home-* 系列（浅色默认，深色由 :root[data-theme="dark"] 覆盖），
+   所以这里几乎不写死颜色。
+   结构：页头 → 添加本站友链（4 个可复制字段）→ 怎么申请 → 我的朋友们 → 几条约定。
+
+   两个提醒：
+   · .friend-card 已加进 static/js/site.js 的 CARD_SELECTOR，
+     手电筒光晕/边框高亮/3D 倾斜都由那里统一驱动，这里的 ::before 只管接住光斑。
+   · 入场动画（data-about-row）的隐藏态定义在 about.css，是全站共用的，
+     这里不用重复写；但那个动画会把元素从右侧 64px 推进来，
+     所以下面给 .friends-page 所在的 body 关掉了横向溢出。
+   ========================================================= */
+
+.friends-page {
+  color: var(--home-text);
+  font-family: var(--home-font-display);
+  line-height: 1.75;
+}
+
+body.list:has(.friends-page) {
+  overflow-x: clip;
+}
+
+.friends-header h1 {
+  font-size: clamp(1.8rem, 4vw, 2.6rem);
+}
+
+/* ---------- 区块 ---------- */
+.friends-section {
+  padding: clamp(34px, 5.5vw, 58px) 0;
+}
+
+/* 第一节紧跟在页头卡片后面，不用再顶出那么远的间距 */
+.friends-section:first-of-type {
+  padding-top: clamp(6px, 1.6vw, 14px);
+}
+
+.friends-section .section-head {
+  margin-bottom: 22px;
+}
+
+/* 标题右侧的「N 位」计数 */
+.friends-count {
+  align-self: center;
+  padding: 2px 10px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--home-muted);
+  background: var(--home-accent-soft);
+  border: 1px solid var(--home-border);
+  border-radius: 999px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- 通用卡片 ---------- */
+.friends-card {
+  border: 1px solid var(--home-border);
+  border-radius: var(--home-radius-lg);
+  background: var(--home-card);
+  box-shadow: var(--home-shadow);
+  padding: clamp(18px, 2.6vw, 26px) clamp(18px, 2.8vw, 28px);
+}
+
+/* 本站信息卡：加一圈强调色描边，和下面的说明卡分开层次 */
+.friends-card--primary {
+  border-color: var(--home-accent-line);
+  box-shadow: 0 0 0 3px var(--home-accent-soft), var(--home-shadow);
+}
+
+.friends-lead {
+  max-width: 62ch;
+  margin: 0 0 18px;
+  font-size: 0.94rem;
+  color: var(--home-muted);
+}
+
+/* ---------- 本站信息：四项可复制字段 ---------- */
+.friend-info-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.friend-info-row {
+  display: grid;
+  grid-template-columns: 5.6em minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 12px;
+  border: 1px solid var(--home-border);
+  border-radius: 12px;
+  background: var(--code-bg);
+}
+
+.friend-info-label {
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--home-heading);
+  white-space: nowrap;
+}
+
+/* 值本身就是给机器看的地址：等宽字体、单行、可横向滚动（别省略地址尾巴） */
+.friend-info-value {
+  min-width: 0;
+  font-family: var(--home-font-mono);
+  font-size: 0.82rem;
+  color: var(--home-text);
+  background: none;
+  border: 0;
+  padding: 0;
+  overflow-x: auto;
+  white-space: nowrap;
+  scrollbar-width: thin;
+}
+
+.friends-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px 18px;
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px dashed var(--home-border);
+}
+
+.friends-actions-hint {
+  flex: 1 1 240px;
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--home-faint);
+  line-height: 1.6;
+}
+
+/* ---------- 怎么申请：三步 + 模板 ---------- */
+.friends-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.friends-step {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px 22px 22px;
+  border: 1px solid var(--home-border);
+  border-radius: var(--home-radius-lg);
+  background: var(--home-card);
+  box-shadow: var(--home-shadow);
+}
+
+.friends-step-num {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  font-family: var(--home-font-mono);
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(135deg, var(--home-accent), var(--home-accent-strong));
+  box-shadow: 0 6px 14px -6px rgba(37, 99, 235, 0.5);
+}
+
+.friends-step-body h3 {
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--home-heading);
+  margin: 0 0 6px;
+}
+
+.friends-step-body p {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--home-muted);
+}
+
+.friends-step-body a {
+  color: var(--home-accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.friends-template {
+  margin-top: 18px;
+}
+
+.friends-template-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  margin-bottom: 12px;
+}
+
+.friends-template-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--home-heading);
+}
+
+.friends-template-icon {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  color: var(--home-accent);
+  background: var(--home-accent-soft);
+  border: 1px solid var(--home-accent-line);
+}
+
+.friends-template-icon svg {
+  display: block;
+  width: 17px;
+  height: 17px;
+}
+
+.friends-template-text {
+  margin: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--home-border);
+  border-radius: 12px;
+  background: var(--code-bg);
+  color: var(--home-text);
+  font-family: var(--home-font-mono);
+  font-size: 0.82rem;
+  line-height: 1.95;
+  white-space: pre-wrap;
+  overflow-x: auto;
+}
+
+.friends-template-hint {
+  margin: 10px 0 0;
+  font-size: 0.78rem;
+  color: var(--home-faint);
+}
+
+/* ---------- 我的朋友们：标签筛选 + 卡片栅格 ---------- */
+.friends-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.friends-chip {
+  padding: 4px 14px;
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--home-muted);
+  background: var(--home-card);
+  border: 1px solid var(--home-border);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: color 160ms ease, background-color 160ms ease, border-color 160ms ease;
+}
+
+.friends-chip:hover {
+  color: var(--home-accent);
+  border-color: var(--home-accent-line);
+}
+
+.friends-chip.is-active {
+  color: #fff;
+  background: var(--home-accent);
+  border-color: var(--home-accent);
+}
+
+.friends-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+}
+
+/* 筛选时被隐藏的卡片（JS 用 hidden 属性，这里钉住 display，避免被其它 display 规则覆盖） */
+.friends-grid > li[hidden] {
+  display: none;
+}
+
+.friend-card {
+  position: relative;
+  /* isolation + 光斑 z-index:-1：光斑落在卡片底色之上、文字之下，
+     不会把站名和简介糊掉（与统计页卡片同一套做法）。 */
+  isolation: isolate;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  height: 100%;
+  padding: 14px 16px;
+  border: 1px solid var(--home-border);
+  border-radius: var(--home-radius-lg);
+  background: var(--home-card);
+  box-shadow: var(--home-shadow);
+  color: inherit;
+  text-decoration: none;
+
+  --tilt-max: 3deg;
+  --tilt-persp: 900px;
+  --home-lift: 0px;
+  --home-press: 1;
+  --lift-dur: 900ms;
+  translate: 0 var(--home-lift, 0px);
+  transform: perspective(var(--tilt-persp)) scale(var(--home-press, 1)) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+  transition:
+    transform var(--tilt-dur, 640ms) var(--home-ease-out),
+    translate var(--lift-dur, 900ms) var(--home-ease-out),
+    box-shadow 360ms var(--home-ease-out),
+    border-color 300ms ease,
+    background-color 300ms ease;
+}
+
+.friend-card.is-tilting {
+  --tilt-dur: 200ms;
+}
+
+/* 手电筒光斑（--gx / --gy / --gs 由 site.js 写入） */
+.friend-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: radial-gradient(calc(var(--gs, 200px) / 2) circle at var(--gx, 50%) var(--gy, 50%), var(--home-glare-core) 0%, var(--home-glare-mid) 45%, var(--home-glare-edge) 72%, transparent 88%);
+  opacity: 0;
+  transition: opacity 200ms ease;
+  pointer-events: none;
+}
+
+.friend-card:hover {
+  border-color: var(--home-accent-line);
+}
+
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .friend-card:hover {
+    --home-lift: -4px;
+    --lift-dur: 400ms;
+    box-shadow: var(--home-shadow-lg);
+  }
+
+  .friend-card.is-pointed::before {
+    opacity: 1;
+  }
+}
+
+/* 头像：容器给圆角与底色，img 铺满；首字兜底压在 img 下面 */
+.friend-avatar {
+  position: relative;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  overflow: hidden;
+  background: var(--home-accent-soft);
+  border: 1px solid var(--home-border);
+}
+
+.friend-avatar-fallback {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--home-accent);
+  user-select: none;
+}
+
+/* 头像加载成功时盖住首字；失败时（外链图床掉线）它就是一块空框，
+   底下的首字仍然可见 —— 卡片不会开天窗。
+   注意 alt 必须留空：非空 alt 的坏图会让浏览器画出"碎图"图标。 */
+.friend-avatar img {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 320ms var(--home-ease-out);
+}
+
+.friend-card:hover .friend-avatar img {
+  transform: scale(1.06);
+}
+
+.friend-body {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.friend-name {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.98rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--home-heading);
+  transition: color 160ms ease;
+}
+
+.friend-arrow {
+  font-size: 0.82em;
+  color: var(--home-accent);
+  opacity: 0;
+  transform: translateX(-3px);
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
+.friend-card:hover .friend-name {
+  color: var(--home-accent);
+}
+
+.friend-card:hover .friend-arrow {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.friend-card:focus-visible {
+  outline: 2px solid var(--home-accent);
+  outline-offset: 3px;
+}
+
+.friend-desc {
+  font-size: 0.85rem;
+  color: var(--home-muted);
+  line-height: 1.55;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.friend-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.friend-tag {
+  padding: 1px 9px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--home-accent);
+  background: var(--home-accent-soft);
+  border: 1px solid var(--home-accent-line);
+  border-radius: 999px;
+}
+
+.friends-empty {
+  margin: 0;
+  padding: 22px;
+  border: 1px dashed var(--home-border);
+  border-radius: var(--home-radius-lg);
+  color: var(--home-muted);
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+/* ---------- 几条约定 ---------- */
+.friends-notes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+}
+
+.friends-notes li {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px 18px;
+  border: 1px solid var(--home-border);
+  border-inline-start: 3px solid var(--home-accent-line);
+  border-radius: 14px;
+  background: var(--home-card);
+}
+
+.friends-notes strong {
+  font-size: 0.92rem;
+  font-weight: 800;
+  color: var(--home-heading);
+}
+
+.friends-notes span {
+  font-size: 0.86rem;
+  color: var(--home-muted);
+  line-height: 1.65;
+}
+
+/* ---------- 响应式 ---------- */
+@media screen and (max-width: 900px) {
+  .friends-steps,
+  .friends-notes {
+    grid-template-columns: 1fr;
+  }
+
+  .friends-grid {
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  }
+}
+
+@media screen and (max-width: 640px) {
+  /* 字段行改两行：标签独占一行，值在左、复制按钮在右 */
+  .friend-info-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: 8px;
+  }
+
+  .friend-info-label {
+    grid-column: 1 / -1;
+  }
+
+  /* 窄屏上地址不横向滚动而是折行：一行只剩两三百像素时，
+     「http://…/avatar.svg」会被截掉尾巴，看着像信息缺失。
+     地址本来就是给人核对、给按钮复制的，完整显示比保持单行重要。 */
+  .friend-info-value {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    overflow-x: visible;
+  }
+
+  .friends-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .friends-actions-hint {
+    flex: 0 0 auto;
+  }
+
+  .friends-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 减少动态：只留状态切换，去掉位移与过渡 */
+@media (prefers-reduced-motion: reduce) {
+  .friend-card,
+  .friend-avatar img,
+  .friend-name,
+  .friend-arrow,
+  .friends-chip {
+    transition: none;
+  }
+
+  .friend-card:hover .friend-avatar img,
+  .friend-card:hover .friend-arrow {
+    transform: none;
+  }
+}

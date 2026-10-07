@@ -98,6 +98,13 @@
     -webkit-backdrop-filter: blur(24px) saturate(1.5);
     backdrop-filter: blur(24px) saturate(1.5);
     box-shadow: var(--home-shadow-lg);
+    /* 短视口（手机横屏、分屏、小窗）保护：面板挂在 position:fixed 的 .header 里，
+       页面滚动不会带动它 ⇒ 一旦超出视口底部，末尾几项永远点不到。
+       给定上限并允许面板内部滚动即可（内容装得下时不会有任何变化）。 */
+    max-height: calc(100vh - 90px);
+    max-height: calc(100dvh - 90px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
     opacity: 0;
     visibility: hidden;
     transform: translateY(-10px);
@@ -135,6 +142,21 @@
     column-gap: 0;
     row-gap: 2px;
     padding-top: 6px;
+  }
+
+  /* ⚠️ 手机端必须解除 #menu 的桌面「钉死高度」。
+     site.css 为了让桌面端「切 tab 后 tab 不变高」，把 #menu 的
+     height / line-height 都写死成 44px（那是给横向一排胶囊用的）。
+     手机端 #menu 是纵向 6 项列表：写死的 44px 会让 .menu 的布局盒只有 44px，
+     而 6 个子项（各 66px）全部溢出到 .nav-panel 的背景盒之外 ——
+     .nav-panel 的高度是按被压扁的 .menu(44px) 算出来的，
+     于是面板的底色 / 描边 / 阴影只盖住最上面一项，后 5 项像「卡片完全透明」
+     一样浮在页面内容上（手机浏览器上的实际症状）。
+     选择器写成 .nav-panel #menu 是为了提高优先级：extended CSS 按文件名拼接、
+     mobile.css 排在 site.css 之前，同优先级会被 #menu 的 id 规则压过。 */
+  .nav-panel #menu {
+    height: auto;
+    line-height: 1.5; /* 纵向列表用正常行高，别继承桌面那根 44px（否则每项 66px） */
   }
 
   .nav-panel .menu li {

@@ -72,27 +72,27 @@ draft: false
 
 [**https://www.wepe.com.cn/**](https://www.wepe.com.cn/)
 
-![](/posts/02-windows11-reinstall/media/image1.jpeg)
+![](/posts/02-windows11-reinstall/media/image1.webp)
 
-![](/posts/02-windows11-reinstall/media/image2.jpeg)
+![](/posts/02-windows11-reinstall/media/image2.webp)
 
-![](/posts/02-windows11-reinstall/media/image3.jpeg)
+![](/posts/02-windows11-reinstall/media/image3.webp)
 
-![](/posts/02-windows11-reinstall/media/image4.jpeg)
+![](/posts/02-windows11-reinstall/media/image4.webp)
 
-![](/posts/02-windows11-reinstall/media/image5.jpeg)
+![](/posts/02-windows11-reinstall/media/image5.webp)
 
-![](/posts/02-windows11-reinstall/media/image6.jpeg)
+![](/posts/02-windows11-reinstall/media/image6.webp)
 
-![](/posts/02-windows11-reinstall/media/image7.jpeg)
+![](/posts/02-windows11-reinstall/media/image7.webp)
 
-![](/posts/02-windows11-reinstall/media/image8.jpeg)
+![](/posts/02-windows11-reinstall/media/image8.webp)
 
-![](/posts/02-windows11-reinstall/media/image9.jpeg)
+![](/posts/02-windows11-reinstall/media/image9.webp)
 
-![](/posts/02-windows11-reinstall/media/image10.jpeg)
+![](/posts/02-windows11-reinstall/media/image10.webp)
 
-![](/posts/02-windows11-reinstall/media/image11.jpeg)
+![](/posts/02-windows11-reinstall/media/image11.webp)
 
 这样，你的U盘就成功安装了PE系统，此时，你可以打开此电脑，你会发现你的U盘现在显示“微PE工具箱”，你可以在这里存放任何文件，包括Windows系统的ISO、GHO、WIN、ESD系统镜像文件、个人文件等。
 
@@ -120,7 +120,7 @@ draft: false
 
 如果你实在不清楚应该选哪个，那就去“又要重装系统站”获取最新的精简版系统就好（我后面会用 <u>【小修】 Windows 11 LTSC 26200.8246 极限精简版</u> 系统进行演示）。
 
-![](/posts/02-windows11-reinstall/media/image12.jpeg)
+![](/posts/02-windows11-reinstall/media/image12.webp)
 
 ### 3. 其他文件的准备
 
@@ -134,11 +134,11 @@ draft: false
 
 如下图，点击“万能网卡版”、点击“立即下载”，然后任意选择一个下载方式，下载好文件，保存到U盘备用。
 
-![](/posts/02-windows11-reinstall/media/image13.jpeg)
+![](/posts/02-windows11-reinstall/media/image13.webp)
 
-![](/posts/02-windows11-reinstall/media/image14.jpeg)
+![](/posts/02-windows11-reinstall/media/image14.webp)
 
-![](/posts/02-windows11-reinstall/media/image15.jpeg)
+![](/posts/02-windows11-reinstall/media/image15.webp)
 
 ![](/posts/02-windows11-reinstall/media/image16.jpeg)
 
@@ -154,7 +154,7 @@ Microsoft Edge官方网站：
 
 [**https://www.microsoft.com/zh-cn/edge/**](https://www.microsoft.com/zh-cn/edge/)
 
-![](/posts/02-windows11-reinstall/media/image17.jpeg)
+![](/posts/02-windows11-reinstall/media/image17.webp)
 
 如果你需要使用其他浏览器，比如Firefox，也可以提前下载好其安装程序备用。
 
@@ -184,7 +184,7 @@ Microsoft Edge官方网站：
 
 如图，这是微PE系统界面。
 
-![](/posts/02-windows11-reinstall/media/image18.jpeg)
+![](/posts/02-windows11-reinstall/media/image18.webp)
 
 此时要分情况讨论。
 
@@ -206,45 +206,45 @@ Microsoft Edge官方网站：
 
 第一步：选择安装镜像文件位置：找到你之前下载的系统文件的位置，<u>必须保证系统文件在U盘或者C盘之外的盘！</u>你需要点击右侧的“选择…”来寻找和选择你的系统文件。
 
-![](/posts/02-windows11-reinstall/media/image19.png)
+![](/posts/02-windows11-reinstall/media/image19.webp)
 
 第二步：选择可引导驱动器位置：如图，你可以点击“**v**”展开，然后选择第一个绿色的分区。
 
 然后，点击右侧的“F”，格式化这个EFI分区。
 
-![](/posts/02-windows11-reinstall/media/image20.jpeg)
+![](/posts/02-windows11-reinstall/media/image20.webp)
 
-![](/posts/02-windows11-reinstall/media/image21.jpeg)
+![](/posts/02-windows11-reinstall/media/image21.webp)
 
 如果没有显示这个EFI分区，可以去“分区工具DiskGenius”中给第一个分区分配一个盘符。
 
-![](/posts/02-windows11-reinstall/media/image22.jpeg)
+![](/posts/02-windows11-reinstall/media/image22.webp)
 
-![](/posts/02-windows11-reinstall/media/image23.jpeg)
+![](/posts/02-windows11-reinstall/media/image23.webp)
 
 如图，此时应该会正常显示，选中即可。
 
-![](/posts/02-windows11-reinstall/media/image24.png)
+![](/posts/02-windows11-reinstall/media/image24.webp)
 
 第三步，选择安装驱动器的位置：如图，先选择你的C盘，然后点击右侧的“F”，格式化你的C盘。
 
-![](/posts/02-windows11-reinstall/media/image25.jpeg)
+![](/posts/02-windows11-reinstall/media/image25.webp)
 
-![](/posts/02-windows11-reinstall/media/image26.jpeg)
+![](/posts/02-windows11-reinstall/media/image26.webp)
 
-![](/posts/02-windows11-reinstall/media/image27.jpeg)
+![](/posts/02-windows11-reinstall/media/image27.webp)
 
 然后，你可以选择系统的版本，比如对于这个系统，作者提供了两个选项，一个是Admin（A），一个是User（U），二者的差别体现在：Admin版本会自动创建一个高级管理员账户（Administrator），安装过程全自动，无需进行人工干预，并且你拥有此计算机的最高权限。而User版本在安装过程中需要你自己去设置一些设置：地区、键盘布局、用户名、密码(可选)
 
-![](/posts/02-windows11-reinstall/media/image28.jpeg)
+![](/posts/02-windows11-reinstall/media/image28.webp)
 
 版本选择好之后，点击右下角的“安装”，然后点击“确定”
 
-![](/posts/02-windows11-reinstall/media/image29.jpeg)
+![](/posts/02-windows11-reinstall/media/image29.webp)
 
-![](/posts/02-windows11-reinstall/media/image30.jpeg)
+![](/posts/02-windows11-reinstall/media/image30.webp)
 
-![](/posts/02-windows11-reinstall/media/image31.jpeg)
+![](/posts/02-windows11-reinstall/media/image31.webp)
 
 等待应用完成，点击重启，进入下一阶段。此阶段会重启多次。
 
@@ -258,7 +258,7 @@ Microsoft Edge官方网站：
 
 **右键单击此处**
 
-![](/posts/02-windows11-reinstall/media/image33.jpeg)
+![](/posts/02-windows11-reinstall/media/image33.webp)
 
 ![](/posts/02-windows11-reinstall/media/image32.jpeg)
 
@@ -266,19 +266,19 @@ Microsoft Edge官方网站：
 
 如上图，右键单击你之前安装了系统的硬盘前面绿色的区域，选择“删除所有分区”。
 
-![](/posts/02-windows11-reinstall/media/image34.jpeg)
+![](/posts/02-windows11-reinstall/media/image34.webp)
 
-![](/posts/02-windows11-reinstall/media/image35.jpeg)
+![](/posts/02-windows11-reinstall/media/image35.webp)
 
-![](/posts/02-windows11-reinstall/media/image36.jpeg)
+![](/posts/02-windows11-reinstall/media/image36.webp)
 
-![](/posts/02-windows11-reinstall/media/image37.jpeg)
+![](/posts/02-windows11-reinstall/media/image37.webp)
 
-![](/posts/02-windows11-reinstall/media/image38.jpeg)
+![](/posts/02-windows11-reinstall/media/image38.webp)
 
 然后，点击“确定”、点击左上角“提交”、点击“执行”、点击“是”、点击“确定”。
 
-![](/posts/02-windows11-reinstall/media/image39.jpeg)
+![](/posts/02-windows11-reinstall/media/image39.webp)
 
 ![](/posts/02-windows11-reinstall/media/image40.jpeg)
 
@@ -286,7 +286,7 @@ Microsoft Edge官方网站：
 
 下图中，**①**区域用于设置分区个数，比如设置1个分区，那么你的电脑只有一个C盘，没有D盘，如果设置2两个分区，那么你的电脑有C、D两个磁盘，以此类推，根据个人使用习惯进行设置；**②**区域中，由于你需要安装的系统是Windows 11/Windows 10，所以需要像此截图这样进行设置（选择“GPT”类型）。右侧是调整各个分区的大小和分区的名字（卷标），可以根据个人喜好和使用习惯进行设置。
 
-![](/posts/02-windows11-reinstall/media/image41.jpeg)
+![](/posts/02-windows11-reinstall/media/image41.webp)
 
 设置完毕之后，点击执行。
 
@@ -308,17 +308,17 @@ Microsoft Edge官方网站：
 
 [https://www.sysceo.com/dc](https://www.sysceo.com/dc)
 
-![](/posts/02-windows11-reinstall/media/image42.jpeg)
+![](/posts/02-windows11-reinstall/media/image42.webp)
 
-![](/posts/02-windows11-reinstall/media/image43.jpeg)
+![](/posts/02-windows11-reinstall/media/image43.webp)
 
-![](/posts/02-windows11-reinstall/media/image44.jpeg)
+![](/posts/02-windows11-reinstall/media/image44.webp)
 
-![](/posts/02-windows11-reinstall/media/image45.jpeg)
+![](/posts/02-windows11-reinstall/media/image45.webp)
 
 这是一个较小的安装程序，安装之后，扫描驱动，安装/更新驱动（需要微信扫码关注公众号进行授权）安装完成之后，<u>务必取消勾选下方捆绑软件选项！</u> 然后关闭该程序，重启电脑。
 
-![](/posts/02-windows11-reinstall/media/image46.jpeg)
+![](/posts/02-windows11-reinstall/media/image46.webp)
 
 此外，你可以该软件的设置（右上角“三”-“设置”）中看到驱动程序的缓存目录，在卸载此软件之后，你可能需要手动删除这个无用的缓存目录。（默认就是C:\DrvPath）
 
@@ -328,7 +328,7 @@ Microsoft Edge官方网站：
 
 [**https://github.com/zbezj/HEU_KMS_Activator/releases**](https://github.com/zbezj/HEU_KMS_Activator/releases)
 
-![](/posts/02-windows11-reinstall/media/image47.jpeg)
+![](/posts/02-windows11-reinstall/media/image47.webp)
 
 ### 4. 安装Microsoft Store
 
@@ -336,13 +336,13 @@ Microsoft Edge官方网站：
 
 [https://apps.microsoft.com/detail/9wzdncrfjbmp?hl=zh-CN&gl=CN](https://apps.microsoft.com/detail/9wzdncrfjbmp?hl=zh-CN&gl=CN)
 
-![](/posts/02-windows11-reinstall/media/image48.jpeg)
+![](/posts/02-windows11-reinstall/media/image48.webp)
 
-![](/posts/02-windows11-reinstall/media/image49.jpeg)
+![](/posts/02-windows11-reinstall/media/image49.webp)
 
-![](/posts/02-windows11-reinstall/media/image50.jpeg)
+![](/posts/02-windows11-reinstall/media/image50.webp)
 
-![](/posts/02-windows11-reinstall/media/image51.jpeg)
+![](/posts/02-windows11-reinstall/media/image51.webp)
 
 ### 5. 注册表优化
 
@@ -350,15 +350,15 @@ Microsoft Edge官方网站：
 
 [https://www.wisecleaner.com/wise-registry-cleaner.html](https://www.wisecleaner.com/wise-registry-cleaner.html)
 
-![](/posts/02-windows11-reinstall/media/image52.png)
+![](/posts/02-windows11-reinstall/media/image52.webp)
 
-![](/posts/02-windows11-reinstall/media/image53.jpeg)
+![](/posts/02-windows11-reinstall/media/image53.webp)
 
-![](/posts/02-windows11-reinstall/media/image54.jpeg)
+![](/posts/02-windows11-reinstall/media/image54.webp)
 
 初次使用，建议前往设置，取消勾选这两个选项（防止产生额外的储存空间占用）。
 
-![](/posts/02-windows11-reinstall/media/image55.png)
+![](/posts/02-windows11-reinstall/media/image55.webp)
 
 然后点击“系统优化”；
 
@@ -366,12 +366,12 @@ Microsoft Edge官方网站：
 
 选中之后点击“优化”，优化会即刻完成。
 
-![](/posts/02-windows11-reinstall/media/image56.jpeg)
+![](/posts/02-windows11-reinstall/media/image56.webp)
 
 然后点击“注册表清理”，点击“开始扫描”，等待扫描结束。
 
-![](/posts/02-windows11-reinstall/media/image57.jpeg)
+![](/posts/02-windows11-reinstall/media/image57.webp)
 
-![](/posts/02-windows11-reinstall/media/image58.jpeg)
+![](/posts/02-windows11-reinstall/media/image58.webp)
 
 扫描结束后，**!!!一定要点击“推荐”!!!**，然后点击“清理”，清理会即刻完成。

@@ -115,9 +115,9 @@ C/C++方向：在Windows平台上，**Visual Studio** 是开发大型项目的�
 
 ### 1. 下载Visual Studio Code
 
-![](/posts/01-dev-environment-setup/media/image2.png)
+![](/posts/01-dev-environment-setup/media/image2.webp)
 
-![](/posts/01-dev-environment-setup/media/image3.png)
+![](/posts/01-dev-environment-setup/media/image3.webp)
 
 Visual Studio Code的官方网站：[https://code.visualstudio.com/](https://code.visualstudio.com/)
 
@@ -127,21 +127,21 @@ Visual Studio Code的官方网站：[https://code.visualstudio.com/](https://cod
 
 打开安装程序，按照安装步骤进行安装（注意下图中的框选的选项必须勾选！）；
 
-![](/posts/01-dev-environment-setup/media/image4.png)
+![](/posts/01-dev-environment-setup/media/image4.webp)
 
-![](/posts/01-dev-environment-setup/media/image5.png)
+![](/posts/01-dev-environment-setup/media/image5.webp)
 
-![](/posts/01-dev-environment-setup/media/image6.png)
+![](/posts/01-dev-environment-setup/media/image6.webp)
 
-![](/posts/01-dev-environment-setup/media/image7.png)
+![](/posts/01-dev-environment-setup/media/image7.webp)
 
-![](/posts/01-dev-environment-setup/media/image8.png)
+![](/posts/01-dev-environment-setup/media/image8.webp)
 
 如果弹出这样的窗口，你需要下载一个软件并安装：
 
-![](/posts/01-dev-environment-setup/media/image9.png)
+![](/posts/01-dev-environment-setup/media/image9.webp)
 
-![](/posts/01-dev-environment-setup/media/image10.png)
+![](/posts/01-dev-environment-setup/media/image10.webp)
 
 此软件的GitHub项目链接：
 
@@ -151,15 +151,15 @@ Visual Studio Code的官方网站：[https://code.visualstudio.com/](https://cod
 
 刚安装好时的界面为英文，可以通过安装插件来将界面语言改为中文。在界面左侧点击这个图标（如下图）：
 
-![](/posts/01-dev-environment-setup/media/image11.png)
+![](/posts/01-dev-environment-setup/media/image11.webp)
 
 在搜索框中搜索“**chinese**”，然后点击插件“**Chinese (Simplified)**”右下角的“**Install**”进行安装（如下图）；
 
-![](/posts/01-dev-environment-setup/media/image12.png)
+![](/posts/01-dev-environment-setup/media/image12.webp)
 
 然后点击右下角的“**Change Language and Restart**”按钮重新启动，对语言进行切换（如下图）；
 
-![](/posts/01-dev-environment-setup/media/image13.png)
+![](/posts/01-dev-environment-setup/media/image13.webp)
 
 至此，安装和语言修改完成。
 
@@ -173,7 +173,7 @@ Visual Studio Code的官方网站：[https://code.visualstudio.com/](https://cod
 
 [https://github.com/niXman/mingw-builds-binaries/releases](https://github.com/niXman/mingw-builds-binaries/releases)
 
-![](/posts/01-dev-environment-setup/media/image14.png)
+![](/posts/01-dev-environment-setup/media/image14.webp)
 
 如图，下载框选的版本即可。
 
@@ -195,21 +195,21 @@ Visual Studio Code的官方网站：[https://code.visualstudio.com/](https://cod
 
 点击这里进行下载：
 
-![](/posts/01-dev-environment-setup/media/image15.png)
+![](/posts/01-dev-environment-setup/media/image15.webp)
 
 下载完成之后，将这个7z压缩文件解压到一个文件夹，并将这个文件夹放到一个基本上不会动的地方，我的建议是放到**C:\Program Files**
 
-![](/posts/01-dev-environment-setup/media/image16.png)
+![](/posts/01-dev-environment-setup/media/image16.webp)
 
 然后，进行环境的配置：右键单击桌面的“**此电脑**”然后点击“**属性**”；或者打开**设置**，点击左侧的“**系统**”，然后下拉找到最后一个“**系统信息**”（如下图）；
 
-![](/posts/01-dev-environment-setup/media/image18.png)
+![](/posts/01-dev-environment-setup/media/image18.webp)
 
 ![](/posts/01-dev-environment-setup/media/image17.png)
 
 点击“**高级系统设置**”；
 
-![](/posts/01-dev-environment-setup/media/image20.png)
+![](/posts/01-dev-environment-setup/media/image20.webp)
 
 点击“**环境变量**”（如下图1）；
 
@@ -219,11 +219,11 @@ Visual Studio Code的官方网站：[https://code.visualstudio.com/](https://cod
 
 找到你刚刚解压的那个文件夹，打开，并打开“**bin**”文件夹；（如下图）
 
-![](/posts/01-dev-environment-setup/media/image22.png)
+![](/posts/01-dev-environment-setup/media/image22.webp)
 
 单击上方路径栏，复制这个路径（如上图）；
 
-![](/posts/01-dev-environment-setup/media/image21.png)
+![](/posts/01-dev-environment-setup/media/image21.webp)
 
 回到“**编辑环境变量**”，点击“**新建**”，将刚刚复制的路径粘贴到下方的方格中，最后，点击“**确定**”来关闭并应用刚才的修改（如下图）。
 
@@ -241,19 +241,19 @@ Visual Studio Code的官方网站：[https://code.visualstudio.com/](https://cod
 
 回到Visual Studio Code，点击“**打开文件夹**”（如下图）；
 
-![](/posts/01-dev-environment-setup/media/image26.png)
+![](/posts/01-dev-environment-setup/media/image26.webp)
 
 找到并选择你刚刚创建的文件夹（如下图）；
 
-![](/posts/01-dev-environment-setup/media/image28.png)
+![](/posts/01-dev-environment-setup/media/image28.webp)
 
 在弹出的窗口中，选择“ 是，我信任此作者 ”；
 
-![](/posts/01-dev-environment-setup/media/image27.png)
+![](/posts/01-dev-environment-setup/media/image27.webp)
 
 此时，你进入了你的项目文件夹，你可以在这里创建你的C语言项目；
 
-![](/posts/01-dev-environment-setup/media/image29.png)
+![](/posts/01-dev-environment-setup/media/image29.webp)
 
 比如，点击这个按钮来新建文件，并其命名为你想命名的文件名，比如“**test.c**”；
 
@@ -269,19 +269,19 @@ Visual Studio Code的官方网站：[https://code.visualstudio.com/](https://cod
 
 按键盘快捷键“Ctrl+Shift+P”，在上方的搜索框中继续输入“C/C++”并打开“**编辑配置(UI)**”（如下图）
 
-![](/posts/01-dev-environment-setup/media/image33.png)
+![](/posts/01-dev-environment-setup/media/image33.webp)
 
 找到“**编译器路径**”（如下图）；
 
-![](/posts/01-dev-environment-setup/media/image34.png)
+![](/posts/01-dev-environment-setup/media/image34.webp)
 
 点击小三角，展开并选择有“**gcc.exe**”的一项（如下图）；
 
-![](/posts/01-dev-environment-setup/media/image35.png)
+![](/posts/01-dev-environment-setup/media/image35.webp)
 
 然后，下拉，找到“**IntelliSense 模式**”（如下图）；
 
-![](/posts/01-dev-environment-setup/media/image36.png)
+![](/posts/01-dev-environment-setup/media/image36.webp)
 
 ![](/posts/01-dev-environment-setup/media/image37.png)
 
@@ -289,33 +289,33 @@ Visual Studio Code的官方网站：[https://code.visualstudio.com/](https://cod
 
 如下图，依次点击：“**<u>… - 终端 - 配置任务</u>**”；
 
-![](/posts/01-dev-environment-setup/media/image38.png)
+![](/posts/01-dev-environment-setup/media/image38.webp)
 
 此时自动创建了两个文件（如下图）；
 
-![](/posts/01-dev-environment-setup/media/image39.png)
+![](/posts/01-dev-environment-setup/media/image39.webp)
 
 然后，回到代码文件；
 
 如图依次点击：“**<u>… - 终端 - 运行生成任务</u>**”；
 
-![](/posts/01-dev-environment-setup/media/image40.png)
+![](/posts/01-dev-environment-setup/media/image40.webp)
 
 点击“**生成活动文件**”（如下图）；
 
-![](/posts/01-dev-environment-setup/media/image43.png)
+![](/posts/01-dev-environment-setup/media/image43.webp)
 
-![](/posts/01-dev-environment-setup/media/image42.png)
+![](/posts/01-dev-environment-setup/media/image42.webp)
 
 此时会在你的工作文件夹中生成一个exe程序（如上图）；
 
 然后，新建一个终端（如下图）；
 
-![](/posts/01-dev-environment-setup/media/image41.png)
+![](/posts/01-dev-environment-setup/media/image41.webp)
 
 ![](/posts/01-dev-environment-setup/media/image44.png)
 
-![](/posts/01-dev-environment-setup/media/image45.png)
+![](/posts/01-dev-environment-setup/media/image45.webp)
 
 在这里输入“**./tset.exe**”（你的程序的名字）并按下回车(Enter)；
 
@@ -343,13 +343,13 @@ Visual Studio Code的官方网站：[https://code.visualstudio.com/](https://cod
 
 首先，打开总用户配置文件，在上方搜索栏键入 \>Open User Settings (JSON) 并打开对应项；
 
-![](/posts/01-dev-environment-setup/media/image50.png)
+![](/posts/01-dev-environment-setup/media/image50.webp)
 
 如下图所示，需要在配置文件的末尾加上这些代码（但注意要被最后的一个花括号包裹）。
 
-![](/posts/01-dev-environment-setup/media/image49.png)
+![](/posts/01-dev-environment-setup/media/image49.webp)
 
-![](/posts/01-dev-environment-setup/media/image51.png)
+![](/posts/01-dev-environment-setup/media/image51.webp)
 
 你可以直接点击右上角的复制按钮复制配置信息，将光标放在需要加逗号的位置（如下图），直接粘贴后保存即可。
 
@@ -409,9 +409,9 @@ Visual Studio Code的官方网站：[https://code.visualstudio.com/](https://cod
 
 如下图，左下角设置，设置里面的第一个就是字体大小。
 
-![](/posts/01-dev-environment-setup/media/image52.png)
+![](/posts/01-dev-environment-setup/media/image52.webp)
 
-![](/posts/01-dev-environment-setup/media/image53.png)
+![](/posts/01-dev-environment-setup/media/image53.webp)
 
 ## 五、Visual Studio的下载与安装
 
@@ -419,39 +419,39 @@ Visual Studio 2022的官方网站：
 
 [https://visualstudio.microsoft.com/zh-hans/](https://visualstudio.microsoft.com/zh-hans/)
 
-![](/posts/01-dev-environment-setup/media/image54.png)
+![](/posts/01-dev-environment-setup/media/image54.webp)
 
 点击“免费下载”之后，等待程序下载完成，然后，打开程序，等待程序初始化，然后来到下图中的界面：
 
 勾选“**使用C++的桌面开发**”，如果你还有Python的需求，可以勾选“**Python开发**”（如下图）；
 
-![](/posts/01-dev-environment-setup/media/image56.png)
+![](/posts/01-dev-environment-setup/media/image56.webp)
 
-![](/posts/01-dev-environment-setup/media/image55.png)
+![](/posts/01-dev-environment-setup/media/image55.webp)
 
-![](/posts/01-dev-environment-setup/media/image57.png)
+![](/posts/01-dev-environment-setup/media/image57.webp)
 
 等待下载完成（如上图），然后点击“**启动**”；
 
-![](/posts/01-dev-environment-setup/media/image58.png)
+![](/posts/01-dev-environment-setup/media/image58.webp)
 
 如果你有Microsoft或者GitHub账号，可以跳转到浏览器授权登录，如果没有，可以点击“跳过并稍后添加账户。”跳过登录步骤，也可以选择创建一个账号。（如上图）
 
-![](/posts/01-dev-environment-setup/media/image59.png)
+![](/posts/01-dev-environment-setup/media/image59.webp)
 
 点击“**创建新项目**”（如上图）；
 
 选择“**空项目**”，并下一步（如下图）；
 
-![](/posts/01-dev-environment-setup/media/image60.png)
+![](/posts/01-dev-environment-setup/media/image60.webp)
 
 项目名称和位置任选，建议勾选“**将解决方案和项目放在同一目录中**”（如下图）；
 
-![](/posts/01-dev-environment-setup/media/image61.png)
+![](/posts/01-dev-environment-setup/media/image61.webp)
 
 右键单击“**解决方案资源管理器**”中的“**源文件**”，在菜单中点击“**添加**”，再点击“**新建项**”；也可以使用快捷键“Ctrl+Shift+A”（如下图）；
 
-![](/posts/01-dev-environment-setup/media/image62.png)
+![](/posts/01-dev-environment-setup/media/image62.webp)
 
 如果右边的这个窗口不见了，可以点击左上角的菜单栏的“**视图**”中的“**解决方案资源管理器**”或者使用快捷键“Ctrl+Alt+L”（如下图）；
 
@@ -463,9 +463,9 @@ Visual Studio 2022的官方网站：
 
 编写代码，点击三角形运行（如下图）；
 
-![](/posts/01-dev-environment-setup/media/image66.png)
+![](/posts/01-dev-environment-setup/media/image66.webp)
 
-![](/posts/01-dev-environment-setup/media/image65.png)
+![](/posts/01-dev-environment-setup/media/image65.webp)
 
 **小提示**：如果觉得写代码的字体太小，可以将鼠标移动到代码区域，按下Ctrl键的同时滚动鼠标滚轮！
 
@@ -473,17 +473,17 @@ Visual Studio 2022的官方网站：
 
 ### 1. 不同版本的抉择
 
-![](/posts/01-dev-environment-setup/media/image67.jpeg)
+![](/posts/01-dev-environment-setup/media/image67.webp)
 
 Dev C++作为经典的轻量级C/C++集成开发环境（IDE），在原开发团队停止维护后，衍生出多个分支版本。其中，Red Panda Dev-C++（现主要以“小熊猫C++”品牌活跃）与Embarcadero Dev-C++是目前国内用户较常接触的。
 
 经测试以及收集大众的意见，我在这里推荐蓝色的版本，即Red Panda Dev-C++。小熊猫版本不需要像Embarcadero版本那样需要在编译选项和编辑器选项中过多设置（比如默认支持输出中文、支持关键字补全等）。由于此教程在v1.4及之前推荐了红色版本而v1.5之后推荐蓝色版本，所以在蓝色版本的安装教程之后，保留了红色版本的安装教程。
 
-![](/posts/01-dev-environment-setup/media/image68.jpeg)
+![](/posts/01-dev-environment-setup/media/image68.webp)
 
-![](/posts/01-dev-environment-setup/media/image69.png)
+![](/posts/01-dev-environment-setup/media/image69.webp)
 
-![](/posts/01-dev-environment-setup/media/image70.jpeg)
+![](/posts/01-dev-environment-setup/media/image70.webp)
 
 <p style="text-align:center"><em>（Red Panda Dev-C++与Embarcadero Dev-C++概述图）</em></p>
 
@@ -493,27 +493,27 @@ Dev C++作为经典的轻量级C/C++集成开发环境（IDE），在原开发�
 
 [https://sourceforge.net/projects/dev-cpp-2020/](https://sourceforge.net/projects/dev-cpp-2020/)
 
-![](/posts/01-dev-environment-setup/media/image71.jpeg)
+![](/posts/01-dev-environment-setup/media/image71.webp)
 
-![](/posts/01-dev-environment-setup/media/image72.jpeg)
+![](/posts/01-dev-environment-setup/media/image72.webp)
 
 如下图，下载并安装打开就可以开始使用了，不需要做过多的设置。安装过程也不需要做任何调整，一直继续就好。
 
-![](/posts/01-dev-environment-setup/media/image73.png)
+![](/posts/01-dev-environment-setup/media/image73.webp)
 
-![](/posts/01-dev-environment-setup/media/image74.png)
+![](/posts/01-dev-environment-setup/media/image74.webp)
 
-![](/posts/01-dev-environment-setup/media/image75.png)
+![](/posts/01-dev-environment-setup/media/image75.webp)
 
-![](/posts/01-dev-environment-setup/media/image76.png)
+![](/posts/01-dev-environment-setup/media/image76.webp)
 
-![](/posts/01-dev-environment-setup/media/image77.png)
+![](/posts/01-dev-environment-setup/media/image77.webp)
 
-![](/posts/01-dev-environment-setup/media/image78.png)
+![](/posts/01-dev-environment-setup/media/image78.webp)
 
-![](/posts/01-dev-environment-setup/media/image79.png)
+![](/posts/01-dev-environment-setup/media/image79.webp)
 
-![](/posts/01-dev-environment-setup/media/image80.png)
+![](/posts/01-dev-environment-setup/media/image80.webp)
 
 #### (2) Embarcadero版本Dev-C++下载
 
@@ -525,51 +525,51 @@ Embarcadero官方网站的Dev-C++下载地址：
 
 [https://www.embarcadero.com/free-tools/dev-cpp/](https://www.embarcadero.com/free-tools/dev-cpp/)
 
-![](/posts/01-dev-environment-setup/media/image81.png)
+![](/posts/01-dev-environment-setup/media/image81.webp)
 
-![](/posts/01-dev-environment-setup/media/image82.png)
+![](/posts/01-dev-environment-setup/media/image82.webp)
 
 如上图，官方要求先填写信息（即注册和登录账号），然后才能开始下载。如果你觉得上述方法过于复杂，可以前往：
 
 [https://www.embarcadero.com/free-tools](https://www.embarcadero.com/free-tools)
 
-![](/posts/01-dev-environment-setup/media/image840.png)
+![](/posts/01-dev-environment-setup/media/image840.webp)
 
 此界面的“Free Tools”列表中（如上图），点击“ Get the FREE Tool ”，即可跳转至GitHub的发布页：
 
 这里提供了最新版本的各种安装包，前三个是没有编译器的版本，后三个是有编译器的版本；后三个中，第一个是便携版（散装文件构成的7z压缩文件）；第二个是安装程序；第三个是安装程序外面套一层zip压缩包。（如下图）
 
-![](/posts/01-dev-environment-setup/media/image85.png)
+![](/posts/01-dev-environment-setup/media/image85.webp)
 
 建议下载倒数第二个，即下图中用红框框选的一个。它们之间具体有什么区别，可以自行查询资料。
 
 ### 3. 安装Dev C++
 
-![](/posts/01-dev-environment-setup/media/image86.png)
+![](/posts/01-dev-environment-setup/media/image86.webp)
 
 如下图，你得到了一个zip文件，你可以双击打开，然后直接双击运行里面的exe安装程序；
 
 如下图，**你什么都不需要调，一直继续就好**：
 
-![](/posts/01-dev-environment-setup/media/image87.png)
+![](/posts/01-dev-environment-setup/media/image87.webp)
 
-![](/posts/01-dev-environment-setup/media/image88.png)
+![](/posts/01-dev-environment-setup/media/image88.webp)
 
 ![](/posts/01-dev-environment-setup/media/image89.png)
 
-![](/posts/01-dev-environment-setup/media/image90.png)
+![](/posts/01-dev-environment-setup/media/image90.webp)
 
-![](/posts/01-dev-environment-setup/media/image91.png)
+![](/posts/01-dev-environment-setup/media/image91.webp)
 
-![](/posts/01-dev-environment-setup/media/image92.png)
+![](/posts/01-dev-environment-setup/media/image92.webp)
 
 运行之后，需要选择中文（如下图，点击“**简体中文/Chinese**”）
 
-![](/posts/01-dev-environment-setup/media/image93.png)
+![](/posts/01-dev-environment-setup/media/image93.webp)
 
 ![](/posts/01-dev-environment-setup/media/image94.png)
 
-![](/posts/01-dev-environment-setup/media/image95.png)
+![](/posts/01-dev-environment-setup/media/image95.webp)
 
 ### 4. 编写代码、编译和运行程序
 
@@ -593,17 +593,17 @@ Embarcadero官方网站的Dev-C++下载地址：
 
 比如我的存放文件的目录为：<u>D:\CODE\Dev-C++\项目1</u>；
 
-![](/posts/01-dev-environment-setup/media/image97.png)
+![](/posts/01-dev-environment-setup/media/image97.webp)
 
-![](/posts/01-dev-environment-setup/media/image96.png)
+![](/posts/01-dev-environment-setup/media/image96.webp)
 
 还有需要注意的是，**保存时需要正确选择你的代码的类型**，比如我写的是C语言程序而不是C++语言的程序，所以需要正确选择保存类型；
 
 保存完成之后，点击<u>菜单栏-“运行”-“编译运行”</u>，就可以运行了（如下图）。
 
-![](/posts/01-dev-environment-setup/media/image99.png)
+![](/posts/01-dev-environment-setup/media/image99.webp)
 
-![](/posts/01-dev-environment-setup/media/image98.png)
+![](/posts/01-dev-environment-setup/media/image98.webp)
 
 ### 5. 扩展说明
 
@@ -611,9 +611,9 @@ Embarcadero官方网站的Dev-C++下载地址：
 
 在Dev-C++中，默认情况下无法正常输出和显示中文字符，此时，需要做一些操作。
 
-![](/posts/01-dev-environment-setup/media/image101.jpeg)
+![](/posts/01-dev-environment-setup/media/image101.webp)
 
-![](/posts/01-dev-environment-setup/media/image100.jpeg)
+![](/posts/01-dev-environment-setup/media/image100.webp)
 
 ![](/posts/01-dev-environment-setup/media/image102.jpeg)
 
@@ -623,13 +623,13 @@ Embarcadero官方网站的Dev-C++下载地址：
 
 **第一步：显示中文字符**
 
-![](/posts/01-dev-environment-setup/media/image103.png)
+![](/posts/01-dev-environment-setup/media/image103.webp)
 
-![](/posts/01-dev-environment-setup/media/image104.png)
+![](/posts/01-dev-environment-setup/media/image104.webp)
 
-![](/posts/01-dev-environment-setup/media/image105.png)
+![](/posts/01-dev-environment-setup/media/image105.webp)
 
-![](/posts/01-dev-environment-setup/media/image106.jpeg)
+![](/posts/01-dev-environment-setup/media/image106.webp)
 
 如下图，打开“<u>工具-编译器选项-显示</u>”取消勾选“\<ID 27071 translation missing\>”，确定之后，中文字符即可显示。
 
@@ -639,19 +639,19 @@ Embarcadero官方网站的Dev-C++下载地址：
 
 如下图，文件-另存为，然后在Encoding选项中，修改为ANSI。
 
-![](/posts/01-dev-environment-setup/media/image107.jpeg)
+![](/posts/01-dev-environment-setup/media/image107.webp)
 
-![](/posts/01-dev-environment-setup/media/image108.jpeg)
+![](/posts/01-dev-environment-setup/media/image108.webp)
 
 **方法2. 在编译时加入命令（推荐）**
 
 如下图，打开“<u>工具-编译选项</u>”，在指定位置输入`-fexec-charset=GB18030`，然后勾选“编译时加入以下命令”
 
-![](/posts/01-dev-environment-setup/media/image109.png)
+![](/posts/01-dev-environment-setup/media/image109.webp)
 
-![](/posts/01-dev-environment-setup/media/image110.png)
+![](/posts/01-dev-environment-setup/media/image110.webp)
 
-![](/posts/01-dev-environment-setup/media/image111.png)
+![](/posts/01-dev-environment-setup/media/image111.webp)
 
 注：GB18030为国家标准编码字符集，选择该字符集可以一劳永逸解决所有字符显示问题。
 
@@ -669,31 +669,31 @@ Python官网：
 
 [https://www.python.org/](https://www.python.org/)
 
-![](/posts/01-dev-environment-setup/media/image112.png)
+![](/posts/01-dev-environment-setup/media/image112.webp)
 
 将鼠标移动到“Downloads”（如下图，**注意是移动，悬浮在选项卡上即可，不是点击**），然后点击“Python 3.14.0”，下载会在几秒后开始；
 
-![](/posts/01-dev-environment-setup/media/image113.jpeg)
+![](/posts/01-dev-environment-setup/media/image113.webp)
 
 有一点需要注意的是，安装程序上发布了一个通知“**This installer is being retired and will no longer be available after Python 3.15.**”，意思是“**该安装程序即将退役，在 Python 3.15 版本发布后将不再提供”**（如下图）；
 
-![](/posts/01-dev-environment-setup/media/image114.png)
+![](/posts/01-dev-environment-setup/media/image114.webp)
 
 通过官方的文档，我们得知：3.15版本之后，将仅支持从微软应用商店下载。（如下图）；
 
-![](/posts/01-dev-environment-setup/media/image115.png)
+![](/posts/01-dev-environment-setup/media/image115.webp)
 
 #### (2) 安装Python
 
 如下图，一定要先勾选下面的两个选项，然后点击“Install Now”开始安装；
 
-![](/posts/01-dev-environment-setup/media/image116.png)
+![](/posts/01-dev-environment-setup/media/image116.webp)
 
 然后，重启你的电脑，不出意外的话，环境变量已经正常配置。
 
-![](/posts/01-dev-environment-setup/media/image117.png)
+![](/posts/01-dev-environment-setup/media/image117.webp)
 
-![](/posts/01-dev-environment-setup/media/image118.png)
+![](/posts/01-dev-environment-setup/media/image118.webp)
 
 ### 3. 代码编辑器(IDE)的选择
 
@@ -707,38 +707,38 @@ Python官网：
 
 如下图，在扩展商店搜索Python，然后点击Python扩展右下角的“安装”；
 
-![](/posts/01-dev-environment-setup/media/image119.png)
+![](/posts/01-dev-environment-setup/media/image119.webp)
 
 安装完成之后，就可以开始新建文件编写代码了，你可以点击左上角<u>菜单栏中的“文件”-“新建文件”，再点击“Python File”来新建一个文件（如下图）</u>；或者直接Ctrl+N新建一个文件；或者像C/C++那样，先创建文件夹，然后“打开文件夹”，再进行Python文件的创建。方法很多，我的建议是最后一种。
-![](/posts/01-dev-environment-setup/media/image120.png)
+![](/posts/01-dev-environment-setup/media/image120.webp)
 
 ![](/posts/01-dev-environment-setup/media/image121.png)
 
 编辑完成后，Ctrl+S保存代码或者点击<u>菜单栏的“文件”-“保存”</u>；
 
-![](/posts/01-dev-environment-setup/media/image122.png)
+![](/posts/01-dev-environment-setup/media/image122.webp)
 
-![](/posts/01-dev-environment-setup/media/image123.png)
+![](/posts/01-dev-environment-setup/media/image123.webp)
 
 选择你的代码的保存位置，如下图，我将此Python文件保存到了<u>D:\CODE\Python</u>目录，名为“test.py”；
 
-![](/posts/01-dev-environment-setup/media/image124.png)
+![](/posts/01-dev-environment-setup/media/image124.webp)
 
 这里需要注意的是，如果你没有在Windows文件资源管理器中打开“显示文件扩展名”的话（如下图），你必须展开“保存类型”，然后下滑，找到“Python”类型的文件（如下图）。否则，你得到的文件名可能会是“test.py.txt”；
 
 ![](/posts/01-dev-environment-setup/media/image125.png)
 
-![](/posts/01-dev-environment-setup/media/image126.png)
+![](/posts/01-dev-environment-setup/media/image126.webp)
 
 保存之后，按下F5运行；或点击<u>菜单栏的“运行”-“启动调试”</u>；或点击左侧的“运行与调试”，点击“运行与调试”按钮（如下图）；
 
-![](/posts/01-dev-environment-setup/media/image127.png)
+![](/posts/01-dev-environment-setup/media/image127.webp)
 
-![](/posts/01-dev-environment-setup/media/image128.png)
+![](/posts/01-dev-environment-setup/media/image128.webp)
 
 然后，你可以在控制台看到输出的内容（如下图）；
 
-![](/posts/01-dev-environment-setup/media/image129.png)
+![](/posts/01-dev-environment-setup/media/image129.webp)
 
 如下图，你也可以安装扩展来快速运行Python程序，安装此扩展后，点击右上角的三角就可以直接运行代码了（如下图）。
 
@@ -746,31 +746,31 @@ Python官网：
 
 ![](/posts/01-dev-environment-setup/media/image131.png)
 
-![](/posts/01-dev-environment-setup/media/image132.png)
+![](/posts/01-dev-environment-setup/media/image132.webp)
 
 #### (2) Visual Studio
 
 - 创建Python项目、编写Python程序和运行；
 
-![](/posts/01-dev-environment-setup/media/image133.png)
+![](/posts/01-dev-environment-setup/media/image133.webp)
 
-![](/posts/01-dev-environment-setup/media/image134.png)
+![](/posts/01-dev-environment-setup/media/image134.webp)
 
-![](/posts/01-dev-environment-setup/media/image135.png)
+![](/posts/01-dev-environment-setup/media/image135.webp)
 
 编写程序；
 
-![](/posts/01-dev-environment-setup/media/image136.png)
+![](/posts/01-dev-environment-setup/media/image136.webp)
 
 运行程序（不调试）；
 
-![](/posts/01-dev-environment-setup/media/image137.png)
+![](/posts/01-dev-environment-setup/media/image137.webp)
 
 ![](/posts/01-dev-environment-setup/media/image138.png)
 
 如下图，程序输出了Hello World。
 
-![](/posts/01-dev-environment-setup/media/image139.png)
+![](/posts/01-dev-environment-setup/media/image139.webp)
 
 ## 八、PyCharm的下载与安装
 
@@ -780,7 +780,7 @@ Python官网：
 
 [https://www.jetbrains.com/zh-cn/pycharm/download/](https://www.jetbrains.com/zh-cn/pycharm/download/)
 
-![](/posts/01-dev-environment-setup/media/image140.png)
+![](/posts/01-dev-environment-setup/media/image140.webp)
 
 如上图，点击“下载”即可开始下载。该安装程序较大，约1GB，下载过程需要一定的时间，请耐心等待；
 
@@ -788,15 +788,15 @@ Python官网：
 
 安装程序下载完成后，打开它，来到安装界面（如下图）；
 
-![](/posts/01-dev-environment-setup/media/image141.png)
+![](/posts/01-dev-environment-setup/media/image141.webp)
 
-![](/posts/01-dev-environment-setup/media/image142.png)
+![](/posts/01-dev-environment-setup/media/image142.webp)
 
-![](/posts/01-dev-environment-setup/media/image143.png)
+![](/posts/01-dev-environment-setup/media/image143.webp)
 
-![](/posts/01-dev-environment-setup/media/image144.png)
+![](/posts/01-dev-environment-setup/media/image144.webp)
 
-![](/posts/01-dev-environment-setup/media/image145.png)
+![](/posts/01-dev-environment-setup/media/image145.webp)
 
 如上图，在到“**安装选项**”这一步骤时，一定要勾选“**更新PATH**”变量！
 
@@ -808,41 +808,41 @@ Python官网：
 
 来到主界面后，先点击New Project（如下图）；
 
-![](/posts/01-dev-environment-setup/media/image146.png)
+![](/posts/01-dev-environment-setup/media/image146.webp)
 
 创建一个项目（如下图）；
 
-![](/posts/01-dev-environment-setup/media/image147.png)
+![](/posts/01-dev-environment-setup/media/image147.webp)
 
 ### 4. 重启并应用中文语言（注：从PyCharm 2025.3.3开始，默认的应用语言为中文，此步骤可跳过）
 
-![](/posts/01-dev-environment-setup/media/image148.png)
+![](/posts/01-dev-environment-setup/media/image148.webp)
 
 如下图，不出意外的话，右下角会有这样的弹窗。点击“ Enable Chinese and Restart ”按钮，再点击中间的Exit，软件将自动重启；
 
-![](/posts/01-dev-environment-setup/media/image149.png)
+![](/posts/01-dev-environment-setup/media/image149.webp)
 
 如下图，软件的语言已经切换为了中文，而且处于你刚刚创建的项目中；
 
-![](/posts/01-dev-environment-setup/media/image150.png)
+![](/posts/01-dev-environment-setup/media/image150.webp)
 
 ### 5. 编写并运行Python代码
 
 接下来，创建一个Python文件，如下图，右键单击你的项目的文件夹（比如我的是“test_1”），然后点击“新建”，再点击“Python文件”；
 
-![](/posts/01-dev-environment-setup/media/image151.png)
+![](/posts/01-dev-environment-setup/media/image151.webp)
 
 如下图，在中间的输入框中输入你的Python文件的名字（可以与项目文件夹名字不同）；
 
-![](/posts/01-dev-environment-setup/media/image152.png)
+![](/posts/01-dev-environment-setup/media/image152.webp)
 
 如下图，编写代码；
 
-![](/posts/01-dev-environment-setup/media/image153.png)
+![](/posts/01-dev-environment-setup/media/image153.webp)
 
 编写完成之后，Ctrl+S保存，然后点击这个三角形即可运行代码；
 
-![](/posts/01-dev-environment-setup/media/image154.png)
+![](/posts/01-dev-environment-setup/media/image154.webp)
 
 ![](/posts/01-dev-environment-setup/media/image155.png)
 
@@ -854,8 +854,8 @@ Python官网：
 
 打开设置，在“<u>外观与行为-外观</u>”调整软件缩放（如下图）。
 
-![](/posts/01-dev-environment-setup/media/image156.png)
+![](/posts/01-dev-environment-setup/media/image156.webp)
 
-![](/posts/01-dev-environment-setup/media/image157.png)
+![](/posts/01-dev-environment-setup/media/image157.webp)
 
-![](/posts/01-dev-environment-setup/media/image158.jpeg)
+![](/posts/01-dev-environment-setup/media/image158.webp)

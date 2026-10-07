@@ -29,7 +29,7 @@ OpenRouter的周榜数据更直观：上周OpenRouter周榜中，DeepSeek V4 Fla
 
 换句话说，DeepSeek的服务器被“薅”得太狠了。
 
-![图 1 OpenRouter 周榜：DeepSeek V4 Flash 登顶](/posts/03-deepseek-price-increase/media/openrouter-rank.png)
+![图 1 OpenRouter 周榜：DeepSeek V4 Flash 登顶](/posts/03-deepseek-price-increase/media/openrouter-rank.webp)
 
 ## 涨价不是商业化，是“赶人”
 
@@ -49,7 +49,7 @@ DeepSeek交流群里，内部人士程元的话印证了这一点：
 
 梁子（网友对梁文锋的昵称）不是想赚钱，他是想把用户“赶走”好训练Pro模型。
 
-![图 2 DeepSeek 交流群：程元发言](/posts/03-deepseek-price-increase/media/deepseek-group-chat.png)
+![图 2 DeepSeek 交流群：程元发言](/posts/03-deepseek-price-increase/media/deepseek-group-chat.webp)
 
 ## 高峰时段的秘密：那是训练的时间
 
@@ -61,7 +61,7 @@ DeepSeek划定的“高峰时段”是**9:00-12:00和14:00-18:00**。为什么�
 
 白天的算力要分出来做训练，晚上的算力相对充裕，可以用来跑推理服务。峰谷定价的逻辑不是“用电高峰”那一套，而是**训练和推理的资源博弈**。
 
-![图 3 DeepSeek 峰谷定价公告](/posts/03-deepseek-price-increase/media/peak-off-peak-price.png)
+![图 3 DeepSeek 峰谷定价公告](/posts/03-deepseek-price-increase/media/peak-off-peak-price.webp)
 
 ## Pro模型的“难产”与训练的困境
 

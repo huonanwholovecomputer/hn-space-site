@@ -10,7 +10,7 @@ draft: false
 
 {{< toc >}}
 
-<img src="/posts/04-campus-network-bandwidth-aggregation/media/cover.png" style="width:100%" alt="封面：多设备会话带宽汇聚">
+<img src="/posts/04-campus-network-bandwidth-aggregation/media/cover.webp" style="width:100%" alt="封面：多设备会话带宽汇聚">
 
 <p style="text-align:center"><em>（示意图：把 N 个独立会话的带宽汇聚成一份）</em></p>
 
@@ -78,7 +78,7 @@ draft: false
 
 > **等效带宽上限 ≈ N × C**（N 个互不共享的在线会话同时满额时）——在本环境里单桶 C ≈ 50 Mbps，于是稳态下行 ≈ **50n Mbps**。
 
-![会话即桶：N 个独立会话 = N 份带宽](/posts/04-campus-network-bandwidth-aggregation/media/sessions-as-buckets.png)
+![会话即桶：N 个独立会话 = N 份带宽](/posts/04-campus-network-bandwidth-aggregation/media/sessions-as-buckets.webp)
 
 <p style="text-align:center"><em>（模型示意：每个会话一个独立限速桶，N 个桶并行 ≈ N×C）</em></p>
 
@@ -100,7 +100,7 @@ draft: false
 
 ## 四、工程实现：两条路径，一个原则
 
-![三层架构：接入建会话、汇聚按流分发、出口统一](/posts/04-campus-network-bandwidth-aggregation/media/architecture.png)
+![三层架构：接入建会话、汇聚按流分发、出口统一](/posts/04-campus-network-bandwidth-aggregation/media/architecture.webp)
 
 <p style="text-align:center"><em>（三层架构：接入层建立 N 个会话 → 汇聚层按流分发 → 出口层呈现统一出口）</em></p>
 
@@ -108,7 +108,7 @@ draft: false
 
 如果按包轮询，把一条 TCP 流的包散到两条路径：两条路径时延 / 带宽不同 → 对端收到乱序段 → 触发重复 ACK → 发送端快速重传、拥塞窗口减半 → 吞吐塌缩到接近最差路径，严重时重传风暴甚至连接重置。而且每个会话有独立公网出口，同一连接从两个公网地址交替发出，会直接破坏 NAT 绑定与对端连接状态。
 
-![按连接分发 vs 按包轮询](/posts/04-campus-network-bandwidth-aggregation/media/flow-vs-packet.png)
+![按连接分发 vs 按包轮询](/posts/04-campus-network-bandwidth-aggregation/media/flow-vs-packet.webp)
 
 <p style="text-align:center"><em>（左：按连接分发、同流同路；右：按包轮询导致乱序重传）</em></p>
 
@@ -122,7 +122,7 @@ draft: false
 
 最容易踩的坑是**哈希字段**：只按源 / 目的 IP（L3）哈希时，大量连接指向同一 CDN 边缘 IP，会全部命中同一条路径——实测出现过一腿满载、另一腿近乎为零的极端失衡（两腿流量比 1:300+）；Linux 下开启 L4 哈希（`net.ipv4.fib_multipath_hash_policy=1`，含端口）后立即恢复近 1:1。**「配了聚合却没提速」，九成是这个问题。**
 
-![L3 哈希失衡 vs L4 哈希均分](/posts/04-campus-network-bandwidth-aggregation/media/hashing-l3-l4.jpg)
+![L3 哈希失衡 vs L4 哈希均分](/posts/04-campus-network-bandwidth-aggregation/media/hashing-l3-l4.webp)
 
 <p style="text-align:center"><em>（左：只按 IP 哈希导致一腿失衡；右：含端口哈希（L4）后连接近 1:1 均分）</em></p>
 
@@ -158,7 +158,7 @@ draft: false
 
 **keepalive（防饿死）。** 全量 TUN 接管后，某条直连腿可能分配不到流量 → 会话长期零流量 → 被网络侧按生命周期回收 → 更分不到流量，形成饿死循环。
 
-![饿死回路与保活打断](/posts/04-campus-network-bandwidth-aggregation/media/starvation-loop.jpg)
+![饿死回路与保活打断](/posts/04-campus-network-bandwidth-aggregation/media/starvation-loop.webp)
 
 <p style="text-align:center"><em>（饿死回路：无流量 → 被回收 → 更无流量；绿色标记为保活打断点）</em></p>
 
@@ -166,7 +166,7 @@ draft: false
 
 **断线自愈（冷却纪律）。** 恢复流程是「探测 → 分类 → 冷却 → 单点重连 → 复验」。
 
-![断线自愈流程](/posts/04-campus-network-bandwidth-aggregation/media/recovery-flow.jpg)
+![断线自愈流程](/posts/04-campus-network-bandwidth-aggregation/media/recovery-flow.webp)
 
 <p style="text-align:center"><em>（自愈流程：探测 → 分类 → 冷却 → 单点重连 → 复验，失败则返回冷却）</em></p>
 
@@ -226,11 +226,11 @@ draft: false
 - **账号凭据独立托管**：密码走系统凭据库（Windows DPAPI / 系统钥匙串），明文只存在于进程内存，脚本在真正调用接口那一刻才取用，不落日志；
 - **自带回归**：端口校验与「摘腿 / 放腿」全行为的自检脚本可重复运行，改动不会悄悄退化。
 
-<img src="/posts/04-campus-network-bandwidth-aggregation/media/console-overview.jpg" style="width:58%" alt="控制台总览：一眼看桶状态">
+<img src="/posts/04-campus-network-bandwidth-aggregation/media/console-overview.webp" style="width:58%" alt="控制台总览：一眼看桶状态">
 
 <p style="text-align:center"><em>（简单控制台：每桶在线状态、丢包率与说明一目了然，顶部给出桶服务状态与代理开关）</em></p>
 
-![连接管理界面：状态 + 运维 + 桶配置](/posts/04-campus-network-bandwidth-aggregation/media/console-connect-manager.jpg)
+![连接管理界面：状态 + 运维 + 桶配置](/posts/04-campus-network-bandwidth-aggregation/media/console-connect-manager.webp)
 
 <p style="text-align:center"><em>（高级界面：总览卡片 + 健康走势图 + 每桶状态与操作入口；图中为演示数据）</em></p>
 

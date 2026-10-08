@@ -159,7 +159,7 @@ draft: false
 
 在网址前面加上 `wn.run/`，变为
 
-`wn.run/https://www.bilibili.com/video/BV1GJ411x7h7`
+[wn.run/https://www.bilibili.com/video/BV1GJ411x7h7](https://wn.run/https://www.bilibili.com/video/BV1GJ411x7h7)
 
 ![进入后列出针对 bilibili 站点可用的在线工具，Parsevideo 与 ibilibili 被标出](/posts/05-bilibili-video-download/media/wnrun-bilibili-tools.webp)
 

@@ -23,3 +23,12 @@ friends:
     # 头像来自站点 https://x0.fan 的 avatar.webp（286×286，2026-10-04 取的快照）
     avatar: /img/friends/x0fan.webp
     tags: [技术博客]
+
+  - name: GooseBlog
+    url: https://blog.goose.cc.cd/
+    desc: 鹅滴博客嘎嘎
+    # 头像取自站点 https://blog.goose.cc.cd/avatar.webp（2026-10-11 快照，镜像到站内）。
+    # 对方另给了缩略图 https://blog.goose.cc.cd/images/og.webp（og:image），
+    # 当前卡片版式只用头像，没有 thumbnail 字段，故不收录。
+    avatar: /img/friends/gooseblog.webp
+    tags: [技术博客]

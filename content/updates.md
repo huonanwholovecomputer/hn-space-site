@@ -3,6 +3,12 @@ title: "更新日志"
 description: "网站与内容更新记录"
 ---
 
+## 2026-10-11
+
+- **友链新增一位朋友：[GooseBlog](https://blog.goose.cc.cd/)**（鹅滴博客嘎嘎，技术博客），`data/friends.yaml` 加一条数据即可，模板与样式一个字没动；友链页现在是 2 位
+  - 对方给的是「name / link / thumbnail / avatar / description」五字段格式（thumbnail 是它的 `og:image`），本站卡片版式只用头像，没有 thumbnail 字段，所以只收了 name / url / desc / avatar 四项
+  - 头像按惯例镜像到站内 `static/img/friends/gooseblog.webp`（35 KB，2026-10-11 取的原站快照），不依赖对方图床可用性
+
 ## 2026-10-08
 
 - **《哔哩哔哩视频下载的五种方式》里第二条示例网址改成可点击的链接**：讲「万能命令 wn.run/」的那一节，第一条示例（B 站原视频地址）本来就是链接，第二条（在它前面加上 `wn.run/` 之后的地址）却写成了行内代码，只能看、点不了。现在两条形态一致都是链接；第二条的显示文本仍保留 `wn.run/https://…` 以便逐字对照，但 `href` 指向 `https://wn.run/https://www.bilibili.com/video/BV1GJ411x7h7`——必须带上 `https://` 前缀，否则浏览器会把它当成站内相对路径

@@ -1,4 +1,10 @@
 // Global mouse trail - particle system (canvas, dependency-free)
+//
+// 帧率无关性（motion-web/references/handfeel.md §7.1）：
+// 本文件原先把所有动力学按「每帧」写（* 0.3、life -= 16、vx *= 0.96、r += 1.4）。
+// 那是 30/60/120fps 下三个不同的滤波器：实测收敛时间 300/150/75ms（.tools/hn-motion-harness.mjs）。
+// 现在统一切到「按 dt」：把 60fps 的每帧系数 a 换算成每秒紧度 k = -60·ln(1-a)，再用
+// 1 - exp(-k·dt)；物理量乘以 f60（以 60fps 的一帧为单位的时间步长）。60fps 下与旧行为一致。
 (function () {
   'use strict';
 
@@ -30,7 +36,6 @@
   // ---- cursor state ----
   const cursor = { x: -200, y: -200, tx: -200, ty: -200, active: false };
   const trail = []; // recent positions for the ribbon
-  const MAX_TRAIL = 18;
 
   // ---- effects ----
   // 站点蓝系配色（与首页 --home-accent / DeepSeek 蓝一致），跟随明暗主题实时切换
@@ -69,6 +74,18 @@
 
   let emitAcc = 0; // distance accumulator for emission
   let rafId = null;
+  let lastT = 0;   // 上一帧时间戳，用于把「每帧系数」换算成按 dt 的系数
+
+  /* 60fps 下的每帧系数 0.3 ⇄ k = -60·ln(1-0.3) ≈ 21.4/s */
+  const FOLLOW_K = -60 * Math.log(0.7);
+  /* 丝带跨度用「时间」而不是「点数」封顶：原来写死 18 点，在 60fps 下正好 ≈300ms，
+     但在 120/144Hz 上只有 150/125ms，丝带会明显变短（帧率依赖的第二种表现）。
+     改成按 dt 换算，60fps 下仍然得到 18 点。 */
+  const TRAIL_WINDOW_MS = 300;
+  const TRAIL_CAP_MIN = 8;
+  const TRAIL_CAP_MAX = 64;
+  /* 掉帧 / 切走标签页再回来时不让状态突变（与 site.js 的同名上限一致） */
+  const MAX_DT = 64;
 
   function rand(a, b) { return a + Math.random() * (b - a); }
   function pick(arr) { return arr[(Math.random() * arr.length) | 0]; }
@@ -154,10 +171,15 @@
   function tick() {
     rafId = null;
     const now = performance.now();
+    const dtMs = lastT ? Math.min(now - lastT, MAX_DT) : 1000 / 60;
+    lastT = now;
+    // 以「60fps 的一帧」为单位的时间步长：粒子物理原本按每帧写，乘它就等价换算到任意帧率
+    const f60 = dtMs / (1000 / 60);
 
     // tail follows the pointer with easing; head stays under the cursor
-    cursor.x += (cursor.tx - cursor.x) * 0.3;
-    cursor.y += (cursor.ty - cursor.y) * 0.3;
+    const followA = 1 - Math.exp(-FOLLOW_K * (dtMs / 1000));
+    cursor.x += (cursor.tx - cursor.x) * followA;
+    cursor.y += (cursor.ty - cursor.y) * followA;
 
     // emit particles while moving
     let dist = 0;
@@ -167,7 +189,8 @@
     }
     if (cursor.active && (trail.length === 0 || dist > 0.5)) {
       trail.push({ x: cursor.x, y: cursor.y, t: now });
-      if (trail.length > MAX_TRAIL) trail.shift();
+      const cap = Math.max(TRAIL_CAP_MIN, Math.min(TRAIL_CAP_MAX, Math.round(TRAIL_WINDOW_MS / dtMs)));
+      if (trail.length > cap) trail.shift();
       if (trail.length > 1) {
         emitAcc += dist;
         while (emitAcc >= 5) {
@@ -182,8 +205,8 @@
     ctx.globalCompositeOperation = 'lighter';
 
     drawRibbon(now);
-    drawParticles(now);
-    drawRings(now);
+    drawParticles(now, dtMs, f60);
+    drawRings(now, f60);
 
     ctx.globalCompositeOperation = 'source-over';
 
@@ -194,6 +217,7 @@
   }
 
   function drawRibbon(now) {
+    // 按时间淘汰（本来就是毫秒语义，与帧率无关，无需换算）
     while (trail.length && now - trail[0].t > 750) trail.shift();
     const n = trail.length;
     if (n < 2) return;
@@ -216,20 +240,23 @@
     }
   }
 
-  function drawParticles(now) {
+  function drawParticles(now, dtMs, f60) {
+    // vx/vy 的单位是「60fps 下每帧多少 px」，所以位移乘 f60；
+    // 阻尼 0.96/帧 与重力 0.03/帧 同样按 f60 换算（pow 保证多帧叠加与逐帧等价）
+    const damp = Math.pow(0.96, f60);
     for (let i = particles.length - 1; i >= 0; i--) {
       const p = particles[i];
-      p.life -= 16; // ~1 frame
+      p.life -= dtMs; // life 本来就是按 60fps（每帧 16ms）记的毫秒
       if (p.life <= 0) {
         particles.splice(i, 1);
         continue;
       }
-      p.x += p.vx;
-      p.y += p.vy;
-      p.vx *= 0.96;
-      p.vy *= 0.96;
-      p.vy += 0.03; // gentle fall
-      p.rot += 0.08;
+      p.x += p.vx * f60;
+      p.y += p.vy * f60;
+      p.vx *= damp;
+      p.vy *= damp;
+      p.vy += 0.03 * f60; // gentle fall
+      p.rot += 0.08 * f60;
 
       const k = Math.max(0, p.life / p.maxLife);
       if (p.sparkle) {
@@ -256,11 +283,12 @@
     }
   }
 
-  function drawRings(now) {
+  function drawRings(now, f60) {
+    const decay = Math.pow(0.94, f60);
     for (let i = rings.length - 1; i >= 0; i--) {
       const r = rings[i];
-      r.r += 1.4;
-      r.alpha *= 0.94;
+      r.r += 1.4 * f60;
+      r.alpha *= decay;
       if (r.alpha < 0.02) {
         rings.splice(i, 1);
         continue;
@@ -272,6 +300,16 @@
       ctx.stroke();
     }
   }
+
+  /* ---- 判据台架探针（只读、零副作用）----
+     .tools/hn-motion-harness.mjs 用它按 30/60/120fps 逐帧比对拖尾轨迹。
+     探针契约见 motion-web/references/verification-harness.md §1：
+     时间必须可设（由台架的虚拟时钟接管 rAF），状态必须可读（这里）。 */
+  window.__hnMotion = Object.assign(window.__hnMotion || {}, {
+    trail: function () {
+      return { x: cursor.x, y: cursor.y, tx: cursor.tx, ty: cursor.ty, n: trail.length, particles: particles.length };
+    }
+  });
 
   window.addEventListener('resize', resize);
   window.addEventListener('pointermove', onMove, { passive: true });

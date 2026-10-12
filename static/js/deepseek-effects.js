@@ -145,6 +145,12 @@
     var lx = 0, ly = 0;    // 平滑后的当前位置
     var rafId = 0;
 
+    /* 判据台架探针（只读、零副作用）：.tools/hn-motion-harness.mjs 按 30/60/120fps
+       逐帧比对光标环轨迹，证明跟随与帧率无关（handfeel.md §7.1 / §7.5）。 */
+    window.__hnMotion = Object.assign(window.__hnMotion || {}, {
+      ring: function () { return { x: lx, y: ly, tx: x, ty: y }; }
+    });
+
     function onMove(e) {
       x = e.clientX;
       y = e.clientY;
@@ -159,12 +165,26 @@
       ring.classList.toggle('is-hover', !!link && !blend);
     }
     function onLeave() { ring.style.opacity = '0'; }
+    /* 帧率归一（motion-web handfeel.md §7.1）：
+       原来写 s = 距离>50 ? 0.7 : 0.4 后 lx += dx * s —— 每帧系数，30/60/120fps 下是三个
+       不同滤波器（实测收敛 100/50/25ms）。这里把每帧系数 a 换算成每秒紧度
+       k = -60·ln(1-a)，再用 1 - exp(-k·dt)：60fps 下与旧行为等价，其它帧率同一滤波器。
+       「远快近慢」两档保留（按剩余距离分档，与帧率无关），lead 项不加——光标环要的就是
+       贴身跟随的轻微滞后，那里 lag 是特征不是缺陷。 */
+    var RING_K_FAR = -60 * Math.log(1 - 0.7);   // ≈ 72.2 /s
+    var RING_K_NEAR = -60 * Math.log(1 - 0.4);  // ≈ 30.6 /s
+    var lastT = 0;
+
     function tick() {
-      // 原站 lerp：快速移动 0.7，慢速 0.4，接近位置时刻放慢
+      var now = performance.now();
+      var dtMs = lastT ? Math.min(now - lastT, 64) : 1000 / 60;
+      lastT = now;
       var dx = x - lx, dy = y - ly;
-      var s = Math.sqrt(dx * dx + dy * dy) > 50 ? 0.7 : 0.4;
-      lx += dx * s;
-      ly += dy * s;
+      var dist = Math.sqrt(dx * dx + dy * dy);
+      var k = dist > 50 ? RING_K_FAR : RING_K_NEAR;
+      var a = 1 - Math.exp(-k * (dtMs / 1000));
+      lx += dx * a;
+      ly += dy * a;
       ring.style.transform = 'translate3d(' + lx + 'px, ' + ly + 'px, 0)';
       rafId = requestAnimationFrame(tick);
     }

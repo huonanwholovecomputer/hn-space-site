@@ -238,6 +238,115 @@
   }
 
   /* --------------------------------------------------------------------------
+   * 首页章节轴（右侧位置指示）——《动效升级方案》对应审计 B4 的"把位置感分给整页"
+   * 判定口径与 initTocSpy 完全一致：阈值线 + 100ms 节流 + 刻意不挂 rAF
+   * （rAF 在后台标签页/省电模式/某些无头环境下可能不被调度，那样高亮会卡住不动）。
+   * 只存在于首页；其它页面 querySelector 返回 null，直接不介入 —— 所以
+   * init()/onResize() 里可以无条件调用它。
+   * ------------------------------------------------------------------------ */
+  var AXIS_LINE = 120;   /* 判定线：视口顶部往下 120px（在悬浮导航 44+10 之下） */
+  var AXIS_OFFSET = 84;  /* 跳转落点让开导航，与文章页粘性目录的 top:84px 同口径 */
+  var axisCleanup = null;
+
+  function initAxis() {
+    if (axisCleanup) {
+      axisCleanup();
+      axisCleanup = null;
+    }
+
+    var nav = document.querySelector('.home-axis');
+    if (!nav) return;
+
+    var links = nav.querySelectorAll('a[href^="#"]');
+    if (!links.length) return;
+
+    var targets = [];
+    var i;
+    for (i = 0; i < links.length; i++) {
+      var href = links[i].getAttribute('href') || '';
+      var id = href.charAt(0) === '#' ? decodeURIComponent(href.slice(1)) : '';
+      var el = id ? document.getElementById(id) : null;
+      if (el) targets.push({ link: links[i], el: el });
+    }
+    if (!targets.length) return;
+
+    var current = null;
+    function setActive(link) {
+      if (link === current) return;
+      if (current) {
+        current.classList.remove('is-active');
+        current.removeAttribute('aria-current');
+      }
+      current = link;
+      if (current) {
+        current.classList.add('is-active');
+        current.setAttribute('aria-current', 'true');
+      }
+    }
+
+    /* 当前段 = 最后一个"顶边已越过判定线"的段；首屏（还没到 #about）时没有当前段 */
+    function pick() {
+      var best = null;
+      for (var k = 0; k < targets.length; k++) {
+        if (targets[k].el.getBoundingClientRect().top <= AXIS_LINE) best = targets[k].link;
+      }
+      /* 末尾兜底：滚到文档底部时强制激活最后一段。
+         最后一段的顶边可能**永远**越不过判定线（文档已到底、滚不动了），
+         不兜的话页面最底部会显示成上一段 —— 指示器就在撒谎。
+         实测：页高 5194 / 视口 802 ⇒ 最大 scrollY=4392，此时 #contact 的 top=208 > 120。 */
+      var doc = document.documentElement;
+      if (doc && window.innerHeight + (window.pageYOffset || window.scrollY || 0) >= doc.scrollHeight - 2) {
+        best = targets[targets.length - 1].link;
+      }
+      setActive(best);
+    }
+
+    function onClick(e) {
+      var link = this;
+      var el = null;
+      for (var k = 0; k < targets.length; k++) {
+        if (targets[k].link === link) el = targets[k].el;
+      }
+      if (!el) return;
+      /* 交给站内统一入口（内部按 Lenis 是否存在分别处理，并带 force） */
+      e.preventDefault();
+      var y =
+        el.getBoundingClientRect().top +
+        (window.pageYOffset || window.scrollY || 0) -
+        AXIS_OFFSET;
+      setActive(link); /* 立即高亮，不等下一次滚动判定（与目录链接同一做法） */
+      if (typeof window.__hnScrollTo === 'function') window.__hnScrollTo(y, false);
+      else window.scrollTo(0, y);
+    }
+    for (i = 0; i < links.length; i++) {
+      links[i].addEventListener('click', onClick);
+    }
+
+    var lastRun = 0;
+    function onScroll() {
+      var now = Date.now();
+      if (now - lastRun < 100) return;
+      lastRun = now;
+      pick();
+    }
+    window.addEventListener('scroll', onScroll, { passive: true });
+
+    pick();
+
+    axisCleanup = function () {
+      window.removeEventListener('scroll', onScroll);
+      for (var k = 0; k < links.length; k++) {
+        links[k].removeEventListener('click', onClick);
+      }
+      if (current) {
+        current.classList.remove('is-active');
+        current.removeAttribute('aria-current');
+      }
+      current = null;
+    };
+  }
+
+  /* --------------------------------------------------------------------------
    * 数字滚动（count-up）——《动效升级方案》§4-8
    * 目标：首页 Highlights 的数值、/stats 的统计卡片数值。
    * 只处理「纯数字（可带前后缀与千分位）」的文本，其余原样跳过；
@@ -705,6 +814,9 @@
     /* 目录高亮是功能性指示：减少动态下也保留（CSS 只去掉那条竖条的过渡） */
     initTocSpy();
 
+    /* 章节轴同属功能性指示（"我在哪一段"），也放在 reduce 提前返回之前 */
+    initAxis();
+
     /* 下面都是装饰性入场：减少动态 / 无 IntersectionObserver 时完全不介入 */
     if (reduceMotion() || !('IntersectionObserver' in window)) return;
 
@@ -739,6 +851,7 @@
     if (resizeTimer) window.clearTimeout(resizeTimer);
     resizeTimer = window.setTimeout(function () {
       initTocSpy();
+      initAxis();
       if (reduceMotion() || !('IntersectionObserver' in window)) return;
       var hosts = document.querySelectorAll(HOSTS + '.mask-split:not(.mask-in)');
       for (var i = 0; i < hosts.length; i++) {

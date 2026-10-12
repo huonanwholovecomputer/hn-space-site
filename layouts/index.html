@@ -1,6 +1,12 @@
 {{- define "main" }}
 {{- $p := hugo.Data.profile }}
-{{- $posts := first 4 (where site.RegularPages "Type" "posts") }}
+{{- /* 文章全集与总字数：Highlights 段的"篇长教程"必须由模板实时算，
+       不能像以前那样在 data/profile.yaml 里写死——否则会和同屏代码卡里的
+       {{ len (where ...) }} 互相矛盾（2026-10-12 审计 A8 命中：同屏"2 篇"vs"5 篇"）。 */}}
+{{- $allPosts := where site.RegularPages "Type" "posts" }}
+{{- $postChars := 0 }}
+{{- range $allPosts }}{{ $postChars = add $postChars (countrunes .RawContent) }}{{ end }}
+{{- $posts := first 4 $allPosts }}
 <div class="home-page">
   <noscript><style>[data-reveal]{opacity:1;transform:none}</style></noscript>
   {{/* ================= Hero（含向下延伸的流体背景） ================= */}}
@@ -60,12 +66,12 @@
         <h2 id="about-title" class="section-title" data-reveal>关于我</h2>
       </div>
       <div class="about-grid">
-        <div class="about-copy" data-reveal>
+        <div class="about-copy">
           {{- range $p.bio }}
           <p>{{ . }}</p>
           {{- end }}
         </div>
-        <aside class="about-card" data-reveal>
+        <aside class="about-card">
           <h3>快速事实</h3>
           <ul>
             <li><span>身份</span>计算机科学与技术 · 本科在读</li>
@@ -88,10 +94,21 @@
       </div>
       <div class="highlights-grid">
         {{- range $p.highlights }}
-        <div class="highlight-card" data-reveal>
-          <span class="highlight-value">{{ .value }}</span>
+        {{- /* dynamic: postCount 的条目由模板计算（值 = 实际篇数，注 = 实时字数）。
+             字数取 .RawContent 的 rune 数（不含 front matter），取不到时回退 yaml 里的 note。 */}}
+        {{- $val := .value }}
+        {{- $note := .note }}
+        {{- if eq .dynamic "postCount" }}
+          {{- $val = len $allPosts }}
+          {{- if gt $postChars 0 }}
+            {{- $note = printf "合计约 %.1f 万字，覆盖开发环境与系统重装" (div (float $postChars) 10000) }}
+          {{- end }}
+        {{- end }}
+        {{/* 统计卡不再走 data-reveal 入场（审计 B2：入场只留给 hero、段标题与 featured 卡） */}}
+        <div class="highlight-card">
+          <span class="highlight-value">{{ $val }}</span>
           <span class="highlight-label">{{ .label }}</span>
-          <p class="highlight-note">{{ .note }}</p>
+          <p class="highlight-note">{{ $note }}</p>
         </div>
         {{- end }}
       </div>
@@ -107,7 +124,7 @@
       </div>
       <div class="skills-grid">
         {{- range $i, $group := $p.skills }}
-        <div class="skill-card" data-reveal>
+        <div class="skill-card">
           <h3><span class="skill-index">0{{ add $i 1 }}</span>{{ $group.category }}</h3>
           <ul>
             {{- range $group.items }}
@@ -173,7 +190,7 @@
       <div class="projects-grid">
         {{- range $p.projects }}
         {{- if not .featured }}
-        <a class="project-card" href="{{ .link }}" rel="noopener" target="_blank" data-reveal>
+        <a class="project-card" href="{{ .link }}" rel="noopener" target="_blank">
           <div class="project-card-head">
             <h3>{{ .name }}</h3>
             <span class="card-arrow" aria-hidden="true">↗</span>
@@ -218,12 +235,13 @@
         <h2 id="content-title" class="section-title" data-reveal>教程与内容</h2>
         <a class="section-more" href="{{ $p.links.blog | relURL }}" data-reveal>全部文章 <span aria-hidden="true">→</span></a>
       </div>
-      {{/* ② 行式索引：与上面几段的卡片栅格形成节奏对比。
-           data-reveal 放在 <li> 上而不是里面的 <a> 上——site.js 的同级错峰是
-           按"元素在父节点里的下标"算的，放在 <a> 上每行都是下标 0、不会错峰。 */}}
+      {{/* 行式索引：与上面几段的卡片栅格形成节奏对比。
+           这一段刻意**不再**走 data-reveal 入场（2026-10-12 审计 B2：入场只留给
+           hero 组、段标题与 featured 卡；44 个元素同时淡入读起来像幻灯片）。
+           内容默认就在位，滚动驱动的编排由 motion.css 的 view() 时间轴负责。 */}}
       <ol class="content-index">
         {{- range $i, $post := $posts }}
-        <li class="content-index-item" data-reveal>
+        <li class="content-index-item">
           <a class="content-row" href="{{ $post.RelPermalink }}">
             <span class="content-row-num" aria-hidden="true">{{ printf "%02d" (add $i 1) }}</span>
             <span class="content-row-body">
@@ -242,7 +260,7 @@
       </ol>
 
       {{/* 原来这两条是虚线卡片；改成索引下面的一行次要入口，把主次关系拉开 */}}
-      <p class="content-channels" data-reveal>
+      <p class="content-channels">
         也可以在
         <a href="{{ $p.links.github }}" rel="noopener" target="_blank">GitHub<span aria-hidden="true">↗</span></a>
         <span class="content-channels-sep" aria-hidden="true">/</span>
@@ -267,5 +285,23 @@
       </div>
     </div>
   </section>
+
+  {{/* ================= 章节轴（右侧位置指示） =================
+       功能性指示，不是装饰：它回答"我在这一页的哪一段"，并且可直接跳段。
+       与阅读进度条、目录高亮同口径——减少动态下**保留**（只去掉过渡，由
+       home.css 的全局网负责），因为它只随用户滚动变化、没有自主动画。
+       当前项由 motion.js 的 initAxis() 打 .is-active + aria-current="true"。
+       ≤1279px 隐藏（与文章页粘性目录同断点），避免窄屏挤占正文。
+       放在 DOM 末尾：读屏顺序与内容顺序一致。 */}}
+  <nav class="home-axis" aria-label="页面章节">
+    <ol>
+      <li><a href="#about"><span class="home-axis-label">关于</span><span class="home-axis-dot" aria-hidden="true"></span></a></li>
+      <li><a href="#highlights"><span class="home-axis-label">事实</span><span class="home-axis-dot" aria-hidden="true"></span></a></li>
+      <li><a href="#skills"><span class="home-axis-label">技能</span><span class="home-axis-dot" aria-hidden="true"></span></a></li>
+      <li><a href="#projects"><span class="home-axis-label">项目</span><span class="home-axis-dot" aria-hidden="true"></span></a></li>
+      <li><a href="#content"><span class="home-axis-label">文章</span><span class="home-axis-dot" aria-hidden="true"></span></a></li>
+      <li><a href="#contact"><span class="home-axis-label">联系</span><span class="home-axis-dot" aria-hidden="true"></span></a></li>
+    </ol>
+  </nav>
 </div>
 {{- end }}

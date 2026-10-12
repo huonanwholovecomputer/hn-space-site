@@ -536,5 +536,223 @@ html.lenis body {
    motion.js 里的 initOpener() 调用即可。
    ============================================================================ */
 
+/* ============================================================================
+   ⑭ 中部区块的滚动进度编排（Projects / Skills）—— 纯 CSS，零 JS
+   ----------------------------------------------------------------------------
+   要解决的问题（2026-10-12 design-slop 审计 B4「预算全烧在首屏」）：
+   首屏叠了 3 个 hero canvas + 拖尾 + 揭幕 + hero 入场 + 名字窥视镜 + 反色环，
+   而其后 5 个 section 只剩同一套 fade-up —— 偏偏 Projects 一段就占 1500px（近整页的 1/3）。
+   这里用原生 view() 时间轴把"经过"变成状态（元素在进场途中处于中间态），
+   而不是"进入视口 → 触发一次 → 播完"。不引 GSAP，不做滚动劫持。
+
+   ⚠️ 三条必须守住的约束（都是本站已踩过或已写明的）：
+   1) 起始帧写在 @keyframes 里，**不写成隐藏态**（沿用 ⑥ img-wipe 的约定）：
+      不支持 animation-timeline 的浏览器（当前 Firefox）与「减少动态」下动画根本不生效，
+      元素保持基础样式 = 正常可见；写成 opacity:0 的隐藏态就会空白一片。
+   2) 卡片的 transform（3D 倾斜）与 translate（--home-lift 上浮）**已被占用**
+      （home.css:512-517、about.css:153 的注释写明"避免两套 transform 互相覆盖"）。
+      所以这里只动 opacity 与**独立 scale 属性**：用 transform 或 translate 配 fill:both
+      会把它们永久钉住，把 hover 的倾斜与上浮整个废掉（site.js:35-37 记过同一类坑）。
+   3) 伪元素占用：.skill-card::before 是光晕层（home.css:551），所以"阅读脊"用 ::after。
+   ============================================================================ */
+
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    /* —— Projects：8 张小卡按各自进场进度落位，左右两列错开（读起来是从左到右推进）—— */
+    .projects-grid .project-card {
+      animation: hn-card-settle linear both;
+      animation-timeline: view();
+      animation-range: entry 10% entry 55%;
+    }
+    .projects-grid .project-card:nth-child(even) {
+      animation-range: entry 20% entry 65%;
+    }
+
+    /* —— Projects：featured 卡的特性清单逐条点亮。
+       ⚠️ 必须用 cover 而不是 entry：.feature-list li 只有约 30px 高，
+       而 **entry 区间长度 = 元素自身高度** ⇒ entry 34%→82% 只对应约 14px 滚动量，
+       实测"逐条点亮"退化成几乎同时闪出来（中间态采样为 0）。
+       cover 区间 ≈ 视口高 + 元素高 ≈ 830px，32% 就有约 265px 的窗口，才读得出顺序。 —— */
+    .project-featured .feature-list li {
+      animation: hn-item-light linear both;
+      animation-timeline: view();
+      animation-range: cover 18% cover 42%;
+    }
+    .project-featured .feature-list li:nth-child(2) { animation-range: cover 25% cover 49%; }
+    .project-featured .feature-list li:nth-child(3) { animation-range: cover 32% cover 56%; }
+    .project-featured .feature-list li:nth-child(4) { animation-range: cover 39% cover 63%; }
+
+    /* —— Skills：3 张卡错峰落位 —— */
+    .skills-grid .skill-card {
+      animation: hn-card-settle linear both;
+      animation-timeline: view();
+      animation-range: entry 18% entry 62%;
+    }
+    .skills-grid .skill-card:nth-child(2) { animation-range: entry 26% entry 70%; }
+    .skills-grid .skill-card:nth-child(3) { animation-range: entry 34% entry 78%; }
+
+    /* —— Skills：左侧"阅读脊"随进度由 0 长到 1（与 ④ 阅读进度条同一套语言）—— */
+    .skills-grid .skill-card::after {
+      animation: hn-spine linear both;
+      animation-timeline: view();
+      animation-range: entry 20% entry 75%;
+    }
+    .skills-grid .skill-card:nth-child(2)::after { animation-range: entry 28% entry 83%; }
+    .skills-grid .skill-card:nth-child(3)::after { animation-range: entry 36% entry 91%; }
+  }
+}
+
+@keyframes hn-card-settle {
+  from { opacity: 0.3; scale: 0.985; }
+  to   { opacity: 1;   scale: 1; }
+}
+
+@keyframes hn-item-light {
+  from { opacity: 0.25; }
+  to   { opacity: 1; }
+}
+
+@keyframes hn-spine {
+  from { transform: scaleY(0); }
+  to   { transform: scaleY(1); }
+}
+
+/* Skills 卡里那条脊线的基础态：scaleY(0)（与 ④ 进度条同样的取舍——
+   没有时间轴/减少动态时不显示，而不是常亮一根） */
+.skill-card {
+  position: relative;   /* 脊线的定位基准 */
+}
+
+.skills-grid .skill-card::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 14px;
+  bottom: 14px;
+  width: 2px;
+  border-radius: 0 2px 2px 0;
+  background: var(--home-accent);
+  transform: scaleY(0);
+  transform-origin: 50% 0;
+  pointer-events: none;
+}
+
+/* —— 段内吸附锚点：**试过并否决**（2026-10-12，留此记录以免有人再试一遍）——
+   曾让 .project-featured 在整段 1500px 里 position: sticky; top: 84px，
+   让 8 张小卡从它上方滚过（press-stack 机制）。实测结果：
+     · 钉住确实生效：连续 16 次采样 top 恒为 84px，段末才释放；
+     · 但网格与它的重叠达 289088px²，截图里这张 270px 高的**带正文卡片**
+       被升起的小卡切掉大半、又与悬浮导航叠在一起，顶部只剩半行被截断的文字。
+   结论：读起来是"卡片被压坏了"，不是有意的层叠。依赖"用不透明的后续内容
+   盖住一个正在被阅读的卡片"的机制只适合整屏场景（cases/press-stack 的九个 100vh 屏幕），
+   不适合卡片本身。撤掉吸附，把这一段动效预算给"每张卡自己的进场状态"。
+   （另：吸附容器里的子元素其 view() 进度会在钉住期间冻结，两个机制本就不能并存。） */
+
+/* ============================================================================
+   ⑮ 首页章节轴（右侧位置指示）—— 功能性指示，零依赖，减少动态下保留
+   ----------------------------------------------------------------------------
+   它回答"我在这一页的哪一段"，并且可以直接跳段 —— 对应审计 B4「预算全烧在首屏」
+   的另一半：把"位置感"分给整页，而不是在首屏再加一层装饰。
+   与阅读进度条（④）、目录高亮（⑤）同口径：只随用户滚动变化、没有自主动画，
+   所以减少动态下**保留**，只由 home.css:1405 的全局网把过渡压成瞬时。
+
+   ≥1280px 才显示（与文章页粘性目录同断点）；≤1279px 隐藏，避免挤占正文。
+   当前项由 motion.js 的 initAxis() 打 .is-active + aria-current="true"
+   （阈值线 120px、100ms 节流、刻意不挂 rAF —— 与目录高亮同一理由，见 motion.js 注释）。
+
+   可读性取舍：圆点与标签平时是暗的，但**当前段的名字始终可见**
+   （.is-active .home-axis-label 的 opacity 为 1），所以即使把过渡全关掉，
+   这个指示器依然读得出"现在是哪一段"，不会退化成一排没意义的点。
+   ============================================================================ */
+
+.home-axis {
+  display: none;
+}
+
+@media (min-width: 1280px) {
+  .home-axis {
+    display: block;
+    position: fixed;
+    right: clamp(16px, 2vw, 28px);
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 40;             /* 低于阅读进度条(60)与灯箱，高于正文 */
+    pointer-events: none;    /* 整条竖带不挡正文交互，只有条目本身可点 */
+  }
+
+  .home-axis ol {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 14px;
+  }
+
+  .home-axis a {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    pointer-events: auto;
+    text-decoration: none;
+    color: var(--home-faint);
+  }
+
+  .home-axis-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    border: 1px solid currentColor;
+    opacity: 0.6;
+    flex: none;
+  }
+
+  .home-axis-label {
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+    /* 默认半显而不是 opacity:0 —— 它是链接的可访问名，不是装饰层：
+       全隐藏会让这条轴退化成一排没意义的点，也会被"内容有没有被卡在隐藏态"的判据
+       正确地判为隐藏态（隐藏态豁免只适用于 aria-hidden 的纯装饰）。
+       measurement: 2 字标签 + 圆点总宽 ≈40px，1280px 断点下距版心仍有约 12px 余量。 */
+    opacity: 0.5;
+    transform: translateX(4px);
+  }
+
+  .home-axis a:hover .home-axis-label,
+  .home-axis a.is-active .home-axis-label {
+    opacity: 1;
+    transform: none;
+  }
+
+  .home-axis a:hover {
+    color: var(--home-text);
+  }
+
+  .home-axis a.is-active {
+    color: var(--home-accent);
+  }
+
+  .home-axis a.is-active .home-axis-dot {
+    opacity: 1;
+    background: var(--home-accent);
+    border-color: var(--home-accent);
+    transform: scale(1.35);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .home-axis a,
+    .home-axis-dot,
+    .home-axis-label {
+      transition: opacity var(--dur-micro) var(--home-ease-out),
+                  transform var(--dur-micro) var(--home-ease-out),
+                  color var(--dur-micro) var(--home-ease-out),
+                  background-color var(--dur-micro) var(--home-ease-out);
+    }
+  }
+}
+
+
 
 

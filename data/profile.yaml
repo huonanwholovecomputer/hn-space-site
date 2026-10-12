@@ -14,9 +14,14 @@ bio:
   - "参加过第 28 届中国机器人及人工智能大赛（四足仿生机器人），省赛一等奖、国赛一等奖；也以「打星队」名义征战过 2026 ICPC 陕西省赛。"
 
 highlights:
-  - value: "2"
+  # dynamic: postCount ⇒ 值与注由 layouts/index.html 实时计算
+  #   （篇数 = 实际文章数，字数 = 各篇 .RawContent 的 rune 数）。
+  #   写死数字会和同屏代码卡里的模板值互相矛盾（2026-10-12 审计 A8 命中：同屏"2 篇"vs"5 篇"）。
+  #   value/note 仅作为模板取不到时的回退文案。
+  - dynamic: postCount
+    value: ""
     label: "篇长教程"
-    note: "合计近万字，覆盖开发环境与系统重装"
+    note: "覆盖开发环境与系统重装"
   - value: "10"
     label: "个开源项目"
     note: "GitHub 持续更新：打印工具、截图、脚本工具、键鼠自动化、本站源码与校园网研究"

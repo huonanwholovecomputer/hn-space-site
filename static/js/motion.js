@@ -244,7 +244,13 @@
    * 只存在于首页；其它页面 querySelector 返回 null，直接不介入 —— 所以
    * init()/onResize() 里可以无条件调用它。
    * ------------------------------------------------------------------------ */
-  var AXIS_LINE = 120;   /* 判定线：视口顶部往下 120px（在悬浮导航 44+10 之下） */
+  /* 判定线：视口高度的 40%，**每次判定时实时算**（不要写死成固定像素）。
+     原来写死 120px，缺陷是"段标题要几乎顶到视口最上面才切换"：段的 padding-top 是
+     84px，段顶比标题还高 84px ⇒ 读者明明已经在看某一段的标题（实测它在视口约 1/3 处），
+     轴还停在上一段、整整滞后一个段落（2026-10-12 用户的截图就是如此：画面主体已是
+     「我在做什么」，轴高亮的却还是「事实」）。
+     取"视口比例"而不是"顶部固定值"，是为了在高矮不同的窗口里保持同一套感知口径。 */
+  var AXIS_LINE_RATIO = 0.4;
   var AXIS_OFFSET = 84;  /* 跳转落点让开导航，与文章页粘性目录的 top:84px 同口径 */
   var axisCleanup = null;
 
@@ -287,13 +293,14 @@
     /* 当前段 = 最后一个"顶边已越过判定线"的段；首屏（还没到 #about）时没有当前段 */
     function pick() {
       var best = null;
+      var line = (window.innerHeight || 0) * AXIS_LINE_RATIO;
       for (var k = 0; k < targets.length; k++) {
-        if (targets[k].el.getBoundingClientRect().top <= AXIS_LINE) best = targets[k].link;
+        if (targets[k].el.getBoundingClientRect().top <= line) best = targets[k].link;
       }
       /* 末尾兜底：滚到文档底部时强制激活最后一段。
-         最后一段的顶边可能**永远**越不过判定线（文档已到底、滚不动了），
-         不兜的话页面最底部会显示成上一段 —— 指示器就在撒谎。
-         实测：页高 5194 / 视口 802 ⇒ 最大 scrollY=4392，此时 #contact 的 top=208 > 120。 */
+         末段的顶边可能越不过判定线（视口越高越容易发生：视口 1200 时页底 #contact 的
+         顶边在 606px、而线在 480px），不兜的话页面最底部会显示成上一段 —— 指示器就撒谎。
+         所以这条按"是否已滚到文档末尾"判断，而不是依赖判定线（判定线会随视口高度变）。 */
       var doc = document.documentElement;
       if (doc && window.innerHeight + (window.pageYOffset || window.scrollY || 0) >= doc.scrollHeight - 2) {
         best = targets[targets.length - 1].link;

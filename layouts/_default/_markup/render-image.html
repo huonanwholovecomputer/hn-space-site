@@ -1,0 +1,50 @@
+{{- /* 项目侧覆盖主题的同名钩子（themes/PaperMod/layouts/_markup/render-image.html）——
+     覆盖原因只有一个：**给图片补上真实像素尺寸**。
+
+     为什么必须补：本站长文页正文里 157 张图（全站 251 处图片引用）此前**全部没有
+     width/height**。它们是 loading="lazy" 的，加载前浏览器不知道要占多高 ⇒ 页高随滚动
+     持续增长（2026-10-12 实测那篇 25 屏长文：23,233px → ~78,000px，抖动 54,880px）⇒
+     阅读进度条的进度变非线性，**目录/锚点跳到"尚未加载图片"下方的标题会落错位置**。
+     补上尺寸后浏览器按宽高比预留高度，页高从首帧就是对的。
+
+     下面 1–14 行照抄主题原逻辑（资源解析与 src 计算、RawQuery/Fragment 拼接），
+     以保证覆盖它时不丢任何行为；只多了 $dims 一段与 decoding="async"。
+     merge 的语义是"先者优先、后者只补缺失键"，所以优先级为
+     作者显式属性 > 计算出的尺寸 > 默认值。 */ -}}
+{{- $u := urls.Parse .Destination -}}
+{{- $src := $u.String -}}
+{{- if not $u.IsAbs -}}
+  {{- $path := strings.TrimPrefix "./" $u.Path }}
+  {{- with or (.PageInner.Resources.Get $path) (resources.Get $path) -}}
+    {{- $src = .RelPermalink -}}
+    {{- with $u.RawQuery -}}
+      {{- $src = printf "%s?%s" $src . -}}
+    {{- end -}}
+    {{- with $u.Fragment -}}
+      {{- $src = printf "%s#%s" $src . -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}
+{{- /* 真实尺寸：只对"站内静态文件"取（本站图片都在 static/ 下、形如 /posts/x/media/y.webp）。
+       外链、data:、含查询串/锚点、以及 fileExists 查不到的一律跳过（留给浏览器按原样处理）。
+       images.Config 在 Hugo 0.117+ 可用（本机 0.164），webp 也支持。 */ -}}
+{{- $dims := dict -}}
+{{- if and (not $u.IsAbs) (hasPrefix $u.Path "/") (not $u.RawQuery) (not $u.Fragment) -}}
+  {{- $fsPath := printf "static%s" $u.Path -}}
+  {{- if fileExists $fsPath -}}
+    {{- with images.Config $fsPath -}}
+      {{- /* 必须显式转成字符串：下面的输出沿用主题的 printf "%s=%q"，
+           %q 作用在 int 上会当成 rune 格式化（1000 → 'Ϩ'、1600 → 'ـ'），
+           数字看起来"有值"但属性是乱码字符。 */ -}}
+      {{- $dims = dict "width" (printf "%d" .Width) "height" (printf "%d" .Height) -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}
+{{- $attributes := merge .Attributes $dims (dict "alt" .Text "src" $src "title" (.Title | transform.HTMLEscape) "loading" "lazy" "decoding" "async") -}}
+<img
+  {{- range $k, $v := $attributes -}}
+    {{- if $v -}}
+      {{- printf " %s=%q" $k $v | safeHTMLAttr -}}
+    {{- end -}}
+  {{- end -}}>
+{{- /**/ -}}

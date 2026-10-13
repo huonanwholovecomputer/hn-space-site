@@ -187,7 +187,9 @@ body.page-posts .read-progress {
   pointer-events: none;
   transform-origin: 0 50%;
   transform: scaleX(0);   /* 无滚动时间轴时不可见，而不是常亮一整条 */
-  background: linear-gradient(90deg, var(--home-accent), #a78bfa);
+  /* 同色系两档蓝，而不是原来的"蓝 → 紫"（#a78bfa）：蓝紫渐变是 AI 演示页最典型的
+     配色俗套，而站内唯一强调色就是蓝（--home-accent）。 */
+  background: linear-gradient(90deg, var(--home-accent), #60a5fa);
 }
 
 @supports (animation-timeline: scroll()) {
@@ -704,6 +706,18 @@ html.lenis body {
     pointer-events: auto;
     text-decoration: none;
     color: var(--home-faint);
+    position: relative;      /* 下面那个命中区伪元素的定位基准 */
+  }
+
+  /* 命中区扩展到 45×32：标签实测只有 41×20，按 WCAG 2.5.8（AA 要求 24×24）不达标。
+     用伪元素扩展而不是加 padding，是为了**外观一个像素都不变**：ol 的 gap 是 14px，
+     上下各扩 6px 正好吃掉 12px、相邻条目之间仍留 2px 不重叠（重叠会让上一条的
+     下半截点不到）。想达到 AAA 的 44×44 需要把整列从 204px 撑到 264px、视觉上会
+     明显变松，本次不做。 */
+  .home-axis a::after {
+    content: '';
+    position: absolute;
+    inset: -6px -4px;
   }
 
   .home-axis-dot {

@@ -110,3 +110,12 @@ img {
   margin-left: 0.5em;
   font-size: 0.85em;
 }
+
+/* 导航 logo：主题的 header partial 只给了 height（默认 "30"）、没有 width ⇒
+   图片解码之前浏览器算不出宽度，只能先按 0 宽参与布局，于是**每页**加载时整排导航
+   都会向右跳一下。站点图标是 512×512 的方图，补上 aspect-ratio 就能在解码前定出宽度。
+   （2026-10-12 全站图片尺寸盘点时发现：全站 306 张 <img> 里 47 张缺宽度的都是它。）
+   注意：若将来把 logo 换成非方图，这条要改成真实宽高。 */
+img[aria-label='logo'] {
+  aspect-ratio: 1 / 1;
+}

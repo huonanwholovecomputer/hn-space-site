@@ -34,7 +34,16 @@
 (function () {
   'use strict';
 
-  var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  /* 减少动态：**允许运行时切换**。Windows 的"减少动态效果"是随时可改的系统设置，
+     Chrome 会实时更新 matchMedia；deepseek-effects.css 里已不再用 display:none 兜底
+     （那会让 reduce 用户拿到没有任何纹理的空首屏），所以这里必须真的能实时生效。
+     帧循环每次收尾都读这个变量：切成 true 时会在当前帧之后自然停下、不再排 rAF
+     （见 :687/:754 与波浪层的 :1009/:1028）。 */
+  var motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+  var reduced = motionQuery.matches;
+  if (typeof motionQuery.addEventListener === 'function') {
+    motionQuery.addEventListener('change', function (e) { reduced = e.matches; });
+  }
   var coarse = window.matchMedia('(hover: none), (pointer: coarse)').matches;
 
   /* ---------- 小工具 ---------- */

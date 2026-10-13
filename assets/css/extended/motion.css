@@ -380,6 +380,13 @@ body::after {
     flex-wrap: wrap;
     justify-content: center;
   }
+  /* 模板为了无缝循环把内容复制成了**两份完全相同**的分组；轨道一旦改成静态铺开，
+     两份就会显示成上下两行同一个列表（2026-10-12 实测：轨道 63px、两组 top 3761/3792）。
+     只留第一份。.tech-ticker-group 本身是单行 flex（条目 white-space: nowrap），
+     所以"组的数量 = 行数"，隐藏第二份就回到单行。 */
+  .tech-ticker-group + .tech-ticker-group {
+    display: none;
+  }
 }
 
 /* ============================================================================

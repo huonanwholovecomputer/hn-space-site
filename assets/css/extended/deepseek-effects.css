@@ -199,15 +199,30 @@ html.js .home-hero.has-ds-grid::before {
     display: none !important;
   }
 }
+/* 减少动态：**不再隐藏这三层画布**。
+   它们不是"动效"而是首屏的底色纹理，而 JS 侧本来就是「只画一帧就停」——
+   deepseek-effects.js 的帧循环在 (reduced && drawnOnce) 时自行停掉、且不再排 rAF
+   （:687/:754 与波浪层的 :1009/:1028 同构）；网格层在 reduce 下根本不初始化，
+   画布保持透明（不画东西，也看不见）。
+   之前这里 display:none 的代价比"少了动效"大得多：画布不可见 ⇒ IntersectionObserver
+   永远报"未进入视口" ⇒ **JS 连那一帧都不会画**（2026-10-12 实测：三个画布的缓冲区
+   仍是默认的 300×150，连尺寸都没量过），减少动态用户拿到的是一个纯渐变、没有任何
+   纹理的空首屏。
+   上面触屏那条 display:none 保持不变：手机端 WebGL 液态常渲染失败，而 mask 遮罩层
+   仍会显出半透明色块（那块区域发灰），那条是为观感兜底的。 */
+
+/* 减少动态：只隐藏网格层。
+   网格层在 reduce 下**根本不会初始化**（deepseek-effects.js 的 initDotGrid 提前 return），
+   所以留下的是一块 1440×630 的透明画布：既看不出来、又白占一个合成层。
+   它本身是"鼠标靠近会弹"的交互件，没有静态形态可留；液态/波浪则相反——它们是底色纹理，
+   而且 JS 会各画一帧后停下，所以那两层**要留着**（见上面那段注释）。 */
 @media (prefers-reduced-motion: reduce) {
-  .hero-fx-fluid,
-  .hero-fx-wave,
   .hero-fx-grid {
     display: none !important;
   }
 }
 
-/* 减少动态：关掉反色环（网格/流体由 JS 直接停用） */
+/* 减少动态：关掉反色环（它是跟随指针的交互件，不是底色纹理） */
 @media (prefers-reduced-motion: reduce) {
   .ds-cursor-ring {
     display: none;

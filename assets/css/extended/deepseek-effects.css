@@ -43,11 +43,15 @@
   position: relative;
   margin-inline: calc(50% - 50vw);
   background: linear-gradient(180deg, var(--home-hero-wash) 0%, transparent 100%);
-  /* 液态背景往下延伸多少：量测值——wrap 下沿到下一段标题文字是 102px 的空缺
-     （下方 .home-highlights 的 padding-top 84px + 段头内部偏移 18px），
-     这里取约一半再多一点，让流动的光晕落到空缺中段而不是停在 wrap 边界上。
+  /* 液态背景往下延伸多少：**与紧随其后那一段的段顶距同源**（约 85%）。
+     2026-10-12 实测修正了两处旧说法：注释里原先写"空缺 102px = 84 + 段头内部偏移 18px"，
+     实测 wrap 下沿 → 下一段标题上沿**正好是段顶距本身（84px）**，没有那 18px；
+     而 extend 当时是 108~120 ⇒ 光晕其实**超出标题上沿 24~36px**（落点在空缺的 129%~143% 处），
+     与"落到空缺中段"的说法相反（只是靠 `.home-hero-wrap + .home-section { z-index:1 }` 兜着，
+     没压在文字上而已）。现在 #highlights 的段顶距收紧到 56px，extend 同步收到 48px
+     （= 56 × 0.857），光晕重新落进空缺里。
      用 clamp 跟随视口，与 .home-section 的 padding 同源变化。 */
-  --hero-fx-extend: clamp(56px, 8.4vw, 120px);
+  --hero-fx-extend: clamp(26px, 3.9vw, 48px);
 }
 
 .hero-fx {
@@ -73,8 +77,9 @@
 /* 液态渐变 + 波浪扰动层：覆盖整个容器（hero + About）+ 下面延伸出来的那一段，向下淡出。
    画布不透明绘制（平静色=主题底色 → 与页面背景一致），mask 淡出区露出纯背景，同样无缝。
    mask 的两个停靠值：
-     · 53% = 让"完全不透明"的那一段**像素位置与延伸前一致**（原来 58%×1199px=695px，
-       延伸后 53%×1319px≈699px），也就是只有尾巴被拉长，上中部观感不变；
+     · 56% = 让"完全不透明"的那一段**像素位置与前几版一致**（实测：extend 120 时
+       53%×(wrap 1169 + 120) = 683px；现在 extend 48 ⇒ 683/(1169+48) = 56.1%，取 56%）。
+       **这个百分比必须随 --hero-fx-extend 一起改**，否则尾部渐隐的起点会跟着层高漂移；
      · 收尾写到 100%（原来是 95%）——比例停靠会让盒子最底部固定有一截全透明，
        延伸的那段就永远看不见，所以尾部必须收到图层盒的下沿。 */
 .hero-fx-fluid {
@@ -83,8 +88,8 @@
   width: 100%;
   height: 100%;
   opacity: var(--ds-fluid-opacity);
-  -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 53%, transparent 100%);
-  mask-image: linear-gradient(180deg, #000 0%, #000 53%, transparent 100%);
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 56%, transparent 100%);
+  mask-image: linear-gradient(180deg, #000 0%, #000 56%, transparent 100%);
 }
 
 .hero-fx-wave {
@@ -93,8 +98,8 @@
   width: 100%;
   height: 100%;
   opacity: var(--ds-wave-opacity);
-  -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 53%, transparent 100%);
-  mask-image: linear-gradient(180deg, #000 0%, #000 53%, transparent 100%);
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 56%, transparent 100%);
+  mask-image: linear-gradient(180deg, #000 0%, #000 56%, transparent 100%);
 }
 
 /* 交互网格：仅覆盖 hero（放在 .home-hero 内），向下淡出 */

@@ -97,6 +97,23 @@ main.main:has(.home-page) {
   padding: clamp(44px, 7vw, 84px) 0;
 }
 
+/* 段距**不一律相同**（审计 A3：6 段 padding 完全一致 ⇒ 内容不像模板、骨骼像）。
+   只动两端的段顶距，中间四段保持上面的 84px 节奏，读起来才是"有意图的变化"
+   而不是"每段随机不同"：
+     · 首屏之后那一段收紧到 56px —— "hero → 内容"这一跳更利落；
+     · 最后一段（联系）放宽到 120px —— 尾部面板前面留出收束感。
+   两个 clamp 与 .home-section 同源（44→84 的区间按比例缩放），所以各视口下
+   的关系保持一致。注意：改 #highlights 的段顶距必须**同步改**
+   deepseek-effects.css 的 --hero-fx-extend（首屏液态层往下铺多少与它同源，
+   不同步就会把光晕甩进标题区）。 */
+#highlights {
+  padding-top: clamp(30px, 4.6vw, 56px);
+}
+
+#contact {
+  padding-top: clamp(64px, 10vw, 120px);
+}
+
 .section-head {
   display: flex;
   align-items: baseline;

@@ -47,8 +47,10 @@
           <span class="avatar-status">持续学习中</span>
         </div>
         <div class="hero-code-card" aria-hidden="true">
-          <div class="code-dots"><i></i><i></i><i></i></div>
-          {{/* 数字改成实时统计：原来写死"2 篇长教程"，已经有 4 篇了 */}}
+          {{/* 2026-10-12：删掉三颗"假交通灯"圆点（design-slop A7 的「假 chrome」——
+               红黄绿三色 + 一条分隔线，把它读成"假终端窗口套 <pre>"）。
+               去掉后就是一个普通的代码/引用块，信息一个字没少。
+               提醒：下面 post 数走模板实时统计，别再写死。 */}}
           <pre>~/HN
 ├── posts/      {{ len (where site.RegularPages "Type" "posts") }} 篇长教程
 ├── projects/   {{ len $p.projects }} 个开源项目

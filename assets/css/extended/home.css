@@ -394,31 +394,9 @@ main.main:has(.home-page) {
   overflow: hidden;
 }
 
-.code-dots {
-  display: flex;
-  gap: 6px;
-  padding: 10px 14px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.code-dots i {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.22);
-}
-
-.code-dots i:nth-child(1) {
-  background: #f87171;
-}
-
-.code-dots i:nth-child(2) {
-  background: #fbbf24;
-}
-
-.code-dots i:nth-child(3) {
-  background: #34d399;
-}
+/* 2026-10-12：原 .code-dots（三颗红黄绿圆点 + 一条分隔线）已删 —— design-slop 闸门 A7
+   把"手绘圆点 + 给 <pre> 套窗口框"判成"假 chrome"（假终端/IDE 窗）。
+   去掉后 .hero-code-card 就是一个普通的代码/引用块。 */
 
 .hero-code-card pre {
   margin: 0;

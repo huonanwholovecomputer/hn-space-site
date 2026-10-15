@@ -29,6 +29,7 @@
        外链、data:、含查询串/锚点、以及 fileExists 查不到的一律跳过（留给浏览器按原样处理）。
        images.Config 在 Hugo 0.117+ 可用（本机 0.164），webp 也支持。 */ -}}
 {{- $dims := dict -}}
+{{- $ratio := "" -}}
 {{- if and (not $u.IsAbs) (hasPrefix $u.Path "/") (not $u.RawQuery) (not $u.Fragment) -}}
   {{- $fsPath := printf "static%s" $u.Path -}}
   {{- if fileExists $fsPath -}}
@@ -37,10 +38,26 @@
            %q 作用在 int 上会当成 rune 格式化（1000 → 'Ϩ'、1600 → 'ـ'），
            数字看起来"有值"但属性是乱码字符。 */ -}}
       {{- $dims = dict "width" (printf "%d" .Width) "height" (printf "%d" .Height) -}}
+      {{- /* 宽高比 W/H，作为 CSS 变量写进 style 属性，供"把高度上限换算成宽度上限"用：
+           extend_head.html 的 `max-width: min(88%, calc(50vh * var(--hn-wh)))`。
+           为什么要绕这一道：只有 max-height 才等比约束"auto 尺寸"，而本站图片为了页高预留
+           必须保留确定的 width 属性 ⇒ 直接写 max-height 只会压高度、把图压扁
+           （2026-10-15 实测：全站 254 张里 97 张变形，最严重 1176×2999 → 743×450）。
+           把宽度上限收紧到 50vh×(W/H) 就等价于"高度不超过 50vh"，且宽度仍是确定值
+           ⇒ 高度上限、等比、页高预留三者同时成立。5 位小数足够（450px 量级上误差 0.01px）。 */ -}}
+      {{- $ratio = printf "%.5f" (div (float .Width) (float .Height)) -}}
     {{- end -}}
   {{- end -}}
 {{- end -}}
-{{- $attributes := merge .Attributes $dims (dict "alt" .Text "src" $src "title" (.Title | transform.HTMLEscape) "loading" "lazy" "decoding" "async") -}}
+{{- /* style 属性：先放 --hn-wh，再把作者自己写的 style 原样接在后面（不能覆盖它）。
+     变量名里**不能出现 "width" 字样**：本站"手写宽度豁免"是靠 `img[style*="width"]`
+     这类选择器判定的，变量名带 width 会让普通图片被误判成手写宽度的图、从而关掉宽度上限。 */ -}}
+{{- $style := "" -}}
+{{- if $ratio }}{{ $style = printf "--hn-wh:%s" $ratio }}{{ end -}}
+{{- with (index .Attributes "style") -}}
+  {{- if $style }}{{ $style = printf "%s;%s" $style . }}{{ else }}{{ $style = . }}{{ end -}}
+{{- end -}}
+{{- $attributes := merge (dict "style" $style) .Attributes $dims (dict "alt" .Text "src" $src "title" (.Title | transform.HTMLEscape) "loading" "lazy" "decoding" "async") -}}
 <img
   {{- range $k, $v := $attributes -}}
     {{- if $v -}}

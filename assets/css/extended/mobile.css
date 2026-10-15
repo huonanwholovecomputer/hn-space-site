@@ -231,13 +231,21 @@
     font-size: 15px;
   }
 
-  /* 文章图片：桌面 80% 在手机上过小，放宽到 95%。
+  /* 文章图片：桌面 88% 在手机上过小，放宽到 95%。
      选择器带 .md-content/.post-content 前缀提升优先级，
-     覆盖 extend_head.html 内联样式里的 80% 上限；
-     手动指定宽度的图（如 width:100% 封面）不受影响。 */
-  .post-content .math-img-box,
+     覆盖 extend_head.html 内联样式里的 88% 上限；
+     手动指定宽度的图（如 width:100% 封面）不受影响。
+
+     注意 img 那两条必须保留 `min(…, calc(50vh * var(--hn-wh)))` 部分：
+     桌面侧"竖长图高度不超过 50vh"就是靠它实现的（钩子写 --hn-wh = W/H，
+     把高度上限换算成宽度上限）。这里只写 max-width: 95% 会把这层上限**整个顶掉**，
+     手机上的竖长图就恢复成"按宽度铺满、要多高有多高"。 */
+  .post-content .math-img-box {
+    max-width: 95%;
+  }
+
   .post-content .math-img-box img,
   .md-content .post-content img {
-    max-width: 95%;
+    max-width: min(95%, calc(50vh * var(--hn-wh, 999)));
   }
 }

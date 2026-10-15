@@ -230,11 +230,32 @@
   /* 块级公式居中、边界，避免溢出窄屏 */
   .katex-display { overflow-x: auto; overflow-y: hidden; padding: 0.4em 0; }
 
-  /* 文章内图片：默认限制显示宽度为内容区 ~88%，居中，避免大图撑满。
-     点击图片可放大查看原图（lightbox 位于本文件底部）。竖长图按高度适配。 */
-  .post-content img { max-width: 88%; height: auto; border-radius: 6px; margin: 0.2em auto; }
+  /* 文章内图片：默认限制显示宽度为内容区 ~88%，居中，避免大图撑满；
+     竖长图另按"高度不超过 50vh"收缩成窄图（比例不变）。点击可放大看原图（lightbox 在文件底部）。
+
+     ⚠️ 高度上限**只能**用"宽度上限"来表达，不能直接写 max-height：
+     图片渲染钩子（layouts/_default/_markup/render-image.html）给每个 <img> 补了真实像素
+     `width="561" height="1177"`（为了解码前就预留高度、避免页高抖动），这条 width 是**确定值**，
+     而 max-height 的等比约束只作用于 auto 尺寸（CSS 2.1 §10.7）⇒ 浏览器只压高度、不缩宽度，
+     561×1177 被显示成 561×450，压扁 62%（2026-10-15 实测：全站 254 张里 97 张变形，
+     最严重 1176×2999 → 743×450，−76%）。
+
+     现在的做法：钩子把宽高比写进 `--hn-wh`（= W/H），这里把 50vh 的高度上限换算成宽度上限
+     `50vh × (W/H)`：显示高度 = 显示宽度 ÷ (W/H) ≤ 50vh，等价于高度上限，而且**宽度仍是确定值**
+     ⇒ 高度上限、等比、页高预留三者同时成立（561×1177 → 214×450，比例 2.098 与自然一致）。
+
+     走过的弯路（别再走）：
+       · 加 `width: auto`：比例能修好，但宽度不再是确定值，解码前只能按默认对象尺寸（300px 宽）
+         预留盒子 ⇒ 页高抖动整条回归（/posts/01 实测 23233 → 78113，增长 54880px，正是 10-12 号
+         宽度钩子修掉的那个数字）。
+       · 只用 max-height + object-fit: contain：盒子仍是 561 宽，阴影/圆角会画在空盒子上，
+         悬浮抬起效果会变成一圈宽矩形阴影。
+     变量名里没有 "width" 字样是刻意的：本站"手写宽度豁免"靠 `img[style*="width"]` 判定，
+     带 width 会让普通图片被误判成手写宽度的图、从而关掉宽度上限。兜底值 999 表示"没有比例信息
+     就不加上限"（外链图、data:、裸 HTML 的 <img> 都拿不到 --hn-wh），它们只受 88% 宽度约束。 */
+  .post-content img { max-width: min(88%, calc(50vh * var(--hn-wh, 999))); height: auto; border-radius: 6px; margin: 0.2em auto; }
   .math-img-box { display: block; max-width: 88%; text-align: center; margin: 0.8em auto; }
-  .math-img-box img { display: inline-block; cursor: zoom-in; max-width: 88%; max-height: 50vh; }
+  .math-img-box img { display: inline-block; cursor: zoom-in; max-width: min(88%, calc(50vh * var(--hn-wh, 999))); }
 
   /* 手动控制单张图片宽度：在 Markdown 里写 <img src="..." style="width:XX%"> 时，
      容器不套用全局 max-width（80%），完全尊重手动指定宽度。

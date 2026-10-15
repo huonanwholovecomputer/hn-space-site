@@ -774,6 +774,63 @@ html.lenis body {
   }
 }
 
+/* ============================================================================
+   ⑯ 图片悬浮放大（鼠标移到图片上时轻微放大 + 抬起）
+   ----------------------------------------------------------------------------
+   作用范围 `main img` —— 站内**所有内容区图片**一次性覆盖：文章正文图（含手写
+   `style="width:XX%"` 的封面/窄图）、首页头像、友链头像（它本来就随卡片 hover
+   放大，同一倍数、看不出差别）。导航栏 logo 在 <header> 里、不在 main 内，
+   天然不参与：它只有 30px 高，放大没有信息量、还会顶出导航栏。
+
+   唯一显式排除的是「竞赛证书叠放」(.comp-cert-deck)：它是按钮里两张 22×30px 的
+   缩略图，已有自己的 hover 扇开编排（about.css），通用放大与重阴影只会糊掉那点
+   层叠观感。这里用 `:where()` 包住排除条件 —— `:where()` 权重为 0，所以这条规则
+   仍是 `main img:hover`(0,1,2) 的权重，**不会**压过既有的
+   `.friend-card:hover .friend-avatar img`(0,3,1) 之类规则（否则会给友链头像加上
+   一个本不该有的阴影）。
+
+   为什么只动 transform + box-shadow：
+     · 两者都不参与布局 ⇒ 悬浮时周围文字一个像素都不动，不会重排/抖动；
+     · 正文图本来就由 .math-img-box 居中、宽度上限 88%，放大 6% 后约 93%，
+       仍在内容列内，横向不会越出正文、也不会多出横向滚动条；
+     · 带 transform 的元素会建立层叠上下文（按定位元素那一层绘制），所以放大时
+       自然盖过上下相邻的文字，不需要再动 z-index —— 加 position:relative 会把
+       友链头像的 position:absolute 之类既有规则顶掉。
+
+   减少动态（prefers-reduced-motion: reduce）下整块不生效：图片不放大，
+   与文件顶部安全约定 1 一致。触摸设备没有 hover，(hover: hover) 直接跳过。
+   ============================================================================ */
+
+@media (prefers-reduced-motion: no-preference) and (hover: hover) {
+  main img:where(:not(.comp-cert-deck img)) {
+    transition: transform 320ms var(--home-ease-out, cubic-bezier(0.23, 1, 0.32, 1)),
+                box-shadow 320ms var(--home-ease-out, cubic-bezier(0.23, 1, 0.32, 1));
+  }
+
+  main img:where(:not(.comp-cert-deck img)):hover {
+    transform: scale(1.06);
+    box-shadow: 0 18px 40px -16px rgba(15, 23, 42, 0.4);
+  }
+
+  /* 手写宽度的图（`<img style="width:100%">` 这类封面，全站 3 张）：它们不受正文
+     88% 的宽度上限约束（.math-img-box:has(…[style*="width"]) 的 max-width: none），
+     1.06 会让 100% 宽的封面往左右各越出内容列 3%、在 1000px 这种窄窗口上会被窗口边缘
+     切掉几个像素（实测左/右边缘 −4 / 989，视口 985；没有横向滚动条，但确实被切）。
+     放大倍数收到 1.03：外扩 1.5% ≈ 14px < main 的 24px 内边距，任何窗口宽下都完整。 */
+  main img[style*='width']:hover {
+    transform: scale(1.03);
+  }
+
+  /* 深色主题：纯黑阴影在近黑底上看不出层次（1px 浅色描边才是这里能读到的"抬起"），
+     所以是"浅色细边 + 下沉黑影"两条一起给。
+     权重必须 ≥ 内联样式里的 `html[data-theme="dark"] .post-content img`(0,2,2)，
+     否则会被它那条静止态的 1px 浅色描边盖掉。 */
+  html[data-theme="dark"] main img:where(:not(.comp-cert-deck img)):hover {
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.14),
+                0 18px 40px -14px rgba(0, 0, 0, 0.72);
+  }
+}
+
 
 
 

@@ -27,6 +27,12 @@
       if (!src) return;
       e.preventDefault();
       e.stopPropagation();
+      /* 记住被点的那张原图（元素 + 此刻的视觉矩形）：它就是打开/关闭缩放动画的起点与终点。
+         优先用**真正被点到的那个元素**——证书触发器里叠着两张缩略图，querySelector 只会
+         拿到第一张，用它会让动画从一个用户没点的地方飞出来。 */
+      var tapped = (t && t.tagName === 'IMG') ? t : (img || link);
+      var origin = null;
+      try { origin = { el: tapped, rect: tapped.getBoundingClientRect() }; } catch (eOrigin) { origin = null; }
       /* 多图入口（如竞赛证书）：锚点上带 data-gallery-items 的 JSON，打开画廊；
          没有则按单图打开（文章图片走的就是这条，行为与以前完全一致）。 */
       var items = null;
@@ -48,7 +54,7 @@
           items = null; /* JSON 坏了就退回单图，不阻断查看 */
         }
       }
-      openLightbox(src, (img && img.alt) || link.getAttribute('title') || '', items, 0);
+      openLightbox(src, (img && img.alt) || link.getAttribute('title') || '', items, 0, origin);
     } catch (err) {
       /* 静默：不影响页面其它交互 */
     }
@@ -156,11 +162,136 @@
   var lbCapText = null;
   var lbCapIdx = null;
   var lbLenisWasRunning = false;
+  var lbLenisLocked = false;   /* Lenis 锁是否由本次浮层持有（双击图片会连着开两次，必须幂等）*/
+  var lbRootOverflow = null;   /* 打开前 <html> 的内联 overflow；null = 当前没持有锁 */
+  var lbRootPadRight = null;   /* 打开前 <html> 的内联 padding-right（滚动条补偿要用）*/
+  var lbRootBg = null;         /* 打开前 <html> 的内联 background-color（gutter 压暗要用）*/
+  var lbScrollbarW = 0;        /* 锁定时被回收的**视口布局宽度**（gutter 生效/覆层滚动条时为 0）*/
+  var lbCloseTimer = null;     /* 关闭后"隐藏浮层"的计时器（再次打开要先取消它）*/
+  var lbOrigin = null;         /* { el, rect }：点开大图的那张原图，缩放动画的起点 */
+  var lbZoomAnim = null;       /* 当前入场/退场的 FLIP 缩放动画（WAAPI Animation）*/
+
+  /* 背景滚动锁 —— ★ 必须锁 <html>，绝不能锁 <body>（2026-10-16 修「打开图片后左侧目录消失」）。
+     一句话成因：body 上的 overflow:hidden 会让 .post-toc 的 position:sticky 整个失效。
+
+     机理：overflow 有一条"传播"规则——根元素的 overflow 会作用到视口上；根是 html 且它
+     自己的 overflow 为 visible 时，改由 body 的 overflow 顶上。但 Chrome 在传播之后
+     **仍把 body 当成一个 overflow:hidden 的滚动容器**，于是 float:left + position:sticky
+     的目录（吸附范围=视口，见 motion.css ⑪）的"最近滚动口"变成了 body 这个从头到尾
+     不滚动的盒子 ⇒ 吸附偏移整体不算数，目录退回文档流原位。用户滚到文章深处点图片时，
+     它已经停在视口上方约 7000px 处 ⇒ 观感就是"打开图片后左侧目录莫名其妙消失了"。
+     锁在 <html> 上不触发这条链：视口变成不可滚，sticky 照常吸附、位置正确。
+
+     实证（本机无头 Chrome + CDP，都在 .tools/ 里可复跑）：
+       · lb-repro.mjs        —— 真实鼠标点图前后差分：tocRect.y 84 → -7057（visible true → false）
+       · lb-lock-test.mjs    —— A~G 七种锁法隔离：只有"锁 body"会坏 sticky；
+                               "锁 html"同时拦住 PageDown 与滚轮，sticky 完好（tocY 恒 84）；
+                               html+body 都 overflow:clip 也不坏 sticky，但 clip 连程序化滚动
+                               都禁掉（Lenis 的 window.scrollTo 会失效），所以不用它。
+
+     与 Lenis 的分工：lenis.stop() 会自己给 <html> 挂 .lenis-stopped（同为 overflow:hidden）
+     并掐掉在途惯性；但"减少动态"、搜索页、初始化失败等情况下根本没有 Lenis 实例，
+     锁必须由这里独立提供，不能只靠那个类。 */
+
+  /* 锁本体：只动 <html> 的内联 overflow，不改类名——与 Lenis 的 .lenis-stopped 各管各的，
+     两套同时存在也不会打架（同值，谁先摘都不影响）。
+     幂等（以 lbRootOverflow === null 表示"未持有"）：**双击一张图会连着触发两次 click**，
+     第二次 openLightbox 若把当时的 'hidden' 当成"打开前的值"存下来，关闭时就会还回去
+     ⇒ 页面永久锁死。
+
+     滚动条补偿（2026-10-16 二次修订）：
+     ★ 首选是让视口宽度**根本不变化**——css/extended/scrollbar.css 的
+       `html { scrollbar-gutter: stable }` 让滚动条槽常驻，锁定时视口布局宽度恒定，
+       fixed 元素（悬浮导航 / 回到顶部 / 阅读进度条）一位都不动，文档流也无需补偿。
+       实证：.tools/lb-fixed-jitter.mjs（不注入 vs 注入 gutter，逐元素量 left/right）。
+     ★ 但 gutter 在 Chrome<94 / Firefox<97 / Safari<18.2 上不生效，那里视口会真变宽
+       （Windows 经典滚动条实测 15px：文档流内容跳 7.5px、贴右的 fixed 元素跳 15px；
+       lb-repro 里 TOC 的 x 33 → 40 就是它）。所以这里**实测**被回收的宽度再补。
+
+     量法：临时插一个 `position:fixed; left:0; right:0` 的探针，读它的 rect 宽度——
+     那正是 fixed 元素的包含块(ICB)宽度。锁前量一次、锁完再量一次，差值 > 0 才补
+     padding-right（html 的 padding 不产生滚动容器、也不改变 ICB，所以既不动目录的
+     sticky，又照样把文档流收回去）。比 `if (CSS.supports('scrollbar-gutter', ...))`
+     可靠：不管样式表加载成功与否、将来谁改了 scrollbar.css，它都自洽。
+     差值量不到（覆层滚动条 / gutter 生效 / 页面本来就不可滚）就是 0，什么都不补。
+
+     注：探针量的是 ICB —— 不能用 `window.innerWidth - documentElement.clientWidth`，
+     那个读数在 gutter 生效时锁后仍报 1440（= 1440 - 0），会误判成"被收回 15px"而双重补偿。 */
+  function icbWidth() {
+    var probe = document.createElement('div');
+    probe.style.cssText =
+      'position:fixed;left:0;right:0;top:0;height:0;visibility:hidden;pointer-events:none';
+    document.body.appendChild(probe);
+    var w = probe.getBoundingClientRect().width;
+    probe.remove();
+    return w;
+  }
+
+  /* 解析 computed 颜色 'rgb(r, g, b)' / 'rgba(r, g, b, a)'；解析不了（transparent 等）返回 null */
+  function parseRgb(c) {
+    var m = /rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)(?:[,\s/]+([\d.]+))?\s*\)/.exec(c || '');
+    if (!m) return null;
+    return { r: +m[1], g: +m[2], b: +m[3], a: m[4] === undefined ? 1 : +m[4] };
+  }
+
+  /* gutter 空槽的视觉修补 —— ★ 只能改「画布背景」，页面元素这条路是死的。
+     scrollbar-gutter 保留的那条槽（Windows 实测 15px）**不在页面坐标系里**：
+     锁定时 elementFromPoint(1426) 返回 null，满屏的 fixed 灯箱（rect 明明 0→1440）
+     照样画不进去，截图右侧仍是页面背景色。
+     唯一能填进那条槽的是「画布背景」——根元素背景传播到 canvas 的结果。
+     所以锁定时按遮罩的 alpha 把根背景合成成"隔着遮罩看背景"的颜色，槽就和遮罩融为一体。
+     实测：gutter 亮度 (10,13,19) → (2,2,3)，与遮罩区只差 1 个灰阶；内容区一字未变
+     （body 自带不透明背景把 html 背景盖住了 ⇒ 改它只影响 gutter）。
+     遮罩色与不透明度都从 CSS 现读、不硬编码：改 .math-lightbox-mask 的颜色这里自动跟随。
+     背景是图片/渐变、或读到 transparent 时直接放弃——宁可留一条浅带，也不乱涂。 */
+  function dimCanvasForGutter(root) {
+    var maskEl = lightboxEl && lightboxEl.querySelector('.math-lightbox-mask');
+    var mc = parseRgb(maskEl ? getComputedStyle(maskEl).backgroundColor : '');
+    if (!mc) return;
+    var canvas = parseRgb(getComputedStyle(root).backgroundColor);
+    if (!canvas || canvas.a === 0) canvas = parseRgb(getComputedStyle(document.body).backgroundColor);
+    if (!canvas || canvas.a === 0) return;
+    root.style.backgroundColor = 'rgb(' +
+      Math.round(mc.r * mc.a + canvas.r * (1 - mc.a)) + ', ' +
+      Math.round(mc.g * mc.a + canvas.g * (1 - mc.a)) + ', ' +
+      Math.round(mc.b * mc.a + canvas.b * (1 - mc.a)) + ')';
+  }
+
+  function lockScroll() {
+    var root = document.documentElement;
+    if (lbRootOverflow !== null) {      /* 已持有锁：只确保状态，绝不把 'hidden' 记成"打开前的值" */
+      root.style.overflow = 'hidden';
+      return;
+    }
+    lbRootOverflow = root.style.overflow || '';
+    lbRootPadRight = root.style.paddingRight || '';
+    lbRootBg = root.style.backgroundColor || '';
+    var icbBefore = icbWidth();
+    var winMinusIcb = Math.max(0, Math.round(window.innerWidth - icbBefore));  /* 视口布局宽度比窗口窄多少 */
+    root.style.overflow = 'hidden';
+    lbScrollbarW = Math.max(0, Math.round(icbWidth() - icbBefore));
+    if (lbScrollbarW) root.style.paddingRight = lbScrollbarW + 'px';
+    /* 视口没变宽（gutter 生效）⇒ 右侧留下一条 gutter 空槽，把它压暗成遮罩色 */
+    if (lbScrollbarW === 0 && winMinusIcb > 0) dimCanvasForGutter(root);
+  }
+
+  function unlockScroll() {
+    if (lbRootOverflow === null) return;     /* 本来就没锁：什么都不做（别把别人的锁写坏）*/
+    var root = document.documentElement;
+    root.style.overflow = lbRootOverflow;
+    root.style.paddingRight = lbRootPadRight;   /* 先还宽度再放滚动条，两个方向都不跳 */
+    root.style.backgroundColor = lbRootBg;      /* 画布背景还原（gutter 空槽随之消失）*/
+    lbRootOverflow = null;
+    lbRootPadRight = null;
+    lbRootBg = null;
+    lbScrollbarW = 0;
+  }
 
   /* 浮层与 Lenis 平滑滚动的关系（用户报过"灯箱里滚轮缩放时下面的文章也跟着滚"）：
      Lenis 的滚轮处理器里**没有任何 defaultPrevented 判断**（源码实测），它只认
      ① composedPath 里带 data-lenis-prevent 的元素、② 自身 stopped 状态；
-     而它的滚动是程序化的 window.scrollTo，所以 body{overflow:hidden} 也拦不住它。
+     而它的滚动是程序化的 window.scrollTo，所以 overflow 锁拦不住它
+     （overflow 锁挡的是原生滚动/键盘/滚动条，挡不住它自己写 window.scrollTo）。
      于是三件事一起做：
        · 灯箱元素挂 data-lenis-prevent → Lenis 忽略浮层内的滚轮/触摸；
        · 打开时 stop() → 掐掉进入浮层前残留的惯性滚动；
@@ -168,21 +299,133 @@
   function lockLenis() {
     var lenis = window.__hnLenis;
     if (!lenis || typeof lenis.stop !== 'function') return;
-    lbLenisWasRunning = !lenis.isStopped;
+    if (!lbLenisLocked) {            /* 幂等：双击只会记一次"打开前本来在跑" */
+      lbLenisWasRunning = !lenis.isStopped;
+      lbLenisLocked = true;
+    }
     try { lenis.stop(); } catch (eLock) { /* 忽略：锁不住也不能影响看图 */ }
   }
 
   function unlockLenis() {
+    if (!lbLenisLocked) return;      /* 本来就没锁：不擅自 start 别人停着的 Lenis */
+    lbLenisLocked = false;
     var lenis = window.__hnLenis;
     if (!lenis || typeof lenis.start !== 'function') return;
     if (!lbLenisWasRunning) return;
     try { lenis.start(); } catch (eUnlock) { /* 忽略 */ }
   }
 
+  /* --------------------------------------------------------------------------
+     3a. 打开/关闭的**空间延续**：大图从被点的那张原图的"位置与大小"长出来，
+     关闭时沿同一条路缩回去（FLIP / zoom-from-origin）。
+     --------------------------------------------------------------------------
+     为什么做：灯箱原来只是"图片原地淡入 + 轻微弹一下"，可它打开的东西明明来自页面上
+     一个具体的位置。Apple《Designing Fluid Interfaces》：**从哪里来就回哪里去**，
+     进出走同一条路径、锚定触发它的那个元素，用户才不用重新建立"这是什么、跟刚才那张
+     图什么关系"。这也是 iOS 相册、Chrome 图片查看器共同的做法。
+
+     实现要点（每条都对应一个具体的坑）：
+      ① 用 WAAPI（Element.animate）而不是 CSS keyframes/transition：起点矩形是运行时的
+         几何量，而且**必须可中断**——CSS 动画只能从零重放，长动画途中关闭会看到跳变；
+         WAAPI 能 cancel 掉、再从**当前画面值**接着走。
+      ② 大图的尺寸取 offsetWidth/Height（布局尺寸，与 transform 无关），中心由
+         getBoundingClientRect() **减掉当前内联位移**反推——那个 rect 含 transform，
+         也含正在播放的动画，直接拿它当"布局态"会算错。
+      ③ transform-origin 是元素中心（CSS 默认），于是
+         `translate(dx,dy) scale(s)`：scale 绕自身中心缩放，dx/dy 是"原图中心 − 大图中心"
+         （父坐标系像素，与 scale 无关）。宽高比一致时 sx==sy；本站图片都保住比例
+         （见 motion.css 的 --hn-wh），万一不一致取几何平均——比取 min/max 都不容易
+         在某一轴上明显溢出。
+      ④ 减少动态、拿不到原图矩形、图片还没解码时，整条不做，退回原地弹入。
+     实证：.tools/lb-zoom-check.mjs（暂停 + 逐帧 seek，断言首帧矩形 == 原图矩形）。
+     ========================================================================== */
+  var LB_ZOOM_IN = 380;   /* 入场：原图 → 大图（全屏级的空间转换，比常规 UI 动效长）*/
+  var LB_ZOOM_OUT = 280;  /* 退场：比入场快（Emil：退场永远比入场干脆）*/
+  var LB_EASE = 'cubic-bezier(0.23, 1, 0.32, 1)';  /* 强 ease-out；进出同一条曲线 = 镜像可逆 */
+
+  function reduceMotion() {
+    try {
+      return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    } catch (e) { return false; }
+  }
+
+  function cancelZoomAnim() {
+    if (!lbZoomAnim) return;
+    try { lbZoomAnim.cancel(); } catch (e) { /* 忽略：动画已经结束/被系统取消 */ }
+    lbZoomAnim = null;
+  }
+
+  /* 大图"未变换"时的布局盒：尺寸 + 中心（中心 = 视觉中心 − 当前内联位移）*/
+  function lbLayoutBox() {
+    if (!lbImg) return null;
+    var w = lbImg.offsetWidth, h = lbImg.offsetHeight;
+    if (!w || !h) return null;                    /* 还没解码 ⇒ 没有布局盒，不能做 FLIP */
+    var r = lbImg.getBoundingClientRect();
+    return {
+      w: w,
+      h: h,
+      cx: (r.left + r.right) / 2 - (lbState.tx || 0),
+      cy: (r.top + r.bottom) / 2 - (lbState.ty || 0)
+    };
+  }
+
+  function flipTransform(rect, box) {
+    if (!rect || !box || !rect.width || !rect.height) return null;
+    var s = Math.sqrt((rect.width / box.w) * (rect.height / box.h));
+    if (!isFinite(s) || s <= 0) return null;
+    var dx = (rect.left + rect.width / 2) - box.cx;
+    var dy = (rect.top + rect.height / 2) - box.cy;
+    return 'translate(' + dx + 'px, ' + dy + 'px) scale(' + s + ')';
+  }
+
+  /* 原图此刻的视觉矩形：元素还在文档里就现取（更准——hover 放大、换图版本都能跟上），
+     否则用打开时的快照。 */
+  function originRectNow() {
+    if (!lbOrigin) return null;
+    if (lbOrigin.el && lbOrigin.el.isConnected) {
+      try {
+        var r = lbOrigin.el.getBoundingClientRect();
+        if (r.width && r.height) return r;
+      } catch (e) { /* 忽略：退回快照 */ }
+    }
+    return lbOrigin.rect;
+  }
+
+  /* 入场：从原图长到居中大图。返回是否真的播了动画（false = 调用方走退路）。 */
+  function playZoomIn() {
+    if (reduceMotion() || !lbImg || typeof lbImg.animate !== 'function') return false;
+    var from = flipTransform(originRectNow(), lbLayoutBox());
+    if (!from) return false;
+    lbZoomAnim = lbImg.animate(
+      [{ transform: from }, { transform: 'translate(0px, 0px) scale(1)' }],
+      { duration: LB_ZOOM_IN, easing: LB_EASE }
+    );
+    return true;
+  }
+
+  /* 退场：缩回原图。返回是否真的播了动画。
+     起点取**当前画面值**——getComputedStyle 会把正在播放的入场动画一并算进来，先读现场、
+     再取消旧动画、再以它为 from 起新动画，这就是"入场没播完就关闭也不跳变"的关键
+     （Apple：中断时永远从 presentation value 出发，不是从目标值）。 */
+  function playZoomOut() {
+    if (reduceMotion() || !lbImg || typeof lbImg.animate !== 'function') return false;
+    var live = '';
+    try { live = getComputedStyle(lbImg).transform; } catch (eLive) { live = ''; }
+    cancelZoomAnim();
+    var to = flipTransform(originRectNow(), lbLayoutBox());
+    if (!to) return false;
+    if (!live || live === 'none') live = 'translate(0px, 0px) scale(1)';
+    lbZoomAnim = lbImg.animate(
+      [{ transform: live }, { transform: to }],
+      { duration: LB_ZOOM_OUT, easing: LB_EASE }
+    );
+    return true;
+  }
+
   function buildLightbox() {
     lightboxEl = document.createElement('div');
     lightboxEl.className = 'math-lightbox';
-    /* 让 Lenis 忽略浮层内的滚轮与触摸（配合 body 的 overflow 锁，双保险） */
+    /* 让 Lenis 忽略浮层内的滚轮与触摸（配合 <html> 的滚动锁，双保险） */
     lightboxEl.setAttribute('data-lenis-prevent', '');
     /* 图标一律用内联 SVG，而不是文字字形（‹ › × − +）：
        文字字形在行盒里天生不居中（实测 ‹› 的墨迹比行盒中心低 3.5px、× 低 2.5px，
@@ -275,6 +518,9 @@
   }
 
   function applyView() {
+    /* 用户开始缩放/平移（或切图）⇒ 入场动画立刻让位：它和手动操作都在写同一个 transform，
+       让 CSS 动画和用户的手抢画面必然出怪。取消后内联 transform 就是当前状态，接得上。 */
+    cancelZoomAnim();
     clampPan();
     lbImg.style.transform =
       'translate(' + lbState.tx + 'px, ' + lbState.ty + 'px) scale(' + lbState.scale + ')';
@@ -323,21 +569,35 @@
     }
   }
 
-  function openLightbox(src, alt, items, index) {
+  function openLightbox(src, alt, items, index, origin) {
     if (!lightboxEl) { buildLightbox(); }
+
+    /* 可重入：**双击一张图会连着触发两次 click**（click click dblclick）⇒ 第二次进来时
+       要先把上一次的收尾动作撤掉（待隐藏的计时器、未播完的动画），否则会出现
+       "刚打开就被上一次的关闭计时器藏掉/解锁"的错乱。 */
+    if (lbCloseTimer) { window.clearTimeout(lbCloseTimer); lbCloseTimer = null; }
+    lbClosing = false;
+    cancelZoomAnim();
+    lbOrigin = origin || null;
+
     lbItems = (items && items.length) ? items : [{ img: src, alt: alt || '', label: '' }];
     lbIndex = 0;
     lbLastFocus = document.activeElement;
     showItem(typeof index === 'number' ? index : 0, 0);
     lightboxEl.style.display = 'flex';
-    document.body.style.overflow = 'hidden'; /* 锁背景滚动（原生滚动）*/
+    lockScroll();                            /* 锁背景滚动（★ 锁在 <html> 上，见上文）*/
     lockLenis();                             /* 再锁 Lenis 的程序化滚动 */
 
-    /* 打开动画：加 .is-opening 播放弹入动画，结束后移除避免影响后续缩放 */
-    lightboxEl.classList.remove('is-opening');
-    void lightboxEl.offsetWidth; /* 强制 reflow，让动画每次重放 */
+    /* 入场：控制件错峰淡入（.is-opening）+ 大图从原图长到居中（playZoomIn）。
+       整段在同一个任务里跑完，首帧就是最终状态，不会先闪一下。 */
+    lightboxEl.classList.remove('is-opening', 'is-pop-img', 'is-closing', 'is-zoom-out');
+    void lightboxEl.offsetWidth;             /* reflow：让同名动画能重放 */
     lightboxEl.classList.add('is-opening');
-    window.setTimeout(function () { lightboxEl.classList.remove('is-opening'); }, 300);
+    if (!playZoomIn()) { lightboxEl.classList.add('is-pop-img'); }   /* 退路：原地弹入/淡入 */
+
+    window.setTimeout(function () {
+      lightboxEl.classList.remove('is-opening', 'is-pop-img');
+    }, LB_ZOOM_IN + 60);                     /* 比最长的入场动画（图 380 / 控件 360）再宽一点 */
 
     /* 焦点移入弹层：键盘用户可直接 ←/→ 翻看、Esc 关闭 */
     var closeBtn = lightboxEl.querySelector('.math-lightbox-close');
@@ -348,20 +608,27 @@
   function closeLightbox() {
     if (lbClosing || !lightboxEl) return;
     lbClosing = true;
-    lightboxEl.classList.add('is-closing');   /* 触发 CSS 淡出动画 */
-    window.setTimeout(function () {
+    /* 先摘掉 .is-opening：控制件的入场动画随之取消，接着的 .is-closing 过渡从当前值接上 */
+    lightboxEl.classList.remove('is-opening', 'is-pop-img');
+    lightboxEl.classList.add('is-closing');   /* 触发遮罩/控制件的 CSS 淡出 */
+    var zoomed = playZoomOut();               /* 大图缩回原图（拿不到原图/减少动态时为 false）*/
+    lightboxEl.classList.toggle('is-zoom-out', zoomed);
+    lbCloseTimer = window.setTimeout(function () {
+      lbCloseTimer = null;
       lightboxEl.style.display = 'none';
-      lightboxEl.classList.remove('is-closing');
-      document.body.style.overflow = '';
+      lightboxEl.classList.remove('is-closing', 'is-zoom-out');
+      unlockScroll();
       unlockLenis();
       lbClosing = false;
       lbItems = [];
+      lbOrigin = null;
+      lbZoomAnim = null;                      /* 动画已播完，引用一起放掉 */
       /* 把焦点还给打开它的那个元素 */
       if (lbLastFocus && lbLastFocus.focus) {
         try { lbLastFocus.focus({ preventScroll: true }); } catch (eBack) { /* 忽略 */ }
       }
       lbLastFocus = null;
-    }, 180);                                  /* 等动画播完再隐藏 */
+    }, zoomed ? LB_ZOOM_OUT : 180);           /* 等动画播完再隐藏（缩回原图的最后一帧就落在原图上）*/
   }
 
   /* 悬浮层内交互：滚轮缩放 + 拖拽平移 + 双击还原（绑定见下方 document 级监听） */

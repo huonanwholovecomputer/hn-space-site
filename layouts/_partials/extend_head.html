@@ -345,28 +345,64 @@
     text-underline-offset: 3px;
   }
 
-  /* 悬浮看图（Lightbox）：全屏遮罩 + 居中画布 + 可缩放平移 */
+  /* 悬浮看图（Lightbox）：全屏遮罩 + 居中画布 + 可缩放平移
+     ----------------------------------------------------------------------------
+     动效分工（2026-10-16 重做，参考 Apple《Designing Fluid Interfaces》的"空间一致性 +
+     锚定原点 + 可中断"与 Emil 的时长/缓动口径）：
+       · 大图：**从被点的那张原图的位置与大小长出来，关闭时沿同一条路缩回去**。
+         起点矩形是运行时才知道的几何量，所以这块由 math-image.js 用 WAAPI 播
+         （playZoomIn / playZoomOut），这里不写。
+         ⚠️ 顺带删掉了原来那条 `.is-closing .math-lightbox-img { transform: scale(.94) }`：
+         内联 transform 的特异性高于任何选择器，它从来没生效过（一直是死代码）。
+       · 遮罩：只做渐显/渐隐（opacity），不做位移——它是"压暗背景"的作用层，不是主角。
+       · 控制件（缩放条 / 关闭 / 画廊左右键 / 说明条）：比图晚 100~200ms 入场、错峰 60ms，
+         用**独立的 `translate` 属性**上浮 10px。不能动 transform：这些控件身上已经写着
+         translateX(-50%) / translateY(-50%) 做居中，用 transform 做入场会把居中弄丢。
+       · 减少动态：遮罩淡入淡出保留（Apple：opacity 类变化帮助理解），位移/缩放全部去掉。 */
+  /* 灯箱就贴视口布局宽度（inset:0，**不含** scrollbar-gutter 保留的那条槽）。
+     ★ 别想用 width:100vw / calc(100% + 15px) 去盖住它：那条槽不在页面坐标系里，
+       元素再宽也画不进去 —— .tools/lb-mask-probe.mjs 的命中测试里 elementFromPoint(1426)
+       返回 null，而灯箱 rect 明明已经是 0→1440，截图右侧照样是背景色。
+       那 15px 由 math-image.js 的 dimCanvasForGutter() 把**画布背景**压暗成遮罩色来抹平
+       （画布背景是唯一能填进那条槽的东西：根元素背景传播到 canvas）。
+     顺带的好处：ICB=1425 时灯箱内容中心是 712.5，与正文中心同一坐标系，
+     FLIP 缩放动画的起点矩形与终点位置对得更准。 */
   .math-lightbox { position: fixed; inset: 0; z-index: 9999; display: flex;
-    align-items: center; justify-content: center; overflow: hidden;
-    animation: mathLbFadeIn 0.22s ease-out; }
-  @keyframes mathLbFadeIn { from { opacity: 0; } to { opacity: 1; } }
+    align-items: center; justify-content: center; overflow: hidden; }
   .math-lightbox-mask { position: absolute; inset: 0; background: rgba(0,0,0,0.85);
     transition: opacity 180ms ease; }
+  /* 遮罩渐显：240ms 内从 0 压到 0.85（入场里最先到位的一层，先"压暗"再"展开"） */
+  .math-lightbox.is-opening .math-lightbox-mask {
+    animation: mathLbFadeIn 240ms cubic-bezier(0.23, 1, 0.32, 1);
+  }
+  @keyframes mathLbFadeIn { from { opacity: 0; } }
 
-  /* 打开时的弹入动画：图片从 0.96 放大到 1 并淡入 */
-  .math-lightbox.is-opening .math-lightbox-img { animation: mathLbPop 0.26s cubic-bezier(0.22, 1, 0.36, 1); }
-  @keyframes mathLbPop {
-    from { opacity: 0; transform: scale(0.96); }
-    to   { opacity: 1; transform: scale(1); }
+  /* 控制件入场：淡入是基线（减少动态也保留），上浮只在允许动效时加（见下方 no-preference）
+     `backwards` 必不可少：延迟期间必须已经在"未入场"状态，否则控制件会先亮一下再淡入。 */
+  .math-lightbox.is-opening .math-lb-toolbar,
+  .math-lightbox.is-opening .math-lightbox-close,
+  .math-lightbox.is-opening .math-lb-nav,
+  .math-lightbox.is-opening .math-lb-caption {
+    animation: mathLbFadeIn 200ms cubic-bezier(0.23, 1, 0.32, 1) backwards;
+  }
+  .math-lightbox.is-opening .math-lightbox-close { animation-delay: 100ms; }
+  .math-lightbox.is-opening .math-lb-toolbar,
+  .math-lightbox.is-opening .math-lb-nav { animation-delay: 160ms; }
+  .math-lightbox.is-opening .math-lb-caption { animation-delay: 200ms; }
+  @keyframes mathLbCtlRise {
+    from { opacity: 0; translate: 0 10px; }
+    to   { opacity: 1; translate: 0 0; }
   }
 
-  /* 关闭时的淡出动画：整层淡出 + 图片缩小 */
+  /* 关闭：遮罩淡出、控制件先退场，大图由 JS 缩回原图（见 playZoomOut）。
+     缩回时**图像不淡出**——它最后正好落在原图上，最后一帧消失于原图之上，看不出接缝；
+     只有"拿不到原图矩形 / 减少动态"这类退路才淡出（.is-zoom-out 就是这个开关）。 */
   .math-lightbox.is-closing .math-lightbox-mask { opacity: 0; }
   .math-lightbox.is-closing .math-lightbox-img {
-    transform: scale(0.94);
     opacity: 0;
-    transition: transform 180ms ease, opacity 180ms ease;
+    transition: opacity 160ms ease;
   }
+  .math-lightbox.is-closing.is-zoom-out .math-lightbox-img { opacity: 1; }
   .math-lightbox.is-closing .math-lb-toolbar,
   .math-lightbox.is-closing .math-lightbox-close { opacity: 0; transition: opacity 140ms ease; }
 
@@ -464,9 +500,25 @@
   .math-lightbox.is-closing .math-lb-nav,
   .math-lightbox.is-closing .math-lb-caption { opacity: 0; transition: opacity 140ms ease; }
 
-  /* 切换时的轻微横向滑入（方向由 JS 写到 --lb-dir）。
-     按全站约定，动效一律包在 no-preference 里：用户开了"减少动态"就瞬间切换。 */
+  /* 允许动效时：控制件带上浮；拿不到原图矩形时的"原地弹入"退路也带上一点缩放。
+     按全站约定，位移/缩放一律包在 no-preference 里：用户开了"减少动态"就只剩淡入。 */
   @media (prefers-reduced-motion: no-preference) {
+    .math-lightbox.is-opening .math-lb-toolbar,
+    .math-lightbox.is-opening .math-lightbox-close,
+    .math-lightbox.is-opening .math-lb-nav,
+    .math-lightbox.is-opening .math-lb-caption { animation-name: mathLbCtlRise; }
+
+    /* 退路（拿不到原图矩形 / 图片还未解码）：原地弹入——起点是 scale(0.96) 而不是
+       scale(0)：真实世界里的东西不会从"什么都没有"里长出来。 */
+    .math-lightbox.is-pop-img .math-lightbox-img {
+      animation: mathLbPop 260ms cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    @keyframes mathLbPop {
+      from { opacity: 0; transform: scale(0.96); }
+      to   { opacity: 1; transform: scale(1); }
+    }
+
+    /* 切换时的轻微横向滑入（方向由 JS 写到 --lb-dir） */
     .math-lightbox.is-switching .math-lightbox-img {
       animation: mathLbSlide 0.3s cubic-bezier(0.22, 1, 0.36, 1);
     }
@@ -474,6 +526,11 @@
       from { opacity: 0.35; transform: translateX(calc(30px * var(--lb-dir, 1))); }
       to   { opacity: 1; transform: none; }
     }
+  }
+
+  /* 减少动态：不做位移与缩放，只把大图淡入（Apple——opacity 类变化保留，运动类去掉） */
+  @media (prefers-reduced-motion: reduce) {
+    .math-lightbox.is-pop-img .math-lightbox-img { animation: mathLbFadeIn 200ms ease-out; }
   }
 
   /* 窄屏：导航收窄、说明条上移一点，避免压住证书内容 */

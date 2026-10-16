@@ -1,0 +1,35 @@
+/* ============================================================================
+   视口滚动条槽恒定 —— 消除「锁背景滚动时 fixed 元素横向闪现」
+   ----------------------------------------------------------------------------
+   问题：math-image.js 打开大图时会锁 <html> 的 overflow（:hidden），滚动条随即消失，
+        视口布局宽度从 1425 → 1440。文档流有 padding-right 补偿，但 **fixed 元素的
+        包含块是视口(ICB)，不吃 <html> 的 padding**，于是：
+          · .header 悬浮导航胶囊（居中 1120px）右移 7.5px
+          · a#top-link 回到顶部（贴右）右移 15px
+          · .read-progress 阅读进度条右端右移 7px
+        开/关各跳一次，观感就是"闪一下"。
+        实证：.tools/lb-fixed-jitter.mjs（真鼠标点图，逐元素量 left/right 差）。
+
+   解法：scrollbar-gutter: stable 让**滚动条槽常驻** —— 锁定时视口布局宽度不变，
+        于是所有 fixed 元素与文档流一位不动，连 padding 补偿都不需要。
+        同一脚本实测：header / top-link / read-progress / mouse-trail 全部 0 位移。
+
+   代价：内容比视口短的页面会留一条 15px 空槽。实测站内 / · /posts/ · /about/ ·
+        /friends/ · /projects/ · /search/ · /rss/ · /archives/ 在 1440x900 下都超视口
+        ⇒ 槽被真正的滚动条占着，视觉与改动前逐像素一致（.tools/lb-gutter-pages.mjs）。
+
+   配套两处（缺一会露馅）：
+     ① math-image.js 的 lockScroll() 改用量「视口布局宽度」的探针算补偿量
+        （gutter 生效时差值为 0 ⇒ 不补；否则退回按收回宽度补 padding，文档流不跳）；
+     ② extend_head.html 的 .math-lightbox 补 width: 100vw —— gutter 常驻后
+        inset:0 的遮罩会停在 1425，右侧留 15px 未压暗（实测最右 15px 亮度 10-19
+        vs 遮罩 1-3，肉眼可见）。
+
+   兼容：Chrome 94+ / Firefox 97+ / Safari 18.2+。不支持的浏览器忽略本行，
+        math-image.js 的探针会自动退回原来的 padding 补偿（文档流不跳，fixed 仍会动）；
+        macOS/iOS 是覆层滚动条，本来就不占布局宽度，不涉及此问题。
+   ============================================================================ */
+
+html {
+  scrollbar-gutter: stable;
+}

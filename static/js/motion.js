@@ -322,7 +322,8 @@
         (window.pageYOffset || window.scrollY || 0) -
         AXIS_OFFSET;
       setActive(link); /* 立即高亮，不等下一次滚动判定（与目录链接同一做法） */
-      if (typeof window.__hnScrollTo === 'function') window.__hnScrollTo(y, false);
+      /* 与目录/回到顶部共用同一套平滑跳转（每帧重算落点，防高度漂移停偏） */
+      if (typeof window.__hnAnchorScrollTo === 'function') window.__hnAnchorScrollTo(el, AXIS_OFFSET);
       else window.scrollTo(0, y);
     }
     for (i = 0; i < links.length; i++) {
@@ -794,6 +795,207 @@
   };
 
   /* --------------------------------------------------------------------------
+   * 原生滚动接管：惯性还在跑的时候，键盘（翻页/首尾/方向键）与右侧滚动条
+   * 必须**立刻**把滚动拿过去（用户 2026-10-16 报的问题原文：惯性过程中用键盘
+   * 翻页键 / Home / End / 上下键 / 拖滚动条，界面在"惯性位置"和"新位置"之间
+   * 来回闪现，最后还是被惯性滑动接管）。
+
+   * 根因（static/js/lenis.min.js = Lenis 1.3.11 源码）：Lenis **只接管滚轮**
+   *   （onVirtualScroll），键盘与滚动条完全不归它管；而它的 onNativeScroll 只在
+   *       if (isScrolling === false || isScrolling === 'native') { 同步真实位置 }
+   *   时才认"浏览器动了位置"。惯性期间 isScrolling === 'smooth'，于是浏览器把页面
+   *   滚到哪，它下一帧 setScroll() 就写回自己的 animatedScroll —— 一个帧一步地
+   *   互相盖（滚动事件里看得到 y 先是 0，紧接着又回到惯性值）。上游同款：
+   *   lenis#107（动画期间原生滚动被阻止）、#168（拖滚动条位置来回跳）。
+
+   * 处置：**不"接管键盘"**（那会跟输入框、焦点滚动、Home/End 的原生语义打架，
+   *   还得自己算一屏多高），而是"谁动手就把惯性放下"：reset() 会 animate.stop()
+   *   并把 animated/target 对齐到真实位置，之后这一帧起由浏览器说了算；用户再滚
+   *   滚轮时 Lenis 从新位置接着跑（onNativeScroll 已经把位置同步过）。
+   *   两条路互补：
+   *     ① keydown —— 按下的那一刻就停，最干脆，也能覆盖"按了键但位置没变"的情况；
+   *     ② scroll 位移检测 —— 覆盖没有键盘事件的一切外来滚动：拖滚动条、Tab 聚焦到
+   *        屏幕外、find-in-page、别的脚本 scrollTo/scrollIntoView……
+   *        拖 Chrome 右侧滚动条**不会**给页面派发任何鼠标事件（pointerdown 都收不到），
+   *        所以只能这样检测。
+   * ------------------------------------------------------------------------ */
+  /* 有"滚动意图"的键。带 Ctrl/Cmd/Alt 的一律放行（那是快捷键，不是滚动）。 */
+  var SCROLL_KEYS = ['PageUp', 'PageDown', 'Home', 'End', 'ArrowUp', 'ArrowDown', ' '];
+
+  /* 只把"超过这么多像素"的差当成外来滚动：Lenis 写进浏览器的值是小数（Windows
+     125% 缩放下会有不到 1px 的取整），而方向键一步就约 40px，4px 足够分开两者。 */
+  var FOREIGN_SCROLL_TOL = 4;
+
+  function isEditableTarget(el) {
+    if (!el || !el.tagName) return false;
+    var tag = el.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
+    return !!el.isContentEditable;
+  }
+
+  /* 惯性/平滑动画期间把主动权交回浏览器；返回 true 表示确实放下了。
+     三个 guard 缺一不可：
+       · 只在 isScrolling === 'smooth' 时动手（空闲时 Lenis 自己就同步真实位置）；
+       · isStopped / isLocked 时绝不动 —— reset() 内部会把 isLocked 置回 false，
+         真动了就会把"故意锁住滚动"的浮层（图片灯箱就是 lenis.stop()）解锁。 */
+  function yieldScrollToNative(why) {
+    window.__hnAnchorAnim = 0;   /* 键盘意图优先：正在追锚点的那条循环也就此停下 */
+    var lenis = window.__hnLenis;
+    if (!lenis || typeof lenis.reset !== 'function') return false;
+    if (lenis.isStopped || lenis.isLocked) return false;
+    if (lenis.isScrolling !== 'smooth') return false;
+    try { lenis.reset(); } catch (errReset) { return false; }
+    /* 留个可观测的痕迹：控制台/无头验证里能一眼看出"是谁把滚动接过去的" */
+    var st = window.__hnScrollTakeover || (window.__hnScrollTakeover = { count: 0, lastWhy: '', lastAt: 0 });
+    st.count++;
+    st.lastWhy = why;
+    st.lastAt = Date.now();
+    return true;
+  }
+
+  function installNativeScrollTakeover() {
+    if (window.__hnScrollTakeoverInstalled) return;
+    window.__hnScrollTakeoverInstalled = true;
+
+    document.addEventListener('keydown', function (e) {
+      if (e.defaultPrevented) return;
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (SCROLL_KEYS.indexOf(e.key === 'Spacebar' ? ' ' : e.key) === -1) return;
+      if (isEditableTarget(e.target)) return;   /* 输入框里的空格/方向键不是滚动 */
+      yieldScrollToNative('key:' + e.key);
+    });
+
+    window.addEventListener('scroll', function () {
+      var lenis = window.__hnLenis;
+      if (!lenis || lenis.isStopped || lenis.isLocked) return;
+      if (lenis.isScrolling !== 'smooth') return;   /* 空闲：Lenis 自己的 onNativeScroll 会同步 */
+      var actual = lenis.actualScroll;
+      var animated = lenis.animatedScroll;
+      if (typeof actual !== 'number' || typeof animated !== 'number') return;
+      if (Math.abs(actual - animated) <= FOREIGN_SCROLL_TOL) return;
+      /* 位置对不上了，但有两种解释，必须分开：
+         ① Lenis 缓存的 limit 是旧页面的（PJAX 之后靠 __hnLenisResize 校正）：
+            浏览器把它的写入夹住了 —— 这不是外来输入，别误杀，交给 resize 那套；
+         ② 真有人在滚（滚动条 / 焦点 / 别的脚本）。
+         用**实时文档高度**当基准再判一次；顺带把引擎橡皮筋也排除掉
+         （Safari 回弹时 scrollY 会越界，那不是输入）。 */
+      var max = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+      if (actual < -1 || actual > max + 1) return;
+      if (Math.abs(actual - Math.min(animated, max)) <= FOREIGN_SCROLL_TOL) return;
+      yieldScrollToNative('scroll-drift');
+    }, { passive: true });
+
+    /* 用户一动手就放弃"追赶锚点目标"：滚轮/触摸/指针按下。
+       用**捕获阶段**（先于 Lenis 自己的 wheel 处理）：这样 Lenis 随后拿到的
+       targetScroll 已是"停下来的当前位置"，这一个滚轮刻度不会被丢掉——
+       也就是"抓住就能停、停下就能接着滚"，而不是"滚轮被吃掉一下"。
+       拖右侧滚动条不派发鼠标事件，那一路靠上面的漂移检测兜住。 */
+    ['wheel', 'touchstart', 'pointerdown'].forEach(function (evt) {
+      window.addEventListener(evt, function () {
+        if (!window.__hnAnchorAnim) return;
+        window.__hnAnchorAnim = 0;
+        var l = window.__hnLenis;
+        if (l && !l.isStopped && !l.isLocked && l.isScrolling === 'smooth' && typeof l.reset === 'function') {
+          try { l.reset(); } catch (eCancel) { /* 忽略 */ }
+        }
+      }, { capture: true, passive: true });
+    });
+  }
+
+  /* --------------------------------------------------------------------------
+   * 锚点平滑跳转：目录 / 章节轴 / 回到顶部共用（2026-10-17 由"瞬移"改为平滑）
+
+   * 为什么改：瞬移的观感是"位置突然换了"，长文里尤其丢方向感。而实测还发现
+   *   同一次点击其实发生了**两件事**（这就是"瞬移之后又微微移动一下"的真相）：
+   *     ① math-image.js 在捕获阶段 preventDefault + 即时跳转（偏移 92px）；
+   *     ② 主题 themes/PaperMod/layouts/_partials/footer.html 又给每个 a[href^="#"]
+   *        挂了 scrollIntoView({behavior:"smooth"})（scroll-margin-top: 84px），
+   *        并顺手 pushState 一条历史记录。
+   *   两者差 8px ⇒ 瞬移之后平滑补 8px；而且每点一次目录就多一条历史，
+   *   浏览器后退要按很多次。现在统一由这里接管，② 由 stopPropagation 挡掉。
+
+   * 历史上不敢用平滑的真实担心是"动画期间页面高度变化 ⇒ 停偏"（旧注释写的就是这个）。
+   *   实测（19045px 长文，从顶部点中间章节，滚动途中 21 张懒加载图陆续加载）：
+   *   标题的绝对 y 全程 0px 漂移 —— 因为正文图都有 width/height + --hn-wh，
+   *   浏览器在加载前就把空间占住了。所以真正要防的不是"高度会变"，而是**别把目标算死**：
+   *   这里每帧重算目标，高度真变了也跟着走（且 Lenis 从当前值重瞄，不跳）。
+   * 另一半是老底子问题：Lenis 把文档高度缓存在 limit 里，PJAX 刚换页时可能还是旧值，
+   *   于是落点被夹短（"移动距离错误"的老根源之一）⇒ 开始前先 resize() 刷一次。
+   * ------------------------------------------------------------------------ */
+  var ANCHOR_LERP = 0.14;    /* 追漂移时用的缓动（与滚轮同族，快一点） */
+  var ANCHOR_MAX_MS = 1800;  /* 追赶模式的上限 */
+  var anchorSeq = 0;
+
+  function easeInOutCubic(t) {
+    return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  }
+
+  /* el：目标元素；offset：落点距视口顶部的距离（用来让开悬浮导航） */
+  window.__hnAnchorScrollTo = function (el, offset) {
+    if (!el || typeof el.getBoundingClientRect !== 'function') return;
+    var off = offset || 0;
+    var at = function () { return Math.round(window.pageYOffset || window.scrollY || 0); };
+    var targetY = function () {
+      return Math.max(0, Math.round(el.getBoundingClientRect().top + at() - off));
+    };
+
+    var lenis = window.__hnLenis;
+    /* 没有 Lenis（搜索页 / 减少动态 / 初始化失败）：这一跳交回浏览器（瞬时） */
+    if (!lenis || reduceMotion() || typeof lenis.scrollTo !== 'function') {
+      window.scrollTo(0, targetY());
+      return;
+    }
+    if (lenis.isStopped || lenis.isLocked) return;   /* 浮层锁着滚动：别动 */
+
+    /* 刷新尺寸缓存：PJAX 刚换页时 Lenis 手里的 limit 还是上一页的，不刷会把落点夹短
+       （历史"移动距离错误"的老根源之一）。 */
+    if (typeof lenis.resize === 'function') lenis.resize();
+
+    var from = at();
+    var y0 = targetY();
+    /* 时长随距离走：短跳 400ms 别拖，长跳最多 900ms（再长就"翻页翻很久"了） */
+    var durMs = Math.min(900, Math.max(400, 400 + Math.round(Math.abs(y0 - from) / 12)));
+    var token = ++anchorSeq;
+    window.__hnAnchorAnim = token;   /* 非 0 = 程序化锚点滚动在跑（让位判断用） */
+    var t0 = performance.now();
+
+    /* 默认走"固定时长 + 缓入缓出"的曲线：位移—时间关系是可控的，
+       不像指数 lerp 那样第一帧就冲掉十几%（长距离跳转那样看着像瞬移）。
+       后面若发现页面高度真的变了，再切成"每帧重瞄"（见下）。 */
+    lenis.scrollTo(y0, { force: true, duration: durMs / 1000, easing: easeInOutCubic });
+
+    var mode = 'ease';
+    var lastY = y0;
+    var stable = 0;
+
+    (function loop() {
+      if (window.__hnAnchorAnim !== token) return;   /* 被用户/别的代码接管了 */
+      var elapsed = performance.now() - t0;
+      var y = targetY();
+
+      if (mode === 'ease') {
+        /* 高度真漂了（比如上方懒加载图改变高度）才切"追"；4px 以内的漂移肉眼看不见，
+           不值得为它打断曲线。切过去也是从**当前值**接着走，不会跳。 */
+        if (Math.abs(y - y0) > 4) mode = 'chase';
+        else if (elapsed > durMs + 250) { window.__hnAnchorAnim = 0; return; }
+      }
+
+      if (mode === 'chase') {
+        lenis.scrollTo(y, { force: true, lerp: ANCHOR_LERP });
+        if (Math.abs(y - lastY) <= 1) stable++; else stable = 0;
+        lastY = y;
+        var realMax = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+        var want = Math.min(y, realMax);   /* 目标在文档末尾之外时，以真正能到的位置为准 */
+        if ((stable >= 6 && Math.abs(at() - want) <= 2) || elapsed > ANCHOR_MAX_MS) {
+          window.__hnAnchorAnim = 0;
+          return;
+        }
+      }
+      window.requestAnimationFrame(loop);
+    })();
+  };
+
+  /* --------------------------------------------------------------------------
    * 首页轻量开场——《动效升级方案》§4-13
    * 只在首页、每次会话一次、约 520ms、纯遮罩揭幕。
    * 遮罩本体**不在这里创建**（曾经是，那正是首帧闪烁的根因）：
@@ -872,6 +1074,7 @@
 
   /* 首屏：DOM 已解析（defer 脚本在解析完成后按序执行） */
   initSmoothScroll(); /* 先起滚动引擎，再进场动画，避免首屏滚动手感不一致 */
+  installNativeScrollTakeover(); /* 键盘/滚动条随时能从惯性手里把滚动接过去 */
   init();
   initOpener(); /* 必须在 init() 之后：遮罩要盖住已经就位的布局 */
 

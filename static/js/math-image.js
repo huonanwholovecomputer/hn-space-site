@@ -768,8 +768,8 @@
   }
 
   /* ---------- 4. 目录锚点跳转（避免 PJAX 与原生 hash 跳转冲突） ----------
-     效果：点击目录链接用 scrollIntoView 定位，浏览器会应用标题上的
-     scroll-margin-top（避开顶部悬浮导航栏），并更新 URL 的 hash。
+     效果：点击目录链接平滑滚到对应标题（高度偏移 84px，与 scroll-margin-top 同口径），
+     并更新 URL 的 hash。
      用「捕获阶段 + preventDefault」彻底绕开 PJAX 对 hash 链接的干扰，
      保证直链打开和 PJAX 进入后都稳定跳转。 */
   document.addEventListener('click', function (e) {
@@ -779,50 +779,50 @@
     /* 只处理站内纯锚点链接（如 #一前言），不处理外部/完整 URL */
     if (href.charAt(0) !== '#') return;
 
-    /* —— 返回顶部按钮（#top）例外 ——
-       文章页（body.page-posts，长文 + 懒加载图片）保持下方的「即时跳转 +
-       多次校正」，避免平滑动画期间页面高度变化导致定位偏差；
-       其余页面（首页 / 关于 / 归档等）没有该定位问题，直接放行给
-       PaperMod footer 脚本的 scrollIntoView({behavior:'smooth'})，
-       恢复平滑回顶效果。 */
+    /* 首页章节轴有自己的点击处理（要立刻点亮指示器）——让给 motion.js 的 initAxis，
+       否则两个处理链会各跳一次（正是本次要修掉的"瞬移 + 微微移动"）。 */
+    if (a.closest && a.closest('.home-axis')) return;
+
+    /* —— 回到顶部（#top）——
+       以前文章页走"即时跳转"、其它页放行给主题的 scrollIntoView，
+       两条路的落点/手感都不一样；现在统一由下面这套平滑跳转接管（目标 body，偏移 0）。 */
     var isTopLink = (a.id === 'top-link') || href === '#top';
-    var isPostPage = document.body.classList.contains('page-posts');
-    if (isTopLink && !isPostPage) return;
 
     e.preventDefault();
+    /* 必须拦住冒泡：主题 themes/PaperMod/layouts/_partials/footer.html 给每个
+       a[href^="#"] 也挂了 click → scrollIntoView({behavior:"smooth"})（偏移 84px）
+       + history.pushState。不拦的话同一次点击会先瞬移再平滑补 8px
+       （用户看到的"瞬移之后微微移动"），还每点一次就多一条历史记录。 */
+    e.stopPropagation();
 
     var target = null;
-    try {
-      target = document.getElementById(decodeURIComponent(href.slice(1)));
-    } catch (err) {
-      target = document.getElementById(href.slice(1));
+    if (isTopLink) {
+      target = document.body;               /* body 就是文档顶部（<body id="top">） */
+    } else {
+      try {
+        target = document.getElementById(decodeURIComponent(href.slice(1)));
+      } catch (err) {
+        target = document.getElementById(href.slice(1));
+      }
     }
     if (!target) return;
 
-    /* —— 精准锚点定位，避开懒加载图片导致的高度变化 ——
-       用「手动计算绝对位置 + 直接跳转」而非平滑滚动（平滑动画长，期间图
-       片加载会改变高度导致停偏）；不做延迟二次校正，避免「先跳一次、
-       约一秒后又跳一次」的二次跳转观感。 */
-    var NAV_OFFSET = 92; /* 顶部悬浮导航高度 + 余量 */
-    function scrollToTarget() {
-      var top = target.getBoundingClientRect().top + (window.scrollY || window.pageYOffset);
-      var y = Math.max(0, top - NAV_OFFSET);
-      /* 有 Lenis 时交给 motion.js 的入口做即时跳转（同步它的内部目标值，
-         否则它的下一帧会把位置拉回去）；没有则退回原生 scrollTo。 */
-      if (typeof window.__hnScrollTo === 'function') {
-        window.__hnScrollTo(y, true);
-      } else {
-        window.scrollTo(0, y);
-      }
+    /* —— 精准锚点定位 ——
+       平滑移动，但**每帧重算落点**（motion.js 的 __hnAnchorScrollTo）：
+       懒加载图片若真改变了高度也一直跟住，不会像"算一次就滚过去"那样停偏；
+       开始时还会先刷新 Lenis 的高度缓存，避免 PJAX 后落点被旧 limit 夹短。 */
+    var NAV_OFFSET = 84; /* 与 heading 的 scroll-margin-top: 84px 同口径（原来是 92，差 8px 正是那次"微移"） */
+    if (typeof window.__hnAnchorScrollTo === 'function') {
+      window.__hnAnchorScrollTo(target, isTopLink ? 0 : NAV_OFFSET);
+    } else {
+      var top = target.getBoundingClientRect().top + (window.scrollY || window.pageYOffset || 0);
+      window.scrollTo(0, Math.max(0, top - (isTopLink ? 0 : NAV_OFFSET)));
     }
-    scrollToTarget();
-    /* 只保留第一次即时跳转，取消 120/400/900ms 的多次延迟校正：
-       那会在跳转后约一秒再补跳一次，观感上是二次跳转。
-       懒加载图片带来的高度漂移，改为由浏览器滚动位置自然承担。 */
 
-    /* 更新地址栏 hash（不触发滚动/不产生历史记录，避免反向干扰） */
+    /* 更新地址栏 hash（不触发滚动/不产生历史记录，避免反向干扰）。
+       回到顶部时清掉 hash，与主题原来的做法一致。 */
     if (history.replaceState) {
-      try { history.replaceState(null, '', href); } catch (err) { /* 忽略 */ }
+      try { history.replaceState(null, '', isTopLink ? location.pathname + location.search : href); } catch (err) { /* 忽略 */ }
     }
   }, true);
 })();

@@ -1,6 +1,7 @@
 ---
 title: "开发环境安装与配置指南"
 date: 2026-03-18
+lastmod: 2026-10-24
 description: "Visual Studio Code、Visual Studio、Dev-C++、Python 和 PyCharm 的安装与配置指南。"
 tags: ["开发环境", "VS Code", "Visual Studio", "Dev-C++", "Python", "PyCharm", "Windows"]
 series: ["技术教程"]
@@ -125,7 +126,7 @@ Visual Studio Code的官方网站：[https://code.visualstudio.com/](https://cod
 
 ### 2. 安装Visual Studio Code
 
-打开安装程序，按照安装步骤进行安装（注意下图中的框选的选项必须勾选！）；
+打开安装程序，按照安装步骤进行安装（注意其中第 2 张图里被框选的选项必须勾选！）；
 
 ![](/posts/01-dev-environment-setup/media/image4.webp)
 
@@ -195,11 +196,11 @@ Visual Studio Code的官方网站：[https://code.visualstudio.com/](https://cod
 
 点击这里进行下载：
 
-![](/posts/01-dev-environment-setup/media/image15.webp)
+![](/posts/01-dev-environment-setup/media/image16.webp)
 
 下载完成之后，将这个7z压缩文件解压到一个文件夹，并将这个文件夹放到一个基本上不会动的地方，我的建议是放到**C:\Program Files**
 
-![](/posts/01-dev-environment-setup/media/image16.webp)
+![](/posts/01-dev-environment-setup/media/image15.webp)
 
 然后，进行环境的配置：右键单击桌面的“**此电脑**”然后点击“**属性**”；或者打开**设置**，点击左侧的“**系统**”，然后下拉找到最后一个“**系统信息**”（如下图）；
 
@@ -341,7 +342,7 @@ Visual Studio Code的官方网站：[https://code.visualstudio.com/](https://cod
 
 **方法**：在总用户配置文件中加入一些配置，控制终端的编码格式，从而正常输出中文。
 
-首先，打开总用户配置文件，在上方搜索栏键入 \>Open User Settings (JSON) 并打开对应项；
+首先，打开总用户配置文件，在上方搜索栏键入 **`>Open User Settings (JSON)`** 并打开对应项；
 
 ![](/posts/01-dev-environment-setup/media/image50.webp)
 
@@ -353,56 +354,30 @@ Visual Studio Code的官方网站：[https://code.visualstudio.com/](https://cod
 
 你可以直接点击右上角的复制按钮复制配置信息，将光标放在需要加逗号的位置（如下图），直接粘贴后保存即可。
 
-```
+```json
 ,
-
-    /\* 在C/C++中正常输出中文 \*/
-
-    // UTF-8 编码配置
-
-    "files.encoding": "utf8",
-
-    "files.autoGuessEncoding": false,
-
-   
-
-    // 终端 UTF-8 支持
-
-    "terminal.integrated.defaultProfile.windows": "PowerShell",
-
-    "terminal.integrated.profiles.windows": {
-
-        "PowerShell": {
-
-            "source": "PowerShell",
-
-            "args": \["-NoExit", "-Command", "chcp 65001"\]
-
-        }
-
-    },
-
-   
-
-    // 各语言编码设置
-
-    "\[c\]": {
-
-        "files.encoding": "utf8"
-
-    },
-
-    "\[cpp\]": {
-
-        "files.encoding": "utf8"
-
-    },
-
-    "\[python\]": {
-
-        "files.encoding": "utf8"
-
-    }
+    /* 在C/C++中正常输出中文 */
+    // UTF-8 编码配置
+    "files.encoding": "utf8",
+    "files.autoGuessEncoding": false,
+    // 终端 UTF-8 支持
+    "terminal.integrated.defaultProfile.windows": "PowerShell",
+    "terminal.integrated.profiles.windows": {
+        "PowerShell": {
+            "source": "PowerShell",
+            "args": ["-NoExit", "-Command", "chcp 65001"]
+        }
+    },
+    // 各语言编码设置
+    "[c]": {
+        "files.encoding": "utf8"
+    },
+    "[cpp]": {
+        "files.encoding": "utf8"
+    },
+    "[python]": {
+        "files.encoding": "utf8"
+    }
 ```
 
 #### (3) 关于字体放大
@@ -469,27 +444,63 @@ Visual Studio 2022的官方网站：
 
 **小提示**：如果觉得写代码的字体太小，可以将鼠标移动到代码区域，按下Ctrl键的同时滚动鼠标滚轮！
 
+但是Visual Studio默认不支持在终端中输出中文，此时可以在“**工具 - 选项 - 环境 - 文档**”中勾选“**使用特定编码保存文件**”，并把编码选为“**简体中文(GB2312) - 代码页 936**”，然后保存一次文件即可（如下图）。
+
+![](/posts/01-dev-environment-setup/media/vs-cn-garbled.webp)
+
+![](/posts/01-dev-environment-setup/media/vs-cn-options-menu.webp)
+
+![](/posts/01-dev-environment-setup/media/vs-cn-encoding-setting.webp)
+
 ## 六、Dev-C++的下载与安装
 
 ### 1. 不同版本的抉择
 
-![](/posts/01-dev-environment-setup/media/image67.webp)
+![](/posts/01-dev-environment-setup/media/devcpp-versions-4.webp)
 
 Dev C++作为经典的轻量级C/C++集成开发环境（IDE），在原开发团队停止维护后，衍生出多个分支版本。其中，Red Panda Dev-C++（现主要以“小熊猫C++”品牌活跃）与Embarcadero Dev-C++是目前国内用户较常接触的。
 
-经测试以及收集大众的意见，我在这里推荐蓝色的版本，即Red Panda Dev-C++。小熊猫版本不需要像Embarcadero版本那样需要在编译选项和编辑器选项中过多设置（比如默认支持输出中文、支持关键字补全等）。由于此教程在v1.4及之前推荐了红色版本而v1.5之后推荐蓝色版本，所以在蓝色版本的安装教程之后，保留了红色版本的安装教程。
+简单介绍，小熊猫C++和Red Panda Dev-C++的作者是同一个，其中Red Panda Dev-C++在2022年6月24日更新最后版本之后，停止了更新，作者转向了小熊猫C++的开发。
 
-![](/posts/01-dev-environment-setup/media/image68.webp)
+经测试以及收集大众的意见，我在这里推荐**小熊猫C++**，因为其默认支持输出中文、支持关键字补全、默认深色模式等。
 
-![](/posts/01-dev-environment-setup/media/image69.webp)
+![](/posts/01-dev-environment-setup/media/devcpp-xiaoxiong-run.webp)
+
+<p style="text-align:center"><em>小熊猫C++概述图</em></p>
 
 ![](/posts/01-dev-environment-setup/media/image70.webp)
 
-<p style="text-align:center"><em>（Red Panda Dev-C++与Embarcadero Dev-C++概述图）</em></p>
+![](/posts/01-dev-environment-setup/media/image69.webp)
+
+![](/posts/01-dev-environment-setup/media/image68.webp)
+
+<p style="text-align:center"><em>各版本Dev-C++概述图</em></p>
 
 ### 2. 下载Dev C++
 
-#### (1) Red Panda版本Dev-C++下载
+#### (1) 小熊猫Dev-C++下载
+
+[https://sourceforge.net/projects/redpanda-cpp/](https://sourceforge.net/projects/redpanda-cpp/)
+
+![](/posts/01-dev-environment-setup/media/devcpp-xiaoxiong-dl1.webp)
+
+![](/posts/01-dev-environment-setup/media/devcpp-xiaoxiong-dl2.webp)
+
+如下图，下载并安装打开就可以开始使用了，不需要做过多的设置。安装过程也不需要做任何调整，一直继续就好。（程序的创建和运行见本文“4. 编写代码、编译和运行程序”一节）
+
+![](/posts/01-dev-environment-setup/media/devcpp-xiaoxiong-setup1.webp)
+
+![](/posts/01-dev-environment-setup/media/devcpp-xiaoxiong-setup2.webp)
+
+![](/posts/01-dev-environment-setup/media/devcpp-xiaoxiong-setup3.webp)
+
+![](/posts/01-dev-environment-setup/media/devcpp-xiaoxiong-setup4.webp)
+
+![](/posts/01-dev-environment-setup/media/devcpp-xiaoxiong-setup5.webp)
+
+![](/posts/01-dev-environment-setup/media/devcpp-xiaoxiong-setup6.webp)
+
+#### (2) Red Panda Dev-C++ 2020下载
 
 [https://sourceforge.net/projects/dev-cpp-2020/](https://sourceforge.net/projects/dev-cpp-2020/)
 
@@ -497,7 +508,7 @@ Dev C++作为经典的轻量级C/C++集成开发环境（IDE），在原开发�
 
 ![](/posts/01-dev-environment-setup/media/image72.webp)
 
-如下图，下载并安装打开就可以开始使用了，不需要做过多的设置。安装过程也不需要做任何调整，一直继续就好。
+如下图，下载并安装打开就可以开始使用了，不需要做过多的设置。安装过程也不需要做任何调整，一直继续就好。（程序的创建和运行见本文“4. 编写代码、编译和运行程序”一节）
 
 ![](/posts/01-dev-environment-setup/media/image73.webp)
 
@@ -515,7 +526,7 @@ Dev C++作为经典的轻量级C/C++集成开发环境（IDE），在原开发�
 
 ![](/posts/01-dev-environment-setup/media/image80.webp)
 
-#### (2) Embarcadero版本Dev-C++下载
+#### (3) Embarcadero Dev-C++下载
 
 Embarcadero官方网站：
 
@@ -533,7 +544,7 @@ Embarcadero官方网站的Dev-C++下载地址：
 
 [https://www.embarcadero.com/free-tools](https://www.embarcadero.com/free-tools)
 
-![](/posts/01-dev-environment-setup/media/image840.webp)
+![](/posts/01-dev-environment-setup/media/devcpp-embarcadero-freetools.webp)
 
 此界面的“Free Tools”列表中（如上图），点击“ Get the FREE Tool ”，即可跳转至GitHub的发布页：
 
@@ -609,11 +620,9 @@ Embarcadero官方网站的Dev-C++下载地址：
 
 #### (1) 关于中文显示与输出
 
-在Dev-C++中，默认情况下无法正常输出和显示中文字符，此时，需要做一些操作。
+在原版Dev-C++、Embarcadero版Dev-C++中，默认情况下无法正常输出和显示中文字符，此时，需要做一些操作。
 
 ![](/posts/01-dev-environment-setup/media/image101.webp)
-
-![](/posts/01-dev-environment-setup/media/image100.webp)
 
 ![](/posts/01-dev-environment-setup/media/image102.jpeg)
 
@@ -632,6 +641,8 @@ Embarcadero官方网站的Dev-C++下载地址：
 ![](/posts/01-dev-environment-setup/media/image106.webp)
 
 如下图，打开“<u>工具-编译器选项-显示</u>”取消勾选“\<ID 27071 translation missing\>”，确定之后，中文字符即可显示。
+
+![](/posts/01-dev-environment-setup/media/image100.webp)
 
 **第二步：正常输出中文字符**
 
@@ -655,6 +666,8 @@ Embarcadero官方网站的Dev-C++下载地址：
 
 注：GB18030为国家标准编码字符集，选择该字符集可以一劳永逸解决所有字符显示问题。
 
+综上，我推荐初学者使用**小熊猫Dev-C++**，因为它有持续更新、默认支持中文、编译器较新等优点。
+
 ## 七、Python的下载与安装
 
 ### 1. 概念的构建
@@ -669,31 +682,17 @@ Python官网：
 
 [https://www.python.org/](https://www.python.org/)
 
-![](/posts/01-dev-environment-setup/media/image112.webp)
+![](/posts/01-dev-environment-setup/media/python-home-3151.webp)
 
-将鼠标移动到“Downloads”（如下图，**注意是移动，悬浮在选项卡上即可，不是点击**），然后点击“Python 3.14.0”，下载会在几秒后开始；
+将鼠标移动到“Downloads”（如下图，**注意是移动，悬浮在选项卡上即可，不是点击**），然后点击“Python 3.15.1”，下载会在几秒后开始；
 
-![](/posts/01-dev-environment-setup/media/image113.webp)
-
-有一点需要注意的是，安装程序上发布了一个通知“**This installer is being retired and will no longer be available after Python 3.15.**”，意思是“**该安装程序即将退役，在 Python 3.15 版本发布后将不再提供”**（如下图）；
-
-![](/posts/01-dev-environment-setup/media/image114.webp)
-
-通过官方的文档，我们得知：3.15版本之后，将仅支持从微软应用商店下载。（如下图）；
-
-![](/posts/01-dev-environment-setup/media/image115.webp)
+![](/posts/01-dev-environment-setup/media/python-downloads-3151.webp)
 
 #### (2) 安装Python
 
-如下图，一定要先勾选下面的两个选项，然后点击“Install Now”开始安装；
+如下图，一定要先勾选下面的两个选项，然后点击“Install Now”开始安装，等待安装完成即可。
 
-![](/posts/01-dev-environment-setup/media/image116.webp)
-
-然后，重启你的电脑，不出意外的话，环境变量已经正常配置。
-
-![](/posts/01-dev-environment-setup/media/image117.webp)
-
-![](/posts/01-dev-environment-setup/media/image118.webp)
+![](/posts/01-dev-environment-setup/media/python-install-3151.webp)
 
 ### 3. 代码编辑器(IDE)的选择
 
@@ -703,6 +702,7 @@ Python官网：
 
 #### (1) Visual Studio Code
 
+- 下载、安装、中文插件安装请见[本文第四节](#四visual-studio-code-的下载与安装)。
 - Python 扩展安装、代码编写和运行
 
 如下图，在扩展商店搜索Python，然后点击Python扩展右下角的“安装”；
@@ -710,6 +710,7 @@ Python官网：
 ![](/posts/01-dev-environment-setup/media/image119.webp)
 
 安装完成之后，就可以开始新建文件编写代码了，你可以点击左上角<u>菜单栏中的“文件”-“新建文件”，再点击“Python File”来新建一个文件（如下图）</u>；或者直接Ctrl+N新建一个文件；或者像C/C++那样，先创建文件夹，然后“打开文件夹”，再进行Python文件的创建。方法很多，我的建议是最后一种。
+
 ![](/posts/01-dev-environment-setup/media/image120.webp)
 
 ![](/posts/01-dev-environment-setup/media/image121.png)
@@ -750,7 +751,10 @@ Python官网：
 
 #### (2) Visual Studio
 
+- 下载、安装和Python环境安装请见[本文第五节](#五visual-studio的下载与安装)（注意：如果你只需要学习Python，请仅勾选“Python”）；
 - 创建Python项目、编写Python程序和运行；
+
+创建Python项目流程如下图；
 
 ![](/posts/01-dev-environment-setup/media/image133.webp)
 
@@ -816,9 +820,9 @@ Python官网：
 
 ### 4. 重启并应用中文语言（注：从PyCharm 2025.3.3开始，默认的应用语言为中文，此步骤可跳过）
 
-![](/posts/01-dev-environment-setup/media/image148.webp)
-
 如下图，不出意外的话，右下角会有这样的弹窗。点击“ Enable Chinese and Restart ”按钮，再点击中间的Exit，软件将自动重启；
+
+![](/posts/01-dev-environment-setup/media/image148.webp)
 
 ![](/posts/01-dev-environment-setup/media/image149.webp)
 
@@ -850,12 +854,16 @@ Python官网：
 
 ### 6. 扩展说明
 
-#### 关于界面缩放
+#### (1) 关于界面缩放
 
 打开设置，在“<u>外观与行为-外观</u>”调整软件缩放（如下图）。
 
 ![](/posts/01-dev-environment-setup/media/image156.webp)
 
 ![](/posts/01-dev-environment-setup/media/image157.webp)
+
+#### (2) 关于字体大小
+
+打开设置，在“<u>编辑器-字体-大小</u>”调整代码和终端的字体大小（如下图）。
 
 ![](/posts/01-dev-environment-setup/media/image158.webp)

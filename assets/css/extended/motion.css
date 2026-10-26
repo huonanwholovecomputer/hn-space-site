@@ -782,9 +782,12 @@ html.lenis body {
    放大，同一倍数、看不出差别）。导航栏 logo 在 <header> 里、不在 main 内，
    天然不参与：它只有 30px 高，放大没有信息量、还会顶出导航栏。
 
-   唯一显式排除的是「竞赛证书叠放」(.comp-cert-deck)：它是按钮里两张 22×30px 的
-   缩略图，已有自己的 hover 扇开编排（about.css），通用放大与重阴影只会糊掉那点
-   层叠观感。这里用 `:where()` 包住排除条件 —— `:where()` 权重为 0，所以这条规则
+   唯一显式排除的是「竞赛证书叠放」(.comp-cert-deck) 与「证书纸」(.cert-paper__sheet)：
+   前者是按钮里两张 22×30px 的缩略图，后者是关于页那一叠按真实比例摆的证书（2026-10-25
+   改版后 .comp-cert-deck 已不再产出，留着只为兼容旧模板）。两者都有自己的 hover 编排
+   （about.css：扇开 + 纸边 + 柔光斑），通用放大与重阴影只会糊掉那点层叠与纸质观感；
+   而且证书是「一张纸」，纸不该被 hover 放大 —— 印在上面的字跟着变大会很怪。
+   这里用 `:where()` 包住排除条件 —— `:where()` 权重为 0，所以这条规则
    仍是 `main img:hover`(0,1,2) 的权重，**不会**压过既有的
    `.friend-card:hover .friend-avatar img`(0,3,1) 之类规则（否则会给友链头像加上
    一个本不该有的阴影）。
@@ -802,12 +805,12 @@ html.lenis body {
    ============================================================================ */
 
 @media (prefers-reduced-motion: no-preference) and (hover: hover) {
-  main img:where(:not(.comp-cert-deck img)) {
+  main img:where(:not(.comp-cert-deck img, .cert-paper__sheet img)) {
     transition: transform 320ms var(--home-ease-out, cubic-bezier(0.23, 1, 0.32, 1)),
                 box-shadow 320ms var(--home-ease-out, cubic-bezier(0.23, 1, 0.32, 1));
   }
 
-  main img:where(:not(.comp-cert-deck img)):hover {
+  main img:where(:not(.comp-cert-deck img, .cert-paper__sheet img)):hover {
     transform: scale(1.06);
     box-shadow: 0 18px 40px -16px rgba(15, 23, 42, 0.4);
   }
@@ -825,7 +828,7 @@ html.lenis body {
      所以是"浅色细边 + 下沉黑影"两条一起给。
      权重必须 ≥ 内联样式里的 `html[data-theme="dark"] .post-content img`(0,2,2)，
      否则会被它那条静止态的 1px 浅色描边盖掉。 */
-  html[data-theme="dark"] main img:where(:not(.comp-cert-deck img)):hover {
+  html[data-theme="dark"] main img:where(:not(.comp-cert-deck img, .cert-paper__sheet img)):hover {
     box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.14),
                 0 18px 40px -14px rgba(0, 0, 0, 0.72);
   }

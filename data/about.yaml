@@ -62,18 +62,37 @@ competitions:
     # 点开走站点灯箱的画廊模式；卡片只加载 thumb（几十 KB），大图按需拉取。
     certsNote: "证书编号已隐去"
     certs:
+      # ar = 宽 / 高。关于页把证书当"纸"摆出来（按真实比例，不裁），
+      # 所以每张要声明自己的长宽比：省赛是 A4 竖版 1800×2545，国赛是 A4 横版 1800×1273。
+      # 新增证书时填错只会让纸的比例不对、不会报错 —— 记得核一下。
       - label: "省赛 · 一等奖"
         alt: "第二十八届中国机器人及人工智能大赛（陕西赛区）一等奖荣誉证书：霍楠、杨孜萌、孟德森，指导教师闫文耀、吴晓晖"
         img: "/img/certs/cert-craic2026-provincial.webp"
         thumb: "/img/certs/cert-craic2026-provincial-thumb.webp"
+        ar: 0.7071
       - label: "国赛 · 一等奖"
         alt: "第二十八届中国机器人及人工智能大赛全国总决赛一等奖获奖证书：霍楠、杨孜萌、孟德森，指导老师闫文耀、吴晓晖"
         img: "/img/certs/cert-craic2026-national.webp"
         thumb: "/img/certs/cert-craic2026-national-thumb.webp"
+        ar: 1.4143
+  # —— 备赛中（进行中，结果未出）——
+  # 小卡片只渲染 name / fullName / status / note，fullName 是官方全称（灰色小字，显示在标题上方）。
+  - name: "具身智能广域挑战赛"
+    fullName: "第八届国际青年人工智能大赛 · 西部赛区及东盟赛区选拔赛"
+    icon: "robot"
+    status: "备赛中"
+  - name: "智能搬运赛道"
+    fullName: "中国大学生工程实践与创新能力大赛"
+    icon: "box"
+    status: "备赛中"
+  - name: "CAIR 强体赛"
+    fullName: "2026 睿抗机器人开发者大赛（RAICOM）"
+    icon: "dumbbell"
+    status: "备赛中"
   - name: "RoboCup 四足机器狗挑战赛"
     icon: "robocup"
-    status: "已完赛，等待结果中"
-    note: "2026-08-23 已完赛，正在等待结果公布"
+    status: "已完赛 · 未获奖"
+    note: "2026-08-23 已完赛，未获得奖项"
   - name: "大学生数学建模竞赛"
     icon: "math"
     status: "已完赛，等待结果中"

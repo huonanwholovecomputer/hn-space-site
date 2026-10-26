@@ -148,7 +148,12 @@ var revealClassify = function (rect, vh) {
     /* 统计页卡片：只要光效与边框高亮，不做 3D 倾斜（靠 --tilt-max: 0 声明，见 makeState） */
     '.stats-card, .stats-panel, ' +
     /* 友链页的朋友卡片（链接本身是卡片，倾斜幅度在 friends.css 里调到 3deg） */
-    '.friend-card';
+    '.friend-card, ' +
+    /* 关于页的「证书纸」：绑的是**纸堆**而不是外层链接 ——
+       光斑 --gx/--gy 是按元素的 getBoundingClientRect 算的，绑在链接上会被旁边的
+       文字块撑宽、光斑左右移动只覆盖纸的前半段；绑在纸堆上才 1:1。
+       （倾斜幅度在 about.css 里声明为 3.5deg） */
+    '.cert-paper__stack';
 
   /* 磁吸扩展区（像素）：卡片四周留出该范围，边缘滑动仍视为"在卡片上" */
   var MAGNET = 28;
@@ -158,6 +163,12 @@ var revealClassify = function (rect, vh) {
   var mouseY = -9999;
   var mouseReady = false;
   var globalBound = false;
+
+  /* 特效开关（fx-prefs.js 的「卡片 3D 倾斜」/「卡片光效」）。
+     两者要能**分开**关：只想要光斑不要旋转、或只想要旋转不要光斑，都是合理诉求。
+     环境不允许（触屏 / 减少动态）时两个都为 false，走的是原来那条提前 return 的老路。 */
+  var fxTilt = true;
+  var fxGlow = true;
 
   function makeState(el) {
     /* --tilt-max 的语义：
@@ -204,6 +215,16 @@ var revealClassify = function (rect, vh) {
       smooth.rx = smooth.ry = 0;
     }
 
+    /* 只复位**旋转**那一半（--gx/--gy/--gs 留着）：
+       关掉「卡片 3D 倾斜」时仍然要保留光斑位置，否则光斑会掉回 CSS 默认的
+       `at 50% 50%`（卡片正中）—— 2026-10-26 的 bug。 */
+    function resetTilt() {
+      el.style.removeProperty('--rx');
+      el.style.removeProperty('--ry');
+      current.rx = current.ry = 0;
+      smooth.rx = smooth.ry = 0;
+    }
+
     /* 光斑即时定位（不做插值）：快速划过/首次进入卡片时，
        光斑直接落在指针处，而不是从卡片中心（默认 50%）追过去。 */
     function setGlow(gx, gy) {
@@ -240,13 +261,26 @@ var revealClassify = function (rect, vh) {
     return {
       el: el,
       maxTilt: maxTilt,
+      /* 声明里的原始角度：开关切换时靠它恢复，不用重算计算样式
+         （此时 --tilt-max 读到的仍是原值，但重跑一次 getComputedStyle 没必要） */
+      baseTilt: maxTilt,
       target: target,
       current: current,
       active: false,
       raf: null,
       apply: apply,
       resetInline: resetInline,
+      resetTilt: resetTilt,
       setGlow: setGlow,
+      /* 立即停掉平滑 rAF。必须给开关用：只清内联样式的话，正在跑的那一帧
+         会在复位之后把 --rx 再写回 "0.00deg"（本次实测踩到过）。 */
+      stop: function () {
+        if (raf) {
+          window.cancelAnimationFrame(raf);
+          raf = null;
+        }
+        lastT = 0;
+      },
       start: function () {
         if (!raf) {
           raf = window.requestAnimationFrame(step);
@@ -263,24 +297,55 @@ var revealClassify = function (rect, vh) {
     var rect = el.getBoundingClientRect();
     if (!rect.width || !rect.height) return;
 
-    /* 指针是否真正落在卡片内（不含磁吸扩展区）：控制光晕/边框高亮的显隐。
-       由 pointermove + scroll 重算，滚动时也即时刷新——不像 CSS :hover
-       在滚轮滚动时可能不更新，导致光效卡在旧的卡片上。 */
-    el.classList.toggle(
-      'is-pointed',
-      mouseX >= rect.left &&
-        mouseX <= rect.right &&
-        mouseY >= rect.top &&
-        mouseY <= rect.bottom
-    );
-
-    var inside =
+    var insideCard =
+      mouseX >= rect.left && mouseX <= rect.right &&
+      mouseY >= rect.top && mouseY <= rect.bottom;
+    var insideMagnet =
       mouseX >= rect.left - MAGNET &&
       mouseX <= rect.right + MAGNET &&
       mouseY >= rect.top - MAGNET &&
       mouseY <= rect.bottom + MAGNET;
 
-    if (inside) {
+    /* 指针是否真正落在卡片内（不含磁吸扩展区）：控制光晕/边框高亮的显隐。
+       由 pointermove + scroll 重算，滚动时也即时刷新——不像 CSS :hover
+       在滚轮滚动时可能不更新，导致光效卡在旧的卡片上。
+       光效关掉时这里连类都不碰（也就不会触发任何光斑重绘）。 */
+    if (fxGlow) {
+      el.classList.toggle('is-pointed', insideCard);
+    } else if (el.classList.contains('is-pointed')) {
+      el.classList.remove('is-pointed');
+    }
+
+    /* 光斑位置：**和 3D 倾斜无关**，必须独立更新。
+       2026-10-26 的 bug：这段原来被包在倾斜分支里，于是关掉「卡片 3D 倾斜」后
+       --gx/--gy 再也不写，光斑掉回 CSS 默认的 `at 50% 50%` = 卡在卡片正中。 */
+    if (fxGlow && insideMagnet) {
+      /* 坐标钳制到卡片内，边缘处不再无限外推 */
+      var gx = Math.min(Math.max(mouseX, rect.left), rect.right);
+      var gy = Math.min(Math.max(mouseY, rect.top), rect.bottom);
+      var nx = (gx - rect.left) / rect.width;
+      var ny = (gy - rect.top) / rect.height;
+      var size = Math.max(90, Math.min(rect.width, rect.height) * 0.72);
+      el.style.setProperty('--gs', size.toFixed(0) + 'px');
+      /* 光斑即时跟手（不做从中心出发的追踪） */
+      st.setGlow(nx * 100, ny * 100);
+    }
+
+    /* 倾斜关掉时：光斑上面已经写完了，这里只把旋转复位、停掉那条 rAF。
+       注意只清 --rx/--ry，不能 resetInline()——那会把刚写好的 --gx/--gy 一起清掉。 */
+    if (!fxTilt) {
+      if (st.active) {
+        st.active = false;
+        el.classList.remove('is-tilting');
+        st.target.rx = 0;
+        st.target.ry = 0;
+        st.stop();
+        st.resetTilt();
+      }
+      return;
+    }
+
+    if (insideMagnet) {
       /* 坐标钳制到卡片内，边缘处达到最大倾斜而非无限放大 */
       var cx = Math.min(Math.max(mouseX, rect.left), rect.right);
       var cy = Math.min(Math.max(mouseY, rect.top), rect.bottom);
@@ -289,18 +354,9 @@ var revealClassify = function (rect, vh) {
       if (!st.active) {
         st.active = true;
         el.classList.add('is-tilting');
-        var size = Math.max(90, Math.min(rect.width, rect.height) * 0.72);
-        el.style.setProperty('--gs', size.toFixed(0) + 'px');
-        st.target.rx = (0.5 - y) * 2 * st.maxTilt;
-        st.target.ry = (x - 0.5) * 2 * st.maxTilt;
-        /* 首次进入即把光斑钉在指针位置（不做从中心出发的追踪） */
-        st.setGlow(x * 100, y * 100);
-        st.start();
-        return;
       }
       st.target.rx = (0.5 - y) * 2 * st.maxTilt;
       st.target.ry = (x - 0.5) * 2 * st.maxTilt;
-      st.setGlow(x * 100, y * 100);
       st.start();
     } else if (st.active) {
       st.active = false;
@@ -322,6 +378,9 @@ var revealClassify = function (rect, vh) {
     mouseX = e.clientX;
     mouseY = e.clientY;
     mouseReady = true;
+    /* 两项都关掉时不做任何遍历：这里的每次 updateAll 都是 N 次 getBoundingClientRect，
+       在低配机上就是"页面已经卡了、指针还在不停触发它"。 */
+    if (!fxTilt && !fxGlow) return;
     /* 滚动期间只记坐标、不写光效：radial-gradient 重绘 + 平滑滚动叠在一起最掉帧。
        停止滚动后由 restoreAfterScroll() 按这个最新坐标重新点亮一次。 */
     if (scrolling) return;
@@ -370,13 +429,37 @@ var revealClassify = function (rect, vh) {
   }
 
   function initTilt() {
-    if (
-      !window.matchMedia ||
-      !window.matchMedia('(hover: hover) and (pointer: fine)').matches ||
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    ) {
-      return;
-    }
+    /* 环境不允许（触屏 / 系统减少动态）时两项都关掉——与改动前的提前 return 等价，
+       区别只是"关"变成了状态，这样面板上的开关与真实行为始终一致。 */
+    var envOK =
+      !!window.matchMedia &&
+      window.matchMedia('(hover: hover) and (pointer: fine)').matches &&
+      !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var FX = window.__hnFx;
+    fxTilt = envOK && (!FX || FX.enabled('tilt'));
+    fxGlow = envOK && (!FX || FX.enabled('glow'));
+
+    /* 复位：PJAX 换页后、以及面板上拨动开关后都走这里。
+       顺手把每张卡的 maxTilt 按当前开关重设：倾斜关掉时角度为 0，
+       仍留在 cards 里的卡片只做光效，不会再写 --rx/--ry。 */
+    cards = cards.filter(function (st) { return st.el.isConnected; });
+    cards.forEach(function (st) {
+      st.active = false;
+      st.stop();
+      st.el.classList.remove('is-tilting');
+      st.el.classList.remove('is-pointed');
+      st.resetInline();
+      st.maxTilt = fxTilt ? st.baseTilt : 0;
+      st.target.rx = 0;
+      st.target.ry = 0;
+    });
+    mouseX = -9999;
+    mouseY = -9999;
+    mouseReady = false;
+
+    /* 两项都关：不必绑全局监听、也不必给页面插 .ds-glow-border（少 N 个 DOM 节点）。
+       已经绑过的监听保留（globalBound 之后不再重绑），但 onGlobalMove 会立刻返回。 */
+    if (!fxTilt && !fxGlow) return;
 
     /* 全局 pointermove + scroll 只绑定一次（PJAX 后复用） */
     if (!globalBound) {
@@ -393,21 +476,7 @@ var revealClassify = function (rect, vh) {
       });
     }
 
-    /* PJAX 换页后：清除所有卡片的激活态（is-tilting/is-pointed 类 + 内联光效样式），
-       并把鼠标坐标重置为无效值，避免用旧页面坐标对新卡片误触发光效。 */
-    cards.forEach(function (st) {
-      st.active = false;
-      st.el.classList.remove('is-tilting');
-      st.el.classList.remove('is-pointed');
-      st.resetInline();
-    });
-    mouseX = -9999;
-    mouseY = -9999;
-    mouseReady = false;
-
-    /* 扫描新卡片（已绑定的跳过）；同时清理已脱离 DOM 的旧卡片 */
-    cards = cards.filter(function (st) { return st.el.isConnected; });
-
+    /* 扫描新卡片（已绑定的跳过） */
     Array.prototype.forEach.call(
       document.querySelectorAll(CARD_SELECTOR),
       function (el) {
@@ -420,8 +489,9 @@ var revealClassify = function (rect, vh) {
            这里 return 掉就不会插 .ds-glow-border，也不会进入 cards 列表，
            因此手电筒光晕与倾斜都不会作用到它。 */
         if (el.hasAttribute('data-no-tilt')) return;
-        /* 边框渐变高亮层：光斑照到边缘时点亮卡片边框（见 home.css .ds-glow-border） */
-        if (!el.querySelector(':scope > .ds-glow-border')) {
+        /* 边框渐变高亮层：光斑照到边缘时点亮卡片边框（见 home.css .ds-glow-border）。
+           只在光效开启时才插入——光效关着的那台机器上，这 N 个绝对定位节点纯属白占。 */
+        if (fxGlow && !el.querySelector(':scope > .ds-glow-border')) {
           var glowBorder = document.createElement('span');
           glowBorder.className = 'ds-glow-border';
           glowBorder.setAttribute('aria-hidden', 'true');
@@ -431,6 +501,7 @@ var revealClassify = function (rect, vh) {
         /* PJAX 换页后新卡片可能带旧的内联光效样式，先复位，
            避免光效卡在十字中心或残留旧位置 */
         st.resetInline();
+        st.maxTilt = fxTilt ? st.baseTilt : 0;
         cards.push(st);
       }
     );
@@ -438,6 +509,13 @@ var revealClassify = function (rect, vh) {
 
   initTilt();
   window.__siteInitTilt = initTilt;
+
+  /* 面板拨动「卡片 3D 倾斜」/「卡片光效」时立刻生效（key 为 null = 全部关闭/开启）。 */
+  if (window.__hnFx) {
+    window.__hnFx.onChange(function (key) {
+      if (key === 'tilt' || key === 'glow' || key === null) initTilt();
+    });
+  }
 })();
 
 /* 关于页行级入场：整行进入视口后，子卡片从左到右逐个「磁吸」入位。

@@ -106,26 +106,38 @@
             {{- end }}
           </ol>
 
-          {{/* 证书入口：不在卡片里平铺缩略图，只放一个"叠放双证"按钮，
-               点开走站点灯箱的画廊模式（可 ←/→ 切换、带说明与计数器）。
-               结构仍是 <a href="第一张大图" data-lightbox>：无 JS 时直接打开大图，
-               有 JS 时读 data-gallery-items 打开整组。
-               注意 data-gallery-items 只写 `| jsonify`，**不要**再套 htmlEscape：
-               Go 模板在属性上下文已经自动转义一次，套两层会变成 &amp;#34;，
-               浏览器 getAttribute 拿到的是字面量 &#34; → JSON.parse 直接失败。
-               卡片里只加载两张几十 KB 的缩略图。 */}}
+          {{/* 证书入口：把证书当"纸"摆出来（一小叠，按真实比例）。
+                2026-10-26 用户要求：**两张纸各自是一张证书入口** —— 点哪张就放大哪张，
+                不再是一整组画廊，也没有「上一张 / 下一张」了。
+                所以每个 .cert-paper__sheet 自己就是一个 <a data-cert-viewer>，各带自己那条
+                data-cert-item；外层 .comp-cert-paper 退成普通容器
+                （嵌套 <a> 是非法 HTML，可点击的必须是纸本身）。
+                每张纸仍然是 href="大图" + data-lightbox：无 JS 时点开就是那张大图，
+                有 JS 时 cert-viewer.js 在捕获阶段接手。
+                注意 data-cert-item 只写 `| jsonify`，**不要**再套 htmlEscape：
+                Go 模板在属性上下文已经自动转义一次，套两层会变成 &amp;#34;，
+                浏览器 getAttribute 拿到的是字面量 &#34; → JSON.parse 直接失败。
+                卡片里的 3D 倾斜与光斑不走这里的 JS：.cert-paper__stack 是 site.js 的
+                卡片成员，由它写 --rx/--ry/--gx/--gy，本模板不加载任何脚本。 */}}
           {{- with $c.certs }}
           <div class="comp-certs-bar">
-            <a class="comp-cert-trigger" href="{{ (index . 0).img | relURL }}" data-lightbox
-               data-gallery-items="{{ . | jsonify }}">
-              <span class="comp-cert-deck" aria-hidden="true">
+            <div class="comp-cert-paper">
+              <div class="cert-paper__stack">
                 {{- range . }}
-                <img src="{{ .thumb | relURL }}" alt="" loading="lazy" decoding="async">
+                <a class="cert-paper__sheet" href="{{ .img | relURL }}" data-lightbox data-cert-viewer
+                   data-cert-item="{{ . | jsonify }}"
+                   style="--ar: {{ .ar | default 1.4143 }}"
+                   aria-label="放大查看{{ .label }}证书">
+                  <img src="{{ .thumb | relURL }}" alt="{{ .alt }}" loading="lazy" decoding="async">
+                  <span class="cert-paper__glare"></span>
+                </a>
                 {{- end }}
-              </span>
-              <span class="comp-cert-trigger-text">查看获奖证书</span>
-              <span class="comp-cert-trigger-count">{{ len . }}</span>
-            </a>
+              </div>
+              <div class="cert-paper__text">
+                <span class="cert-paper__label">查看获奖证书</span>
+                <span class="cert-paper__meta">点任一张放大</span>
+              </div>
+            </div>
             {{- with $c.certsNote }}
             <p class="comp-certs-note">{{ . }}</p>
             {{- end }}
@@ -144,8 +156,13 @@
             <span class="about-comp-icon about-comp-icon--{{ $c.icon }}" aria-hidden="true">{{ partial "icon.html" (dict "name" $c.icon) }}</span>
             <span class="comp-status">{{ $c.status }}</span>
           </div>
+          {{- with $c.fullName }}
+          <p class="comp-fullname">{{ . }}</p>
+          {{- end }}
           <h3>{{ $c.name }}</h3>
-          <p class="comp-note">{{ $c.note }}</p>
+          {{- with $c.note }}
+          <p class="comp-note">{{ . }}</p>
+          {{- end }}
         </div>
         {{- end }}
         {{- end }}

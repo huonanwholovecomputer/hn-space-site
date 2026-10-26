@@ -46,6 +46,16 @@
   }
   var coarse = window.matchMedia('(hover: none), (pointer: coarse)').matches;
 
+  /* ---------- 特效开关（static/js/fx-prefs.js） ----------
+     liquid = 液态渐变 + 波浪扰动（两块 WebGL，低配机上最重的一层）
+     grid   = 首屏交互网格
+     开关是**运行时**生效的：关闭时不初始化（没建 WebGL 上下文就没有显存/编译开销），
+     已初始化的则停掉 rAF（见各 init 里的 __dsStop / __dsResume）。
+     这里用 fxOn() 而不是缓存一份：PJAX 换页、面板点选都可能在不同时机发生。 */
+  function fxOn(key) {
+    return !window.__hnFx || window.__hnFx.enabled(key);
+  }
+
   /* ---------- 小工具 ---------- */
   function cssVar(name, fallback) {
     var v = getComputedStyle(document.documentElement).getPropertyValue(name);
@@ -143,6 +153,8 @@
      ========================================================= */
   function initCursorBlend() {
     if (coarse || reduced) return;
+    /* 开关关着：连节点都不建（面板上重新打开时由 initAll 再进来） */
+    if (!fxOn('ring')) return 'skip';
     if (document.querySelector('.ds-cursor-ring')) return;
 
     var ring = document.createElement('div');
@@ -153,6 +165,8 @@
     var x = 0, y = 0;      // 目标位置
     var lx = 0, ly = 0;    // 平滑后的当前位置
     var rafId = 0;
+    /* 开关的运行时状态：false 时当前帧之后不再排 rAF（这是全站最后一个"跟随指针"的常驻循环） */
+    var active = true;
 
     /* 判据台架探针（只读、零副作用）：.tools/hn-motion-harness.mjs 按 30/60/120fps
        逐帧比对光标环轨迹，证明跟随与帧率无关（handfeel.md §7.1 / §7.5）。 */
@@ -185,6 +199,7 @@
     var lastT = 0;
 
     function tick() {
+      if (!active) { rafId = 0; return; }
       var now = performance.now();
       var dtMs = lastT ? Math.min(now - lastT, 64) : 1000 / 60;
       lastT = now;
@@ -197,6 +212,23 @@
       ring.style.transform = 'translate3d(' + lx + 'px, ' + ly + 'px, 0)';
       rafId = requestAnimationFrame(tick);
     }
+
+    /* 开关控制：停止时顺手把环隐藏（否则重新打开会先在旧位置闪一下再跟随）。
+       恢复时不强制显示——等下一次 mousemove 自然亮起，避免指针根本不在页面上却出现一个环。 */
+    window.__dsCursorRing = {
+      stop: function () {
+        active = false;
+        if (rafId) cancelAnimationFrame(rafId);
+        rafId = 0;
+        ring.style.opacity = '0';
+      },
+      resume: function () {
+        if (active) return;
+        active = true;
+        lastT = 0;
+        rafId = requestAnimationFrame(tick);
+      }
+    };
 
     rafId = requestAnimationFrame(tick);
     document.addEventListener('mousemove', onMove, { passive: true });
@@ -217,6 +249,8 @@
      ========================================================= */
   function initDotGrid(canvas) {
     if (coarse || reduced) return;
+    /* 开关关着：返回 'skip'，由 initAll 决定"不标记已初始化"——面板上重新打开后会再进来 */
+    if (!fxOn('grid')) return 'skip';
     if (!canvas.getContext) return;
 
     var ctx = canvas.getContext('2d');
@@ -240,6 +274,8 @@
     var points = [], cols = 0, rows = 0, w = 0, h = 0;
     var mouse = { x: NaN, y: NaN };
     var rafId = 0, running = false, visible = true;
+    /* 特效开关的运行时状态：false 时帧循环不再排下一帧（stop），true 时重新 kick（resume） */
+    var active = true;
     var resizeTimer = null;
 
     function rebuild() {
@@ -268,7 +304,27 @@
       rebuild();
     }
 
-    function kick() { if (!running && visible) { running = true; rafId = requestAnimationFrame(frame); } }
+    function kick() {
+      if (!active) return;
+      if (!running && visible) { running = true; rafId = requestAnimationFrame(frame); }
+    }
+
+    /* 开关关闭：停循环 + 把交互网格撤掉，让 home.css 里那层静态 CSS 网格重新透出来
+       （它零成本，观感上等于"网格没消失，只是不再跟鼠标动"）。
+       注意 IO 回调里也会 kick()，所以 kick 必须认 active，否则滚进视口就自己复活了。 */
+    canvas.__dsStop = function () {
+      active = false;
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = 0;
+      running = false;
+      if (hero) hero.classList.remove('has-ds-grid');
+    };
+    canvas.__dsResume = function () {
+      active = true;
+      if (hero) hero.classList.add('has-ds-grid');
+      resize();
+      kick();
+    };
 
     function onMove(e) {
       var rect = canvas.getBoundingClientRect();
@@ -279,6 +335,7 @@
 
     var last = 0, step = 1000 / 30;
     function frame(t) {
+      if (!active) { running = false; rafId = 0; return; }
       if (!visible) { running = false; return; }
       if (t - last < step) { rafId = requestAnimationFrame(frame); return; }
       last = t - (t - last) % step;
@@ -511,6 +568,8 @@
   ].join('\n');
 
   function initFluid(canvas) {
+    /* 开关关着：连 WebGL 上下文都不建（低配机上这是最大的一笔开销） */
+    if (!fxOn('liquid')) return 'skip';
     if (coarse) { canvas.style.display = 'none'; return; } // 触屏/移动端：放弃液态 WebGL，避免渲染失败只露灰遮罩
     var gl = null;
     try {
@@ -686,6 +745,8 @@
     canvas.__dsColors = colors;
 
     var rafId = 0, visible = true, running = false;
+    /* 特效开关的运行时状态：false 时当前帧之后不再排 rAF（不销毁上下文，留着内存换恢复速度） */
+    var active = true;
     var drawnOnce = false;
     var start = performance.now();
     var ping = true;
@@ -693,6 +754,7 @@
 
     function frame(t) {
       rafId = 0;
+      if (!active) { running = false; return; }
       if (!visible || (reduced && drawnOnce)) { running = false; return; }
       if (t - last < step) { rafId = requestAnimationFrame(frame); return; }
       last = t - (t - last) % step;
@@ -764,11 +826,25 @@
     }
 
     function kick() {
+      if (!active) return;
       if (!running && visible && !(reduced && drawnOnce)) {
         running = true;
         rafId = requestAnimationFrame(frame);
       }
     }
+
+    /* 开关控制（fx-prefs.js 面板）。关闭只停循环，不销毁 WebGL 上下文：
+       重新打开时直接接着画，省掉一次着色器编译 + FBO 重建（那是 100ms 级的卡顿源）。 */
+    canvas.__dsStop = function () {
+      active = false;
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = 0;
+      running = false;
+    };
+    canvas.__dsResume = function () {
+      active = true;
+      kick();
+    };
 
     resize();
     if (!reduced) {
@@ -919,6 +995,8 @@
   ].join('\n');
 
   function initWave(canvas) {
+    /* 开关关着：连 WebGL 上下文都不建 */
+    if (!fxOn('liquid')) return 'skip';
     if (coarse) { canvas.style.display = 'none'; return; } // 触屏/移动端：放弃波浪 WebGL
     var gl = null;
     try {
@@ -1010,11 +1088,14 @@
     canvas.__dsColors = colors;
 
     var rafId = 0, visible = true, running = false, drawnOnce = false;
+    /* 特效开关的运行时状态（同液态层：只停循环、不销毁上下文） */
+    var active = true;
     var start = performance.now();
     var last = 0, step = 1000 / 30;
 
     function frame(t) {
       rafId = 0;
+      if (!active) { running = false; return; }
       if (!visible || (reduced && drawnOnce)) { running = false; return; }
       if (t - last < step) { rafId = requestAnimationFrame(frame); return; }
       last = t - (t - last) % step;
@@ -1038,11 +1119,23 @@
     }
 
     function kick() {
+      if (!active) return;
       if (!running && visible && !(reduced && drawnOnce)) {
         running = true;
         rafId = requestAnimationFrame(frame);
       }
     }
+
+    canvas.__dsStop = function () {
+      active = false;
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = 0;
+      running = false;
+    };
+    canvas.__dsResume = function () {
+      active = true;
+      kick();
+    };
 
     resize();
     if (!reduced) {
@@ -1069,25 +1162,64 @@
      ========================================================= */
   function initAll() {
     initCursorBlend();
+    /* 'skip' = 开关关着。这时**不能**标记 __dsInit——面板上重新打开后要能再进来初始化；
+       真正的失败（无 WebGL2 / 着色器编译失败）仍然标记，避免每次 PJAX 都重试一遍。 */
     var grids = document.querySelectorAll('canvas[data-ds-effect="grid"]');
     for (var i = 0; i < grids.length; i++) {
-      if (!grids[i].__dsInit) initDotGrid(grids[i]);
-      grids[i].__dsInit = true;
+      if (!grids[i].__dsInit && initDotGrid(grids[i]) !== 'skip') grids[i].__dsInit = true;
     }
     var fluids = document.querySelectorAll('canvas[data-ds-effect="fluid"]');
     for (var i = 0; i < fluids.length; i++) {
-      if (!fluids[i].__dsInit) initFluid(fluids[i]);
-      fluids[i].__dsInit = true;
+      if (!fluids[i].__dsInit && initFluid(fluids[i]) !== 'skip') fluids[i].__dsInit = true;
     }
     var waves = document.querySelectorAll('canvas[data-ds-effect="wave"]');
     for (var i = 0; i < waves.length; i++) {
-      if (!waves[i].__dsInit) initWave(waves[i]);
-      waves[i].__dsInit = true;
+      if (!waves[i].__dsInit && initWave(waves[i]) !== 'skip') waves[i].__dsInit = true;
     }
     /* 主题配色初始化 + 切换监听（即时更新，无节流延迟） */
     applyThemeToEffects();
     initThemeObserver();
   }
+
+  /* 开关变化：先补初始化（可能从来没建过），再按新状态停/启各画布的循环。
+     fx-prefs.js 在通知之前就已经挂好 fx-off-* 类，所以这里是"视觉已变、再收资源"。
+     ——顺序不能反过来：先隐藏再停循环，用户看不到中间那一帧。 */
+  function applyFxPrefs() {
+    initAll();
+
+    /* 反色光标环：单独一项开关。initAll 里若刚创建，__dsCursorRing 已就绪。 */
+    var ring = window.__dsCursorRing;
+    if (ring) {
+      if (fxOn('ring')) ring.resume();
+      else ring.stop();
+    }
+
+    var liquid = fxOn('liquid');
+    var waves = document.querySelectorAll('canvas[data-ds-effect="fluid"], canvas[data-ds-effect="wave"]');
+    for (var i = 0; i < waves.length; i++) {
+      var c = waves[i];
+      if (!c.__dsInit) continue;
+      if (liquid) {
+        if (c.__dsResume) c.__dsResume();
+      } else if (c.__dsStop) {
+        c.__dsStop();
+      }
+    }
+
+    var grid = fxOn('grid');
+    var grids = document.querySelectorAll('canvas[data-ds-effect="grid"]');
+    for (var j = 0; j < grids.length; j++) {
+      var g = grids[j];
+      if (!g.__dsInit) continue;
+      if (grid) {
+        if (g.__dsResume) g.__dsResume();
+      } else if (g.__dsStop) {
+        g.__dsStop();
+      }
+    }
+  }
+  window.__dsApplyFxPrefs = applyFxPrefs;
+  if (window.__hnFx) window.__hnFx.onChange(applyFxPrefs);
 
   /* 供 PJAX 复用：新页面内容替换后重新扫描 canvas（防重复初始化） */
   window.__dsInitAll = initAll;

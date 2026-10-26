@@ -1,0 +1,297 @@
+/* =========================================================
+   证书查看器（HN Space）——「塑封的纸」专用查看浮层
+   =========================================================
+   与通用灯箱（extend_head.html 里的 .math-lightbox）刻意不是一套：
+   灯箱是 2D 的取景框，这里是**一张有厚度的塑封纸**被拿在手里。
+
+   材质怎么造（全部靠合成层，不进 JS 改写渐变 → 不触发重绘）：
+     · 厚度  .cv-slab 的 ::before/::after 两个 translateZ 退后的"纸芯"面，
+             正面与它之间那道缝就是证书的截面（象牙色，不是白色）；
+     · 边缘  .cv-rim 的一圈静态亮边（纸的倒角），不随指针动；
+     · 颗粒  .cv-noise 的塑封「橘皮」：静态、极淡，只在深色遮罩下读得出。
+
+    2026-10-26 的两刀删减，都别再长回来：
+      · 第一刀「炫光效果有些莫名其妙」→ 删掉塑封反射带 .cv-film 与高光斑 .cv-gloss；
+      · 第二刀「先把证书的鼠标悬浮光效删掉」→ 连跟随指针的背光 .cv-shade、场景泛光
+        .cv-bloom、以及 JS 里整套 light 状态（含 --light / --lx / --ly）一起删了。
+        现在卡片只有**静态**的纸边与颗粒，动起来靠 3D 翻转、橡皮筋拖动与缩放，不靠光。
+
+   白纸的物理边界（2026-10-25 实测）：白纸再加白只差 0.4 级色阶。
+   这也是两刀删光的物理依据：在白纸上"打光"本来就不成立。
+   ========================================================= */
+
+.cv-root {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  isolation: isolate;
+  /* 触屏：整层禁止浏览器的滚动手势。少了这一条，手指按住证书横划时浏览器
+     会先把它当滚动/下拉刷新抢走（pointercancel），指针事件收不到 move，
+     证书就"抓不起来"——而且桌面鼠标路径完全测不出来（2026-10-26 实测）。 */
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.cv-root[hidden] { display: none; }
+
+/* 遮罩：压暗 + 轻模糊。模糊只给一层，低端设备上 dis 掉也不影响功能 */
+.cv-scrim {
+  position: absolute;
+  inset: 0;
+  /* 2026-10-26「晃眼睛」：遮罩不再压到近黑。纸是 #fdfcf7 的白，四周一旦压到
+     .92 黑，眼睛会先适应暗环境，再被这块白墙打一下 —— 对比度才是刺眼的主因。
+     现在略亮一档，白纸仍是最亮的东西，但不至于"从黑里弹出来"。 */
+  background:
+    radial-gradient(120% 110% at 50% 38%, rgba(16, 20, 30, .64), rgba(5, 6, 10, .84));
+  opacity: 0;
+  transition: opacity 260ms cubic-bezier(.4, 0, .2, 1);
+  cursor: zoom-out;
+}
+
+@supports (backdrop-filter: blur(2px)) {
+  .cv-scrim { backdrop-filter: blur(7px) saturate(.85); }
+}
+
+.cv-root.is-open .cv-scrim { opacity: 1; }
+
+.cv-stage {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 72px 28px 104px;
+  box-sizing: border-box;
+  pointer-events: none;          /* 只有卡片本体接指针，空白处留给遮罩 */
+}
+
+/* 卡片投在场景里的影子：歪得越多抬得越高、越淡（JS 每帧写 transform/opacity）。
+   放大时由 JS 把 opacity 收到 0 —— 影子在 .cv-zoom 外面，不跟着放大。 */
+.cv-shadow {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  margin-left: -0;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, .8);
+  filter: blur(30px);
+  opacity: .34;
+  transform: translateY(18px);
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+
+.cv-flip {
+  position: relative;
+  pointer-events: auto;
+  will-change: transform;
+}
+
+/* 缩放层（滚轮 / 双指 / 双击）：只写 translate + scale，transform-origin 放在中心，
+   JS 的锚点计算就是按「相对卡片中心的偏移」来的。 */
+.cv-zoom {
+  width: 100%;
+  height: 100%;
+  transform-origin: 50% 50%;
+  will-change: transform;
+}
+
+.cv-persp {
+  width: 100%;
+  height: 100%;
+  perspective: 1500px;
+  perspective-origin: 50% 46%;
+  will-change: transform;
+}
+
+.cv-tilt {
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
+.cv-flip { cursor: grab; touch-action: none; }
+.cv-root.is-dragging .cv-flip { cursor: grabbing; }
+
+/* ---------- 纸：正面 + 两片退后的纸芯 ---------- */
+.cv-slab {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  border-radius: 5px;
+}
+
+.cv-slab::before,
+.cv-slab::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  /* 纸芯：比纸面暗一档的象牙色，像一叠纸被切开的截面 */
+  background: linear-gradient(180deg, #f3efe4 0%, #e2dccd 60%, #d5cebd 100%);
+  box-shadow: 0 0 0 1px rgba(60, 52, 38, .35);
+}
+
+.cv-slab::before { transform: translateZ(-8px); }
+.cv-slab::after  { transform: translateZ(-4px); background: linear-gradient(180deg, #faf7ee 0%, #ece6d7 100%); }
+
+.cv-face {
+  position: absolute;
+  inset: 0;
+  border-radius: 5px;
+  overflow: hidden;
+  transform: translateZ(0);
+  background: #fdfcf7;
+  /* 塑封的边：外一圈暗线（膜的厚度）+ 内一圈亮线（膜的倒角） */
+  box-shadow:
+    0 0 0 1px rgba(28, 24, 18, .55),
+    0 0 0 2.5px rgba(255, 255, 255, .16),
+    0 18px 46px -18px rgba(0, 0, 0, .75);
+  transition: opacity 200ms ease;
+}
+
+.cv-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-drag: none;
+  /* 纸的扫描件本来就接近纯白（254），在大面积压暗的遮罩里对比度偏高、看久了刺眼。
+     压 3% 几乎看不出色差，但把"从黑里弹出来的白墙"按下去了一点。
+     ⚠️ 过滤器只能挂在叶子节点上：挂在 preserve-3d 祖先上会把 3D 压平成一张位图。 */
+  filter: brightness(.97);
+}
+
+/* ---------- 纸的边缘 ----------
+   2026-10-26 按用户要求把「鼠标悬浮光效」整套删掉了：高光斑 .cv-gloss、塑封反射带 .cv-film、
+   跟随指针的背光 .cv-shade、场景泛光 .cv-bloom 都不在了。留下的是**静态的**纸边：
+   它描述的是纸的厚度与倒角，不随指针动，所以也不该算"光效"。 */
+.cv-rim {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  /* 只在**边缘**反光：不给整张纸铺一层白（那会把证书的字洗淡） */
+  background: none;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, .28),
+    inset 0 1.5px 0 rgba(255, 255, 255, .40),
+    inset 0 -2px 3px rgba(60, 50, 36, .12),
+    inset 2px 0 0 -1px rgba(255, 255, 255, .15);
+  opacity: .30;
+}
+
+/* 膜的颗粒（"橘皮"）：静态、极小，只在深色遮罩下才读得出，别加太多 */
+.cv-noise {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: .035;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.86' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='.62'/%3E%3C/svg%3E");
+  background-size: 160px 160px;
+}
+
+/* ---------- 底部信息与控件 ---------- */
+.cv-hud {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 26px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 0 88px;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+
+.cv-hud > * { pointer-events: auto; }
+
+.cv-cap {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-size: .82rem;
+  letter-spacing: .01em;
+  color: rgba(255, 255, 255, .78);
+}
+
+.cv-cap-text { font-weight: 600; color: rgba(255, 255, 255, .92); }
+
+.cv-hint {
+  margin: 0;
+  font-size: .73rem;
+  color: rgba(255, 255, 255, .38);
+  transition: opacity 400ms ease;
+}
+
+.cv-hint.is-used { opacity: .25; }
+
+.cv-close {
+  position: absolute;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, .18);
+  background: rgba(28, 32, 42, .55);
+  color: rgba(255, 255, 255, .9);
+  border-radius: 50%;
+  cursor: pointer;
+  padding: 0;
+  transition: background 180ms ease, transform 180ms ease, border-color 180ms ease;
+  backdrop-filter: blur(6px);
+}
+
+.cv-close svg { display: block; }
+
+.cv-close {
+  top: 20px;
+  right: 22px;
+  width: 40px;
+  height: 40px;
+}
+
+.cv-close:hover {
+  background: rgba(255, 255, 255, .16);
+  border-color: rgba(255, 255, 255, .34);
+  transform: scale(1.06);
+}
+
+.cv-close:focus-visible {
+  outline: 2px solid #6ea8fe;
+  outline-offset: 3px;
+}
+
+/* 按钮入场：只在打开时错峰淡入，关闭时立刻消失 */
+.cv-close, .cv-cap, .cv-hint { opacity: 0; transition: opacity 260ms ease; }
+.cv-root.is-open .cv-close,
+.cv-root.is-open .cv-cap,
+.cv-root.is-open .cv-hint { opacity: 1; }
+.cv-root.is-open .cv-cap { transition-delay: 140ms; }
+.cv-root.is-open .cv-hint { transition-delay: 220ms; }
+
+/* ---------- 窄屏 ---------- */
+@media screen and (max-width: 700px) {
+  .cv-stage { padding: 64px 16px 132px; }
+  .cv-hud { bottom: 20px; padding: 0 16px; gap: 8px; }
+  .cv-hud { flex-direction: row; flex-wrap: wrap; justify-content: center; }
+  .cv-hint { flex-basis: 100%; text-align: center; order: 2; }
+  .cv-cap { flex-basis: 100%; justify-content: center; order: 1; }
+  .cv-close { top: 12px; right: 12px; }
+}
+
+/* ---------- 减少动态：只留一个淡入，不要摆、不要可拖 ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .cv-scrim, .cv-close, .cv-cap, .cv-hint { transition-duration: 1ms; }
+  .cv-flip { cursor: default; }
+}

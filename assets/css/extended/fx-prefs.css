@@ -1,0 +1,343 @@
+/* ============================================================================
+   动态效果开关（性能开关）—— 面板与"关闭态"样式
+   ----------------------------------------------------------------------------
+   JS：static/js/fx-prefs.js（存偏好 + 建面板 + 给 <html> 挂 fx-off-xxx 类）
+   本文件只做两件事：
+     ① 面板本身的样式；
+     ② 关闭态的**兜底遮蔽**：画布从布局里拿掉、光斑/倾斜强制归零。
+   为什么关闭态要放在 CSS 里再写一遍（JS 明明已经停掉了）：
+     · 停掉 rAF 只保证「以后不再画」，**已经画上去的那一帧还留在画布上**——
+       WebGL 画布尤其明显，循环一停，最后那一帧就定格在那里（甚至永久）。
+       display:none 是同步生效的：整个层立刻退出合成，不依赖 JS 再去清画布。
+     · 「隐藏」与「停止」本来就是两件独立的事：display:none 省的是绘制，
+       JS 循环不停仍然在烧主线程。两边都要做（见 fx-prefs.js 顶部说明）。
+   ============================================================================ */
+
+/* ---------- 关闭态：从渲染树里拿走对应层 ---------- */
+/* 拖尾画布由 mouse-trail.js 动态创建，关闭时模块自己会移除；这条是兜底
+   （比如关闭瞬间的最后一帧，或脚本没来得及响应）。 */
+html.fx-off-trail #mouse-trail,
+/* 液态 + 波浪是两块 WebGL 画布，关掉后 hero 露出 .home-hero-wrap 的静态渐变底色 */
+html.fx-off-liquid .hero-fx-fluid,
+html.fx-off-liquid .hero-fx-wave,
+/* 网格关掉后 deepseek-effects.js 会移除 .has-ds-grid，让静态 CSS 网格重新出现 */
+html.fx-off-grid .hero-fx-grid,
+/* 反色光标环（mouse-follow）关掉后彻底不渲染 */
+html.fx-off-ring .ds-cursor-ring {
+  display: none !important;
+}
+
+/* 光效：JS 不再写 --gx/--gy、也不再加 .is-pointed；这条保证"关闭那一刻"就暗下去
+   （内联样式还在，但 opacity 由类压住，不需要等 JS 复位）。 */
+html.fx-off-glow .is-pointed::before,
+html.fx-off-glow .is-pointed::after,
+html.fx-off-glow .is-pointed > .ds-glow-border {
+  opacity: 0 !important;
+}
+
+/* 倾斜：卡片角度来自内联 --rx/--ry，普通声明赢不过内联样式，必须 !important。
+   （自定义属性上的 !important 会压过元素上的内联值——这正是这里要的。） */
+html.fx-off-tilt .is-tilting {
+  --rx: 0deg !important;
+  --ry: 0deg !important;
+}
+
+/* ---------- 悬浮按钮 ---------- */
+.fx-ui {
+  position: fixed;
+  left: 16px;
+  bottom: 16px;
+  z-index: 940; /* 高于悬浮导航(90)、回到顶部(99)、标题尺度面板(900)，低于灯箱(9999) */
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--content);
+}
+
+.fx-fab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px 0 10px;
+  /* 圆角必须写在这里：站点全局有 button:focus-visible { border-radius: 4px }，
+     键盘聚焦时会把胶囊掰成方块（灯箱的圆按钮踩过同一个坑）。 */
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--theme); /* 老浏览器兜底 */
+  background: color-mix(in srgb, var(--theme) 86%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgb(0 0 0 / 14%);
+  opacity: 0.72;
+  transition: opacity 200ms ease, border-color 200ms ease, color 200ms ease, transform 200ms var(--home-ease-out, ease);
+}
+
+.fx-fab:hover,
+.fx-fab:focus-visible {
+  opacity: 1;
+}
+
+.fx-fab:active {
+  transform: scale(0.96);
+}
+
+/* 有特效被关掉：图标染成强调色，一眼能看出"这台设备是省电状态" */
+.fx-ui.is-custom .fx-fab {
+  color: var(--home-accent);
+  border-color: var(--home-accent-line);
+  opacity: 0.95;
+}
+
+.fx-ui.is-lite .fx-fab {
+  border-color: var(--home-accent);
+}
+
+.fx-fab-ico {
+  display: block;
+  flex-shrink: 0;
+}
+
+.fx-fab-txt {
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+/* 首页揭幕遮罩（html.hn-opener 存在的那 0.8 秒，z-index 200）必须能盖住这个按钮：
+   面板的 z-index 是 940，不压一下的话，首屏揭开时左下角会单独浮着一个「特效」按钮。 */
+html.hn-opener .fx-ui {
+  opacity: 0;
+}
+
+/* ---------- 面板 ---------- */
+.fx-panel {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 10px);
+  width: 304px;
+  max-height: min(72vh, 520px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 14px 14px 10px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--theme); /* 兜底 */
+  background: color-mix(in srgb, var(--theme) 94%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 18px 48px rgb(0 0 0 / 26%);
+  /* 收起态：位移 + 淡出。减少动态时由下面的媒体查询压掉位移。 */
+  opacity: 0;
+  transform: translateY(6px) scale(0.985);
+  transition: opacity 150ms ease, transform 180ms var(--home-ease-out, ease);
+}
+
+.fx-panel[hidden] {
+  display: none;
+}
+
+.fx-panel.is-open {
+  opacity: 1;
+  transform: none;
+}
+
+.fx-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.fx-head-txt {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  margin-right: auto;
+}
+
+.fx-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--home-heading);
+  letter-spacing: 0.02em;
+}
+
+/* 一行放得下就一行：副标题折行会把两个"全部"按钮挤到第二行，头部高度随开关状态跳动 */
+.fx-sub {
+  font-size: 11.5px;
+  color: var(--home-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fx-bulk {
+  flex-shrink: 0;
+  font: inherit;
+  font-size: 11.5px;
+  line-height: 1;
+  padding: 6px 9px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  transition: border-color 160ms ease, color 160ms ease, background-color 160ms ease;
+}
+
+.fx-bulk:hover,
+.fx-bulk:focus-visible {
+  border-color: var(--home-accent);
+  color: var(--home-accent);
+  background: var(--home-accent-soft);
+}
+
+.fx-rows {
+  padding: 4px 0;
+}
+
+.fx-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 0;
+}
+
+.fx-row + .fx-row {
+  border-top: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+}
+
+.fx-row-txt {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  margin-right: auto;
+}
+
+.fx-row-label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--home-heading);
+}
+
+.fx-row-desc {
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--home-faint);
+}
+
+/* ---------- 开关本体 ---------- */
+.fx-sw {
+  position: relative;
+  flex-shrink: 0;
+  width: 38px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--content) 16%, transparent);
+  cursor: pointer;
+  transition: background-color 180ms ease, border-color 180ms ease;
+}
+
+.fx-sw::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 28%);
+  transition: transform 180ms var(--home-ease-out, ease);
+}
+
+.fx-sw[aria-checked="true"] {
+  border-color: transparent;
+  background: var(--home-accent);
+}
+
+.fx-sw[aria-checked="true"]::after {
+  transform: translateX(16px);
+}
+
+.fx-sw:focus-visible {
+  outline: 2px solid var(--home-accent);
+  outline-offset: 2px;
+}
+
+.fx-note {
+  margin: 8px 0 0;
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: var(--home-faint);
+}
+
+.fx-note-rm {
+  margin-top: 4px;
+}
+
+/* ---------- 小屏 ---------- */
+@media (max-width: 600px) {
+  .fx-ui {
+    left: 12px;
+    bottom: 12px;
+  }
+
+  .fx-panel {
+    width: min(calc(100vw - 24px), 320px);
+    max-height: 70vh;
+  }
+}
+
+/* 触屏设备（没有 hover 且指针是粗的）上，这 7 项本来就全部不播：
+   液态/波浪/网格被 deepseek-effects.css 的媒体查询隐藏，拖尾、光标环、
+   3D 与光效在 JS 里直接 return。面板在这里是个"点了没反应"的控件 ⇒ 不显示。
+   （用 and 而不是 or：带触屏的笔记本通常仍是 hover:hover + fine，那个要保留。） */
+@media (hover: none) and (pointer: coarse) {
+  .fx-ui {
+    display: none;
+  }
+}
+
+/* 减少动态：面板本身不做位移/缩放，只留淡入淡出（Apple：opacity 类变化帮助理解） */
+@media (prefers-reduced-motion: reduce) {
+  .fx-panel {
+    transform: none;
+    transition: opacity 120ms linear;
+  }
+
+  .fx-panel.is-open {
+    transform: none;
+  }
+
+  .fx-fab {
+    transition: opacity 120ms linear;
+  }
+
+  .fx-fab:active {
+    transform: none;
+  }
+
+  .fx-sw::after {
+    transition: none;
+  }
+}
+
+/* 标题尺度预览面板（?typescale=1）也在左下角，别和特效按钮叠在一起。
+   只在预览时出现，抬高一点即可；数值 = 按钮高 32 + 之间留 12 + 底距 16。 */
+html .tsw {
+  bottom: 60px;
+}
+
+@media print {
+  .fx-ui {
+    display: none;
+  }
+}

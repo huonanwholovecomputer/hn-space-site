@@ -167,11 +167,16 @@
        都重下全部 JS；内容哈希只在文件真变了才变。
        也不用 resources.Fingerprint：它的 .Data.Integrity 是 base64，含 "/" "+"
        "="，放进 query 会被转义成 %2f 之类，既不美观也不好读。 */}}
-{{- $jsFiles := slice "mouse-trail.js" "lenis.min.js" "motion.js" "site.js" "pjax.js" "deepseek-effects.js" "track.js" "stats.js" "math-image.js" }}
+{{- $jsFiles := slice "fx-prefs.js" "mouse-trail.js" "lenis.min.js" "motion.js" "site.js" "pjax.js" "deepseek-effects.js" "track.js" "stats.js" "cert-viewer.js" "math-image.js" }}
 {{- $jsv := dict }}
 {{- range $f := $jsFiles }}
   {{- $jsv = merge $jsv (dict $f (substr (md5 (os.ReadFile (printf "static/js/%s" $f))) 0 8)) }}
 {{- end }}
+{{- /* 特效开关（性能开关）：低配设备可以逐项关掉点击效果 / 移动拖尾 / 液态背景 /
+      卡片 3D 与光效。**必须排在最前面**——后面这些特效脚本一执行就会读
+      window.__hnFx.enabled()，晚了就会先建一遍 WebGL 上下文或全屏画布再拆掉。
+      偏好存 localStorage（键 hn-fx），面板自己挂在 body 上，PJAX 换页不重建。 */}}
+<script defer src="{{ "js/fx-prefs.js" | relURL }}?v={{ index $jsv "fx-prefs.js" }}"></script>
 <script defer src="{{ "js/mouse-trail.js" | relURL }}?v={{ index $jsv "mouse-trail.js" }}"></script>
 {{- /* 平滑滚动引擎（Lenis 1.3.11，MIT，本地托管：static/js/lenis.min.js）。
        必须排在 motion.js 之前——motion.js 初始化时就要用 window.Lenis。
@@ -204,6 +209,10 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+{{- /* 证书查看器：必须排在 math-image.js **之前** —— 两者都在 document 捕获阶段
+       监听点击，先注册的那个先跑；查看器对证书点击 stopImmediatePropagation，
+       所以只要它在前面，通用灯箱就永远接不到证书的点击（文章图片不受影响）。 */}}
+<script defer src="{{ "js/cert-viewer.js" | relURL }}?v={{ index $jsv "cert-viewer.js" }}"></script>
 <script defer src="{{ "js/math-image.js" | relURL }}?v={{ index $jsv "math-image.js" }}"></script>
 <style>
   /* 公式在深色主题下用亮色，避免黑字看不清 */

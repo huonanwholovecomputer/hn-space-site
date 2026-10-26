@@ -42,6 +42,10 @@ hugo server -D
 
 > 若已有一份 PaperMod 克隆，也可以直接拷贝到 `themes/PaperMod`。
 
+**Windows 双击启动**：直接双击项目根目录的 `preview.cmd`，会自动启动 Hugo 并打开浏览器，关闭窗口即停止服务。想连草稿一起看，在命令行执行 `preview.cmd -D`。
+
+> ⚠️ 不要双击 `deploy.cmd`：它不带参数时默认执行「构建 + 上传服务器」。
+
 ### 构建
 
 ```bash

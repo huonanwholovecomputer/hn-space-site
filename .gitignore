@@ -16,6 +16,9 @@ nginx-hardening/
 # DSH/Mnemon 本地运行记忆（含个人偏好与操作记录，勿提交到公开仓库）
 /.mnemon/
 
+# 其它 AI 协作工具（CodeBuddy/WorkBuddy）的本地记忆与技能目录，同样不进仓库
+/.workbuddy/
+
 # 本地 VSCode 图片预览用 junction（posts -> static/posts），不进仓库
 /posts/
 

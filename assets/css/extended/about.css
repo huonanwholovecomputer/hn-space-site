@@ -390,6 +390,16 @@ html.js [data-about-row] > *.is-in {
   box-shadow: 0 8px 18px -8px rgba(5, 150, 105, 0.5);
 }
 
+.about-comp-icon--box {
+  background: linear-gradient(135deg, #2dd4bf 0%, #0d9488 100%);
+  box-shadow: 0 8px 18px -8px rgba(13, 148, 136, 0.5);
+}
+
+.about-comp-icon--dumbbell {
+  background: linear-gradient(135deg, #fb7185 0%, #e11d48 100%);
+  box-shadow: 0 8px 18px -8px rgba(225, 29, 72, 0.5);
+}
+
 .about-comp-icon svg {
   width: 28px;
   height: 28px;
@@ -496,7 +506,7 @@ html.js [data-about-row] > *.is-in {
   line-height: 1.6;
 }
 
-/* ---------- 竞赛：其余 3 卡片一行 ---------- */
+/* ---------- 竞赛：其余卡片网格（桌面 3 列，数量不限，自动换行） ---------- */
 .comp-row {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -536,6 +546,14 @@ html.js [data-about-row] > *.is-in {
   letter-spacing: -0.01em;
   color: var(--home-heading);
   margin: 0 0 6px;
+}
+
+/* 小卡片里的官方全称：路径与 featured 卡片一致（灰色小字在标题上方）。
+   min-height 固定成两行，让同一行卡片里长短不一的全称不至于把标题挤得高低不齐。 */
+.about-comp-card .comp-fullname {
+  margin-bottom: 5px;
+  line-height: 1.45;
+  min-height: 2.9em;
 }
 
 .comp-note {
@@ -594,103 +612,241 @@ html.js [data-about-row] > *.is-in {
   }
 }
 
-/* ---------- 竞赛证书：卡片里的"触发按钮"（不占版面） ----------
-   不在卡片里平铺缩略图——只放一个药丸按钮：左边是两张缩略图叠成的小"证堆"，
-   悬停时像一手牌微微扇开；点开由站点灯箱的画廊模式展示（可 ←/→ 切换）。
-   右侧那行小字说明编号已隐去，属于"我有意脱敏"的交代，不是装饰。 */
+/* ---------- 竞赛证书：把证书当「纸」摆出来 ----------
+   原来的做法是药丸按钮里 44×30px 的两张小缩略图 —— 缩到这个尺寸，纸的质感无从谈起。
+   现在按**真实比例**摆成一小叠纸（省赛竖版在前、国赛横版在后），每张带「纸边截面」：
+
+       0 1.5px 0 亮边  +  0 3px 0 暗边
+
+   这两道光影是「它是一张纸、而不是一张贴图」的唯一证据，成本 2 行，是整块改动里
+   性价比最高的一条。指针进入时整叠轻微 3D 倾斜 + 柔光斑跟随 —— 这三个变量
+   （--rx / --ry / --gx / --gy）由 site.js 的卡片系统写入，所以本组件**不新增任何 JS**：
+   .comp-cert-paper 只是 CARD_SELECTOR 里的一个新成员，磁吸、弹簧、减少动态、
+   光效开关、PJAX 重绑全部沿用既有那套。
+
+   柔光斑用 screen 叠加：证书是白纸，加色在白纸上本来就加不动（实测白纸只差 0.4 级
+   色阶、墨迹 5 级），所以这一层只会在正文和红章上看得出来 —— 这不是没做，是物理。
+   想要「闪」的那种箔感请去看 research 目录下的原型，那里有对照实验。
+
+   说明「证书编号已隐去」是脚注、不是右侧栏：它用一道引导线从证书引到卡片右端，
+   把中间那段空白变成"引注"而不是"两个角落各放一点东西"（见 .comp-certs-note）。 */
 .comp-certs-bar {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 12px 20px;
-  margin-top: 24px;
-  padding-top: 18px;
+  gap: 16px 20px;
+  margin-top: 26px;
+  padding-top: 20px;
   border-top: 1px dashed var(--home-border);
 }
 
-.comp-cert-trigger {
+/* 链接本体只负责命中区与键盘焦点，视觉全在 .cert-paper__stack 上。
+   注意：site.js 绑的是 .cert-paper__stack（不是这个链接）——光斑位置按元素
+   getBoundingClientRect 算，绑在链接上会被右边的文字撑宽、光斑只覆盖纸的前半段。 */
+.comp-cert-paper {
   display: inline-flex;
   align-items: center;
-  gap: 11px;
-  padding: 8px 15px 8px 10px;
-  border: 1px solid var(--home-border);
-  border-radius: 999px;
-  background: var(--home-card);
-  color: var(--home-heading);
-  font-size: 0.86rem;
-  font-weight: 600;
+  gap: 16px;
   text-decoration: none;
-  transition:
-    transform 260ms var(--home-ease-out),
-    border-color 220ms ease,
-    box-shadow 260ms var(--home-ease-out);
+  color: inherit;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.comp-cert-trigger:hover {
-  transform: translateY(-2px);
-  border-color: var(--home-accent-line);
-  box-shadow: var(--home-shadow);
-}
+/* 边框高亮层是给整张卡片用的；套在纸堆上会变成一个套住整叠纸的方框 */
+.cert-paper__stack > .ds-glow-border { display: none; }
 
-.comp-cert-trigger:focus-visible {
-  outline: 2px solid var(--home-accent);
-  outline-offset: 3px;
-}
-
-/* 小"证堆"：两张缩略图叠放，悬停微微扇开 */
-.comp-cert-deck {
+.cert-paper__stack {
+  --tilt-max: 3.5deg;   /* 比卡片小：它叠在会倾斜的卡片里，两层不能都吃满 */
+  --tilt-persp: 900px;
+  /* 纸堆尺寸：这是整张卡片最后的"证据"，太小会像一张贴纸。148px 高时两张纸合计
+     约 290px 宽，仍只占 981px 内容宽的三成 —— 右边那段留白交给引导线（见 .comp-certs-note）。 */
+  --paper-h: clamp(96px, 11.8vw, 148px);
   position: relative;
-  width: 44px;
-  height: 30px;
-  flex-shrink: 0;
+  display: flex;
+  align-items: flex-end;
+  height: var(--paper-h);
+  transform: perspective(var(--tilt-persp)) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+  transform-origin: 50% 100%;
+  transition: transform 640ms var(--home-ease-out);
 }
 
-.comp-cert-deck img {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 22px;
-  height: 30px;
+.cert-paper__sheet {
+  /* 2026-10-26：每张纸自己就是 <a>（点哪张放大哪张），所以这里要补链接的重置。
+     display:block 必须有 —— <a> 默认是 inline，宽高会失效。 */
+  display: block;
+  position: relative;
+  height: 100%;
+  text-decoration: none;
+  color: inherit;
+  -webkit-tap-highlight-color: transparent;
+  cursor: zoom-in;
+  width: calc(var(--paper-h) * var(--ar, 1.4143));
+  flex: 0 0 auto;
+  border-radius: 3px;
+  overflow: hidden;
+  background: #fff; /* 证书是白纸：深色主题下不能透出卡片底色 */
+  /* 纸的三层「厚度」+ 两层影。浅色主题下白纸压白卡片，分离全靠这几层：
+     边线 .12 → .17（原来太淡，纸和卡片糊在一起）、接触影加深半档、环境影收窄一点
+     以免在卡片下缘拖出一道灰带。深色主题只把「亮边」压暗（白线在深底上会发光），
+     其余保持不变 —— 纸的截面本来就该是浅色。 */
+  box-shadow:
+    0 0 0 1px var(--paper-ring, rgba(20, 18, 30, .17)),   /* 纸的一圈边线 */
+    0 1.5px 0 var(--paper-edge-lit, rgba(255, 255, 255, .98)), /* 纸的截面：亮边 */
+    0 3px 0 var(--paper-edge-dim, rgba(214, 211, 224, 1)),     /* 纸的截面：暗边 */
+    0 3.5px 0 var(--paper-edge-dim2, rgba(191, 187, 203, .94)),
+    0 2px 6px rgba(12, 14, 30, .30),                         /* 接触影：纸压在卡片上的那一道 */
+    0 16px 28px -14px rgba(10, 12, 30, .46);                 /* 环境影：浅色主题下它是和白卡片分开的主要依据 */
+  transition: transform 620ms var(--home-ease-out);
+}
+
+/* 深色主题：白底纸的「亮边」在深色卡片上会变成一圈发光，压到 .5 就够读了 */
+:root[data-theme="dark"] .cert-paper__sheet {
+  --paper-edge-lit: rgba(255, 255, 255, .5);
+  --paper-ring: rgba(0, 0, 0, .5);
+}
+
+.cert-paper__sheet img {
+  display: block;
+  width: 100%;
+  height: 100%;
   object-fit: cover;
-  border: 1px solid var(--home-border);
-  border-radius: 4px;
-  background: #fff; /* 证书是白纸，给个白底避免深色主题下透出卡片色 */
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
-  transition: transform 300ms var(--home-ease-out);
 }
 
-.comp-cert-deck img:nth-child(1) { transform: rotate(-6deg); }
-.comp-cert-deck img:nth-child(2) { transform: translateX(11px) rotate(5deg); }
+/* 一前（竖版，左上角压住）一后（横版，更宽、往右上让开）：
+   两个 ±1° 的手放角度比完全对齐更像"放在桌上的一叠纸" */
+.cert-paper__sheet:nth-child(1) {
+  z-index: 2;
+  transform: rotate(-1.4deg);
+  transform-origin: 60% 92%;
+}
+.cert-paper__sheet:nth-child(2) {
+  z-index: 1;
+  margin-left: -14px;
+  transform: rotate(.7deg) translateY(-2px);
+}
 
-.comp-cert-trigger:hover .comp-cert-deck img:nth-child(1) { transform: translateX(-3px) rotate(-11deg); }
-.comp-cert-trigger:hover .comp-cert-deck img:nth-child(2) { transform: translateX(14px) rotate(9deg); }
+/* 指针进入：前一张再扇开一点（借用"一手牌"的手感，幅度只有 2°） */
+.cert-paper__stack.is-pointed .cert-paper__sheet:nth-child(1) {
+  transform: rotate(-3.2deg) translate(-3px, 1px);
+}
+.cert-paper__stack.is-pointed .cert-paper__sheet:nth-child(2) {
+  transform: rotate(1.6deg) translateY(-3px);
+}
 
-.comp-cert-trigger-count {
-  display: inline-grid;
-  place-items: center;
-  min-width: 20px;
-  height: 20px;
-  padding: 0 6px;
-  border-radius: 999px;
-  background: var(--home-border);
-  color: var(--home-muted);
-  font-size: 0.72rem;
+/* 柔光斑：位置由 site.js 写 --gx/--gy（百分比）。screen 叠加 → 只提亮墨迹 */
+.cert-paper__glare {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse 78% 78% at var(--gx, 32%) var(--gy, 28%),
+    rgba(255, 255, 255, .8),
+    rgba(255, 255, 255, .2) 46%,
+    transparent 74%
+  );
+  mix-blend-mode: screen;
+  opacity: 0;
+  transition: opacity 240ms var(--home-ease-out);
+}
+
+.cert-paper__stack.is-pointed .cert-paper__glare { opacity: .75; }
+
+.cert-paper__text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.cert-paper__label {
+  font-size: .86rem;
+  font-weight: 600;
+  color: var(--home-heading);
+  letter-spacing: -.01em;
+}
+
+/* 箭头在 hover 时右移 3px：这是全站同一种微反馈，不另起一套 */
+.cert-paper__label::after {
+  content: "→";
+  display: inline-block;
+  margin-left: 6px;
+  color: var(--home-faint);
+  transition: transform 220ms var(--home-ease-out);
+}
+
+.comp-cert-paper:hover .cert-paper__label::after {
+  transform: translateX(3px);
+}
+
+.cert-paper__meta {
+  font-size: .72rem;
+  color: var(--home-faint);
   font-variant-numeric: tabular-nums;
 }
 
+/* 焦点环套整个链接（纸 + 文字），而不是只套纸堆：
+   只套纸堆时那个方框会压在斜放的纸上、和文字割裂，看起来像"选错了元素"。
+   链接本身就是命中和 Tab 落点，环跟着它走才对得上。 */
+.cert-paper__sheet:focus-visible {
+  outline: 2px solid var(--home-accent);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+
+/* 脱敏说明：从「卡片最右边一个孤零零的小字」改成带引导线的脚注 ——
+   它在语义上是给证书盖的一条注，不是右侧栏。引导线把那 500px 的空白变成
+   「从证书引到这里」的一道虚点线（和上边那道 dashed 同一套语言），
+   不再是一个悬空在角落的字。窄屏下自动退化成普通一行。 */
 .comp-certs-note {
   margin: 0;
-  font-size: 0.74rem;
+  flex: 1 1 200px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  min-width: 0;
+  font-size: .74rem;
   color: var(--home-faint);
 }
 
+.comp-certs-note::before {
+  content: "";
+  flex: 1 1 auto;
+  min-width: 28px;
+  border-top: 1px dashed var(--home-border);
+}
+
+/* 窄屏：说明会换到自己一行，此时引导线横在句子前面就变成一道莫名其妙的下划线 */
+@media screen and (max-width: 700px) {
+  .comp-certs-note {
+    flex: 0 1 auto;
+    justify-content: flex-start;
+  }
+
+  .comp-certs-note::before {
+    display: none;
+  }
+}
+
 @media screen and (max-width: 560px) {
-  .comp-cert-trigger-text {
-    font-size: 0.82rem;
+  .cert-paper__stack {
+    --paper-h: 84px;
+  }
+
+  .comp-cert-paper {
+    gap: 12px;
+  }
+
+  .cert-paper__sheet:nth-child(2) {
+    margin-left: -10px;
+  }
+
+  .cert-paper__label {
+    font-size: .8rem;
   }
 
   .comp-certs-note {
-    font-size: 0.72rem;
+    font-size: .72rem;
   }
 }

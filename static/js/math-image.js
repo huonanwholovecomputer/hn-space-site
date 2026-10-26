@@ -315,6 +315,15 @@
     try { lenis.start(); } catch (eUnlock) { /* 忽略 */ }
   }
 
+  /* 把滚动锁借给别的浮层（cert-viewer.js 的证书查看器）。
+     这套锁法是有实证的（见上面 174-219 行：锁 body 会弄丢文章页粘性目录、
+     overflow 锁拦不住 Lenis 的程序化滚动），所以**不再复制一份**——两份实现迟早
+     会漂移成两套行为。调用方自己保证 lock/unlock 成对且幂等。 */
+  window.__hnLbLock = {
+    lock: function () { lockScroll(); lockLenis(); },
+    unlock: function () { unlockScroll(); unlockLenis(); }
+  };
+
   /* --------------------------------------------------------------------------
      3a. 打开/关闭的**空间延续**：大图从被点的那张原图的"位置与大小"长出来，
      关闭时沿同一条路缩回去（FLIP / zoom-from-origin）。

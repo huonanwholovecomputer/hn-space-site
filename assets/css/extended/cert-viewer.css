@@ -108,6 +108,24 @@
   will-change: transform;
 }
 
+/* 入场/退场的 3D 姿态层（2026-10-28 第十二轮改语义）：承载「Z 轴拉起 + 风阻旋转」——
+   由 JS 每帧写 rotateX/rotateY，退场时由 WAAPI 从当下的角度摆到 0。放在 .cv-persp 里、
+   .cv-tilt 外面：透视在 .cv-persp 上，这一层才真的转得出立体感；.cv-tilt 的 transform
+   归拖动与入场自转所有（两件事写同一层会互相覆盖）。
+   transform-origin **必须是中心**（50% 50%）：眼下演的是"整张纸被风掀起来"，
+   绕的自然是纸自己的重心。2026-10-27 之前这里是左上角，那时演的是"捏住右下角把纸抽出来"
+   （支点在角上、被捏的角朝观众抬起）—— 那个动作已被用户的草图那一版取代：
+   草图里纸是躺在 X-Y 平面上整体被拉起来的，绕角转会读成"一角被提起"，不是"纸面在气流里翻"。
+   preserve-3d 是留给 .cv-slab 两片纸芯的 translateZ(-4/-8px)：这一层自己有 transform，
+   不声明 preservation 就把子层的 3D 压平成一张位图，纸的截面会整片消失。 */
+.cv-grab {
+  width: 100%;
+  height: 100%;
+  transform-origin: 50% 50%;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
 .cv-tilt {
   width: 100%;
   height: 100%;
@@ -117,6 +135,63 @@
 
 .cv-flip { cursor: grab; touch-action: none; }
 .cv-root.is-dragging .cv-flip { cursor: grabbing; }
+
+/* 点击反馈层（2026-10-27）：只承载 translateY + 极小缩放，由 JS 每帧写。
+   单开一层的原因是 .cv-flip 的 transform 被 FLIP 动画（WAAPI）整段占用，
+   叠在同一层上会互相覆盖。 */
+.cv-press {
+  width: 100%;
+  height: 100%;
+  /* 俯视视角（2026-10-27 第四轮）：按下去 = 以中心为准缩小，所以 origin 必须在正中心，
+     否则会像被从某个角拽下去。这一层现在只写 scale，没有任何位移。 */
+  transform-origin: 50% 50%;
+  will-change: transform;
+}
+
+/* 扫光：.cv-sweep 裁在纸面里，.cv-sweep__band 是一条斜着扫过去的渐变带。
+   为什么**不用** mix-blend-mode（overlay / screen 都不行）：
+     · 证书纸是 254 的白，加色与 overlay 在白纸上都等于没发生（2026-10-25 实测只差
+       0.4 级）—— 真按 blend 走，这条带子会彻底看不见；
+     · 而 .cv-face 自带 transform（translateZ(0)），本来就把 blend 隔离在它自己的
+       图层里，带子实际只是"盖了一层半透明白" ⇒ 那不是光，是把字洗白。
+   所以这里用**普通混合**，把"光"拆成两种真的看得见的成分：
+     · 两侧 15% 的淡影（rgba(26,30,40,.15)）—— 白纸上唯一读得出来的部分，
+       也就是现实里光扫过纸面时的那道明暗变化；
+     · 中间 45% 的白核 —— 在白纸上不可见，但在黑字与红章上会真的"亮一下"。
+   合起来才像"一道光扫过去"，而不是一层白纱糊在字上。
+   强度是 2026-10-27 定的一版：先按 .10/.34 落地，量出来纸面上中间段平均只有 7 级差
+   （整幅 41.6% 的像素差 > 3 级），静态看几乎看不出来，于是抬到 .15/.45
+   （同一处平均 12 级、52.6% 的像素差 > 3 级，最大 113 级——最大差落在黑字与红章上）。
+   想再调就只动这两个数：.15 管"纸面明暗"，.45 管"字上亮一下"。
+   transform / opacity 由 JS 的 WAAPI 驱动，跑在合成器上；一次打开只播一次
+   （locked 在 cert-viewer.js 的 startSweep）。 */
+.cv-sweep {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.cv-sweep__band {
+  position: absolute;
+  top: -14%;
+  bottom: -14%;
+  left: 0;
+  width: 100%;
+  /* 静止态：整条带子停在纸面之外（.cv-sweep 有 overflow:hidden 裁掉）。
+     动画只写 transform、不写 opacity —— 带子两端渐变本来就是 0 alpha，进出纸面没有硬边；
+     而一旦同一个动画里混进 opacity 关键帧，WAAPI 会把 transform 曲线切成三段各自重套
+     easing，"先快后慢"就没了（详见 cert-viewer.js 的 startSweep）。 */
+  transform: translate3d(-108%, 0, 0) skewX(-14deg);
+  background: linear-gradient(104deg,
+    rgba(26, 30, 40, 0) 34%,
+    rgba(26, 30, 40, .15) 43%,
+    rgba(255, 255, 255, .45) 50%,
+    rgba(26, 30, 40, .15) 57%,
+    rgba(26, 30, 40, 0) 66%);
+  will-change: transform;
+}
 
 /* ---------- 纸：正面 + 两片退后的纸芯 ---------- */
 .cv-slab {
@@ -156,17 +231,41 @@
   transition: opacity 200ms ease;
 }
 
-.cv-img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  user-select: none;
-  -webkit-user-drag: none;
-  /* 纸的扫描件本来就接近纯白（254），在大面积压暗的遮罩里对比度偏高、看久了刺眼。
-     压 3% 几乎看不出色差，但把"从黑里弹出来的白墙"按下去了一点。
-     ⚠️ 过滤器只能挂在叶子节点上：挂在 preserve-3d 祖先上会把 3D 压平成一张位图。 */
-  filter: brightness(.97);
+/* ---------- 卡片本体：被抽取进来的那张纸 ----------
+   浮层里既没有自己的 <img>、也没有自己的卡片：点开时页面里那个
+   <a class="cert-paper__sheet"> 被整块搬进 .cv-face（cert-viewer.js 的 extractSheet），
+   关闭时再搬回原位。所以这里只做一件事 —— 把「页面里的纸」改造成「占满纸面的纸」：
+     · 尺寸与负 margin 由 about.css 的 .cert-paper__sheet 提供，进了浮层全部让给 inset:0；
+     · 斜角（纸堆的手角度）在页面里要、放大后不要，由 JS 用 WAAPI 从原姿态摆到正；
+       但那条动画转的是**整张卡 .cv-slab**（塑封边 + 纸一起转），不是纸自己 ——
+       纸相对卡转会被 .cv-face 的 overflow 切角、露出卡片本体的米色边（2026-10-28 修）。
+       所以这里写的仍是终态 transform:none：纸在卡里永远保持正，没有任何自己的姿态；
+     · 六层厚度影留给 .cv-slab 的两片纸芯与 .cv-face 的塑封边，两套一起上会糊成两圈；
+     · 纸面那 3% 的压暗跟着搬过来（扫描件是 254 的白，在压暗的遮罩里对比度偏高）。
+       ⚠️ 过滤器只能挂在叶子节点上：挂在 preserve-3d 祖先上会把 3D 压平成一张位图。 */
+.cv-face > .cert-paper__sheet.is-cv-extracted {
+  position: absolute;
+  inset: 0;
+  width: auto;
+  height: auto;
+  margin: 0;
+  transform: none;
+  transform-origin: 50% 50%;
+  box-shadow: none;
+  border-radius: 4px;
+  cursor: grab;
+}
+
+.cv-face > .cert-paper__sheet.is-cv-extracted img { filter: brightness(.97); }
+
+.cv-root.is-dragging .cv-face > .cert-paper__sheet.is-cv-extracted { cursor: grabbing; }
+
+/* 「洞」：纸被搬走期间留在页面原位、只占布局不画东西的空壳。
+   同一串类名（尺寸、负 margin、nth-child 全照旧）—— 右边那行文字不许横跳，
+   关闭时也靠它给出「回到哪里」的落点。visibility:hidden 连 box-shadow 一起不画。 */
+.cert-paper__sheet.is-cv-hole {
+  visibility: hidden;
+  pointer-events: none;
 }
 
 /* ---------- 纸的边缘 ----------

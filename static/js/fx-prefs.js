@@ -34,6 +34,11 @@
     { key: 'glow', label: '卡片光效', desc: '跟着指针的手电筒光斑与边框高亮' },
     { key: 'tilt', label: '卡片 3D 倾斜', desc: '指针移到卡片上时的立体转动' },
     { key: 'grid', label: '背景网格', desc: '首屏随指针弹动的网格点线' },
+    /* 平滑滚动引擎（Lenis）本身也是常驻 rAF：即使其它特效全关，它仍每帧在跑
+       （2026-10-25 实测：全部关闭后剩下的 181 帧/秒就是它）。所以它必须能单独关。
+       关掉 = 直接把引擎拆掉、滚轮监听一并掐断，滚动交回浏览器（见 motion.js 的
+       applySmoothPref / teardownLenis），不是拿 CSS 藏一下。 */
+    { key: 'smooth', label: '平滑滚动', desc: '滚轮的惯性缓动；关掉后一松手就停，最省电' },
     { key: 'liquid', label: '液态背景', desc: '首屏流动的 WebGL 渐变（最耗性能）' }
   ];
 

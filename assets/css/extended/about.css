@@ -667,7 +667,12 @@ html.js [data-about-row] > *.is-in {
   display: flex;
   align-items: flex-end;
   height: var(--paper-h);
-  transform: perspective(var(--tilt-persp)) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+  /* 按下时整叠纸一起压下去（2026-10-28 第十一轮）：缩放挂在**纸堆**这一层，
+     支点在底边中点（transform-origin: 50% 100%，本来就是这个）——
+     一叠纸被按在桌面上，底边不动、整体压扁，两张纸不会各缩各的。
+     批注：--paper-press 由 .is-pressed 改值，transition-duration 一起切到 110ms。 */
+  --paper-press: 1;
+  transform: perspective(var(--tilt-persp)) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) scale(var(--paper-press, 1));
   transform-origin: 50% 100%;
   transition: transform 640ms var(--home-ease-out);
 }
@@ -733,6 +738,22 @@ html.js [data-about-row] > *.is-in {
 }
 .cert-paper__stack.is-pointed .cert-paper__sheet:nth-child(2) {
   transform: rotate(1.6deg) translateY(-3px);
+}
+
+/* ---- 按下去的反馈（2026-10-28 第十一轮）----
+   用户原话：「点击证书后，证书会发生缩小的点击效果，然后再执行后面的平滑放大」，
+   随后又指出「按压效果和放大效果不连贯」。
+   所以压的不是**一张纸**（那样另一张不动，两拍读起来是两个动作），而是**整叠纸**：
+   .is-pressed 挂在 .cert-paper__stack 上，--paper-press 缩的是纸堆这一层，
+   底边中点固定、整体压向桌面；盖着的那张纸随后才被抽出去放大。
+   按下 110ms 跟手（纸堆平时那条 640ms 缓动太软，按下去会"拖"），抬手回到 640ms，
+   而此时浮层已经在放了，肉眼读到的是「按一下（整叠沉下去）→ 松手 → 前面那张飞出来长大」。
+   为什么用类而不是 :active：纸堆的指针状态本来就归 JS（site.js 的 is-pointed / --rx），
+   而且 :active 在触屏与无头环境里不可靠（实测 CDP 派发的 mousePressed 不会让它生效，
+   等于无法验收）。类的增删在 cert-viewer.js 的「缩略图按下反馈」一段。 */
+.cert-paper__stack.is-pressed {
+  --paper-press: 0.965;
+  transition-duration: 110ms;
 }
 
 /* 柔光斑：位置由 site.js 写 --gx/--gy（百分比）。screen 叠加 → 只提亮墨迹 */

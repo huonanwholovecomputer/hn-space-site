@@ -62,6 +62,225 @@
   var SEL = 'a[data-cert-viewer]';
   var reduceMQ = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
 
+  /* ---------- 0.05 3D 旋转总闸（2026-10-31 · 第四十一轮 m03567：默认开，拖动/按下位置都要转） ----------
+     来历：排查"入场卡顿"时用户先要求「把证书卡片的 3D 旋转效果全程关闭」做单变量隔离
+     （m00001）。结论是**卡顿与 3D 旋转无关**——关掉之后用户反馈"卡顿感并没有消失"
+     （m00140），真凶是路径上的多段速度换挡。所以第六轮（m00938「现在来考虑3D旋转」）
+     把它**重新打开成默认**，排查用的开关改成正向的关闭开关：
+       · 默认 = **关**（第十一轮·用户 m01493「再试试无3D旋转，但是加上一个扫光效果」）：
+         入场全程正对观众，悬停微倾、拖动转动、退场回摆一并关掉；立体感交给 §0.09 的扫光。
+       · ?cv3d=1 = 重新打开整条 3D 通道（第九轮那套：纯 Y 轴 18°、峰值 2/5、68% 摆正）；
+       · 旋转轴的细节（x / y / xy、幅度、收尾时刻）仍按 ?cvtiltaxis= / ?cvtilt= / ?cvtiltend=
+         生效，但只有 ?cv3d=1 时才有意义。
+     关闭时只关"转"不关"图层"：三层（persp / grab / tilt）的 will-change 与透视原样留着，
+     所以 ?cv3d=0 与 ?cv3d=1 的差别只在有没有角度，不在有没有独立的合成层。 */
+  var ROT3D = !/[?&]cv3d=0(?:&|$)/.test(window.location.search);   /* 默认开，?cv3d=0 整条关掉 */
+  /* 入场那 18° 倾角（§0.08）另有一条闸（2026-10-31 第四十一轮 m03567）：
+     用户要的是"鼠标拖动 + 按下位置的立体转动"，不是入场又歪一下 —— 入场保持平的。 */
+  var ENTRY_TILT = /[?&]cventilt=1(?:&|$)/.test(window.location.search);
+
+  /* ---------- 0.06 运动路径总闸：匀速时间轴 + 下弯弧（2026-10-31 卡顿排查·临时） ----------
+     排查顺序（用户逐项指方向）：
+       ① m00001 报告说"曲线已修、但冷启动仍有长帧" ⇒ 先把 3D 旋转整条关掉（§0.05 ROT3D）
+          做隔离：用户反馈"卡顿没消失"；
+       ② 用户（m00140，paraphrased）：「卡顿感并没有因为 3D 旋转的消失而消失，性能是足够的，
+          所以问题大概率出在运动路径的多段变化的节点（我大约感知到 6 次微折线变化），
+          你来将运动简化为直线运动、速度恒定吧」⇒ 把入场时间线**压成两个节点**：
+          p 直接线性映射，没有 145ms 按到底、没有 496ms 才起飞的停顿、没有末端减速，
+          按压包络（HOLD_SCALE / HOLD_DIP / PRESS_KEYS）不乘进路径，
+          路径采样不做高斯平滑（那是给九结点样条削拐角的，对直线只会把首尾压弯），
+          透明度不再 0.60 → 1 淡入（第二段时钟，肉眼看得出"先虚后实"）；
+       ③ 用户（m00270）：「现在改为弧线，弧线向下弯折」⇒ 在**线性时间轴**的基础上加一道
+          向下弯的正弦弓（只加在 dy、两端为 0），即"匀速 + 一道下弯"，不是回到快慢换挡。
+       ④ 用户嫌 40px 太轻（m00448）并手绘轨迹（m00458）⇒ 见下面第二段的第四轮说明：
+          弓幅改成行程的 0.55（约 244px）、形状换成两端斜率为 0 的 beta 鼓包。
+      ⑤ 用户（m00641）：「下一步来把运动的速度改为缓入缓出」⇒ 路径不动，只把时间轴从匀速
+          换成 ease 曲线，见下面 §0.07（这一整段的上半是路径，下半是速度曲线）。
+      ⑥ 用户（m00938）：「还是现在的自然一些。那现在来考虑3D旋转」⇒ 缩放保持 arc 不动，
+         3D 旋转重新打开成默认（§0.05 改成正向关闭开关 ?cv3d=0），入场倾角挂到与位移
+         同一条进度轴 u 上（§0.08）。
+     现在的默认 = 缓入缓出 + 下弯弧（arc 0.55×行程、方向正下方）+ 3D 旋转。地址栏开关（整页打开才生效，
+     脚本加载时读 location.search）：
+       · ?cvease=linear  把时间轴换回匀速（第四轮的样子，A/B 用）
+       · ?cvline=1   去掉那道弧，回到纯直线
+       · ?cvarc=120  直接指定弓幅（px）；默认 clamp(行程 × 0.55, 60, 400)
+       · ?cvdir=20   弓往左偏 20°（默认 0° = 正下方）
+       · ?cvcurve=1  回到原来那条九结点样条 + press 包络 + 半弧的旧时间线（对照）
+     退场走同一套（同样的 ease、同一形状，幅度按 ARC_OUT_RATE(0.40) 缩小）。
+     验证完把 STRAIGHT 改成 false（或整段删掉）即恢复旧路径。 */
+  var STRAIGHT = !/[?&]cvcurve=1(?:&|$)/.test(window.location.search);
+  /* 在直线的基础上加一道**向下弯的弧**（用户 m00270：「现在改为弧线，弧线向下弯折」）。
+     2026-10-31 第四轮：40px 的弓用户嫌太轻（m00448「不够靠左下」），并当场手绘了一条轨迹
+     （m00456 截图 + m00458「我希望轨迹是这样的」）。把那张截图里的红笔数字化、按页面真实
+     几何（缩略图中心 → 浮层落点中心，弦长 443px）拟合后，他画的那条弧是：
+       · 弓幅 ≈ 0.55 × 行程 ⇒ 443px 行程约 244px，是原来 40px 的 6 倍；
+       · 峰值在 u ≈ 0.44（比正弦的 0.5 早，所以是"先扎下去、再长尾收上来"）；
+       · 方向 ≈ 正下方（对弦偏右 3.9°，手绘误差内）。他说的"左下"不是弓真的朝左，
+         而是**下扎点落在落点的左下方**——落点(720,450)、最深点(439,675)，相对目的地看
+         就是左下。要真往左偏用 ?cvdir=20。
+     形状换成 beta 鼓包 e(u)=u^a(1−u)^b/peak：**两端斜率为 0**。正弦 sin(πu^p) 在 u=1 的
+     斜率是 −πp，244px 弓幅下到达时竖向速度约 −394px/s，纸会"撞"进落点。
+     a=1.2 / b=1.5 ⇒ 峰值 u=0.444，对红笔点云残差中位 15px（正弦能到 6.8px，但不能用于落地）。
+     ?cvline=1 去掉弧（纯直线）；?cvarc=120 直接指定弓幅（px）；?cvdir=20 弓往左偏 20°。 */
+  var ARC = !/[?&]cvline=1(?:&|$)/.test(window.location.search);
+  var ARC_PX = (function () {
+    var m = /[?&]cvarc=([0-9.]+)/.exec(window.location.search);
+    if (!m) return null;
+    var v = parseFloat(m[1]);
+    return isFinite(v) ? clamp(v, 0, 460) : null;
+  })();
+  /* 弓幅：行程的**相对**百分比（用户问"绝对还是相对"——幅度是行程的 0.55，方向是屏幕绝对角） */
+  var ARC_BOW_RATE = 0.55, ARC_BOW_MIN = 60, ARC_BOW_MAX = 400;
+  /* 退场沿用同一形状，幅度按这个比例缩小（时间只有 520ms，同样的 px 会显得更急） */
+  var ARC_OUT_RATE = 0.40;
+  function arcSag(dist) {
+    return ARC_PX != null ? ARC_PX : clamp(dist * ARC_BOW_RATE, ARC_BOW_MIN, ARC_BOW_MAX);
+  }
+  /* beta 鼓包：u^a·(1−u)^b / peak ⇒ 两端值与斜率都为 0，是"起手不钻、落地不撞"的前提 */
+  var ARC_BOW_A = 1.2, ARC_BOW_B = 1.5;
+  var ARC_BOW_PEAK = (function () {
+    var s = ARC_BOW_A + ARC_BOW_B;
+    return Math.pow(ARC_BOW_A / s, ARC_BOW_A) * Math.pow(ARC_BOW_B / s, ARC_BOW_B);
+  })();
+  function bowShape(u) {
+    var q = clamp(u, 1e-6, 1 - 1e-6);
+    return Math.pow(q, ARC_BOW_A) * Math.pow(1 - q, ARC_BOW_B) / ARC_BOW_PEAK;
+  }
+  /* 按**弧长**推进（第五轮补的第二刀）：直接把 u 当时间推进时，"匀速"是弦上的匀速，
+     而纸其实还额外横着走那道 247px 的弓 ⇒ 实际看到的速率会在弓峰两侧冲高、峰上变慢
+     （实测 280~612 px/s，2.2 倍的起伏，看起来像"中段忽然又蹿了一下"）。
+     改成"走过的弧长 ∝ 进度"：路径形状一个像素不动，只是把 u 换成弧长反查。
+     这样 ?cvease=linear 时最均匀，叠上 ease 之后的速率剖面就恰好是 ease 自己的形状。
+     表只依赖两个无量纲量：k = 弓幅 ÷ 弦长，c = 弦方向 · 弓方向
+     （c≠0 表示"弓不是垂直于弦"——?cvdir=20 时漏掉 c 会让 20° 那版速率剖面整体漂；
+     |dP/du|/L = sqrt(1 + 2k·b'(u)·c + (k·b'(u))²)）。 */
+  var _arcLut = { key: '', S: null };
+  function bowArcLut(k, c) {
+    var key = k.toFixed(4) + '|' + c.toFixed(4);
+    if (_arcLut.key === key) return _arcLut.S;
+    var N = 256, S = new Float64Array(N + 1), du = 1 / N, i, d, db, acc = 0, prev = 0;
+    S[0] = 0;
+    for (i = 1; i <= N; i++) {
+      d = k * bowShape(i / N);
+      db = (d - prev) / du;
+      acc += du * Math.sqrt(1 + 2 * db * c + db * db);
+      S[i] = acc;
+      prev = d;
+    }
+    for (i = 0; i <= N; i++) S[i] /= acc;
+    _arcLut.key = key; _arcLut.S = S;
+    return S;
+  }
+  /* 弧长比例 s ∈ [0,1] → 形状参数 u（反查表；表在 [0,1] 上单调） */
+  function arcToU(k, c, s) {
+    var S = bowArcLut(k, c), N = S.length - 1, lo, hi, m, t;
+    if (!(s > 0)) return 0;
+    if (s >= 1) return 1;
+    lo = 0; hi = N;
+    while (hi - lo > 1) { m = (lo + hi) >> 1; if (S[m] <= s) lo = m; else hi = m; }
+    t = (s - S[lo]) / ((S[hi] - S[lo]) || 1);
+    return (lo + t) / N;
+  }
+  /* 弧往哪个方向鼓（0° = 正下方，正角度 = 往左边偏）。默认 0°：用户手绘轨迹拟合出来是
+     "相对正下方偏右 3.9°"，手绘误差内即正下方；要更朝左下就 ?cvdir=20。
+     屏幕坐标 y 向下，所以 ARC_UY = cos(deg) 是"往下"，ARC_UX = −sin(deg) 是"往左"。
+     退场取镜像（−UX），免得"回程冲向缩略图再折回来"。 */
+  var ARC_DEG = (function () {
+    var m = /[?&]cvdir=(-?[0-9.]+)/.exec(window.location.search);
+    if (!m) return 0;
+    var v = parseFloat(m[1]);
+    return isFinite(v) ? clamp(v, -80, 80) : 0;
+  })();
+  var ARC_RAD = ARC_DEG * Math.PI / 180;
+  var ARC_UX = -Math.sin(ARC_RAD);
+  var ARC_UY = Math.cos(ARC_RAD);
+
+  /* ---------- 0.07 速度曲线总闸：缓入缓出 + 收尾拖尾（2026-10-31 第八轮） ---------- */
+  /* 用户 m00641：「下一步来把运动的速度改为缓入缓出」→ 第五轮做成 cubic-bezier。
+     用户 m01180：「将运动曲线最后阶段继续延长，让运动有较长的微小位移拖尾」→ 第八轮。
+     做法：在缓动之后再做一次**单调压缩**（不换形状、不加节点）：
+         s(t) = 1 − (1 − ease(t))^TAIL
+     · TAIL = 1 → 就是第五轮的缓动，一字不差（`?cvtail=1` 可 A/B）；
+     · TAIL > 1 → 越靠近落点，剩余距离被压掉得越快 ⇒ 最后那百分之几的位移摊在很长一段时间里，
+       形成"微小位移拖尾"；而且它在 t=0 与 t=1 处的斜率仍为 0（1−(1−e)^k 在 e 的两端斜率都为 0），
+       所以既不会起手硬甩、也不会收尾急停。
+     · 代价：全部位移更集中在 t≈0.35 前（1600ms 时峰值 746 → 968 px/s）。
+     · 第九轮（用户 m01292「拖尾不够长，加长一下总时间到两秒吧」）：默认总时长改成 **2000ms**，
+       尾段按比例一起变长（最后 5% 位移 561ms → 约 700ms），峰值速度回落到约 775 px/s。
+     开关（整页打开才生效，脚本加载时读 location.search）：
+       · ?cvease=linear          回到匀速（第四轮的样子，对照用）
+       · ?cvease=0.3,0,0.7,1     自定义四点：更软更"沉"
+       · ?cvtail=1               去掉拖尾（= 第五轮缓动）；?cvtail=3 拖得更长
+       · ?cvms=1900              整段入场拉长到 1900ms */
+  var EASE_ARG = (function () {
+    var m = /[?&]cvease=([^&]*)/.exec(window.location.search);
+    return m ? decodeURIComponent(m[1]).trim() : null;
+  })();
+  var EASE_ON = !(EASE_ARG === 'linear' || EASE_ARG === 'off' || EASE_ARG === 'none' || EASE_ARG === '0');
+  var EASE_TAIL = (function () {
+    var m = /[?&]cvtail=([0-9.]+)/.exec(window.location.search);
+    if (!m) return 2.2;                   /* 默认：2000ms 里，尾 5% 位移摊到约 700ms */
+    var v = parseFloat(m[1]);
+    return isFinite(v) ? clamp(v, 1, 6) : 2.2;
+  })();
+  var EASE_BEZ = (function () {
+    if (EASE_ARG && EASE_ON) {
+      var parts = EASE_ARG.split(',').map(function (s) { return parseFloat(s); });
+      var ok = parts.length === 4;
+      for (var i = 0; i < parts.length && ok; i++) if (!isFinite(parts[i])) ok = false;
+      /* x1/x2 必须夹在 [0,1]，否则曲线不再是"时间对时间"的函数 */
+      if (ok) return [clamp(parts[0], 0, 1), parts[1], clamp(parts[2], 0, 1), parts[3]];
+    }
+    return [0.42, 0, 0.58, 1];
+  })();
+  /* CSS 同款：给时间 x ∈ [0,1]，解参数 t 使 Bx(t) = x，返回 By(t) */
+  function bezEase(x1, y1, x2, y2) {
+    function bx(t) { var u = 1 - t; return 3 * u * u * t * x1 + 3 * u * t * t * x2 + t * t * t; }
+    function by(t) { var u = 1 - t; return 3 * u * u * t * y1 + 3 * u * t * t * y2 + t * t * t; }
+    function dbx(t) { var u = 1 - t; return 3 * u * u * x1 + 6 * u * t * (x2 - x1) + 3 * t * t * (1 - x2); }
+    return function (x) {
+      if (!(x > 0)) return 0;
+      if (x >= 1) return 1;
+      var t = x, i, e, s, lo, hi, v;
+      for (i = 0; i < 8; i++) {            /* Newton */
+        e = bx(t) - x;
+        if (Math.abs(e) < 1e-6) return by(t);
+        s = dbx(t);
+        if (Math.abs(s) < 1e-6) break;
+        t -= e / s;
+        if (t < 0 || t > 1) break;
+      }
+      lo = 0; hi = 1; t = x;               /* 二分兜底（Bx 单调，必收敛） */
+      for (i = 0; i < 40; i++) {
+        v = bx(t);
+        if (Math.abs(v - x) < 1e-6) break;
+        if (v < x) lo = t; else hi = t;
+        t = (lo + hi) / 2;
+      }
+      return by(t);
+    };
+  }
+  var easeBase = EASE_ON
+    ? bezEase(EASE_BEZ[0], EASE_BEZ[1], EASE_BEZ[2], EASE_BEZ[3])
+    : function (u) { return clamp(u, 0, 1); };
+  /* 收尾拖尾：s = 1 − (1 − e)^TAIL（单调、端点斜率仍为 0，见上面 §0.07 的推导） */
+  var easeT = (!EASE_ON || EASE_TAIL === 1)
+    ? easeBase
+    : function (u) {
+      var e = easeBase(clamp(u, 0, 1));
+      return 1 - Math.pow(1 - e, EASE_TAIL);
+    };
+
+  /* 缩放用哪条进度（用户 m00882 问「这版的放大是匀速的吗」）：
+     · arc（默认）= 跟位移同一个形状参数 u ⇒ 缩放与"纸走到哪"锁在一起，
+       弧长重参数化会让放大先慢后快（?cvease=0.5,0,0.25,1 实测峰值 3.75/s，是均值的 4 倍）；
+     · time = 只跟缓动后的时间进度 s ⇒ 放大的快慢就是纯 ease，不受弧长影响（放大结束得更早）。
+     路径形状两者完全一致，只有缩放曲线不同。 */
+  var SCALE_MODE = (function () {
+    var m = /[?&]cvscale=(time|arc)(?:&|$)/.exec(window.location.search);
+    return (m && m[1] === 'time') ? 'time' : 'arc';
+  })();
+
   /* ---------- 0. 常量：手感 ---------- */
   /* 两处弹簧共用**同一档阻尼比 ζ≈0.32**，只有 ω 不同 —— 用户 2026-10-26 反馈
      「拖动回弹和入场的阻尼好像不是同一个，入场更硬」，所以阻尼比统一，差别只在快慢：
@@ -128,11 +347,13 @@
        · 起手躺着：rotateX 正角把上沿压向远处（透视再把矩形压成梯形）= 草图上那两个平行四边形；
        · 一路上被"风"顶住：纸面的翻转**滞后于位移** —— D(p) 前段是 smoothstep，起手 200ms 几乎
          不转，到顶端才正对观众，所以中段看得见"纸在被掀起来"；
-       · 顶端之后**冲过头**：D 越过 1 ⇒ 纸再往前倾一点（LIFT_SWING_DEG），然后摆回 0 ——
-         用户说的"缓缓下落一点点距离，同时 3D 旋转角归零"就是这一段；
+       · 顶端之后不再冲过头（第十九轮按用户「不用最后弹那么一下」删掉了）：
+         D 到 0.82 摆正、斜率一路收到 0，纸停住，没有回摆；
        · 横向：卡片**朝运动方向侧过去**（rotateY 由横向速度给，LIFT_YAW_DEG 封顶）。
      全部是 p（入场进度 0→1）的解析函数：没有积分器、没有速度状态 ⇒ 掉帧、60/120Hz、
-     中途被打断都不会漂、不会错拍。数值用 node .tools/cv-zlift-curve.mjs 对账（改常量先跑它）。 */
+     中途被打断都不会漂、不会错拍。数值用 node .tools/cv-zlift-curve.mjs 对账（改常量先跑它）。
+     第十三轮（2026-10-30）在这条时间线的**最小端**又插了「按下去 → 停住」两段（用户要的
+     停顿感，见下面 HOLD_* 常量）：前 1/3 只压不长，之后才缓缓放大。 */
   /* 方向（2026-10-28 第三次反馈：「这个确实反了」）—— 上一版把 CSS 的符号读反了：
      rotateX **负角**才是上沿朝观众兜过来、下沿压向远处（**箭头/草图指的就是这一向**）；
      正角相反，是上沿压向远处。所以下面施加的一律是 **-LIFT_FLAT_DEG**（负号在 entryTilt 里，
@@ -140,22 +361,93 @@
   var LIFT_FLAT_DEG = 27.2;      /* 躺平时绕 X 的角度**绝对值**：实际施加 -27.2°（0 = 正对观众）。
                                     2026-10-28 第四次反馈「这转太多了，减少 60%」：整条倾角通道按 ×0.4 缩，
                                     68 → 27.2（同比例缩的还有下面的 SWING / YAW 两个角；时间线一个没动） */
-  var LIFT_FLAT_IN_P = 0.11;     /* 躺平占入场的比例：11% × 1250ms ≈ 140ms。点击那一帧纸还是
-                                    正着的（和页面里那张一样，不跳），随后被"按"到桌面上再抬起；
-                                    这一段就是「按压感」的下半截（上半截在缩略图上，见 §0b） */
-  var LIFT_TOP_P = 0.68;         /* 「拉到顶端」的时刻 = L 的峰值（草图里那条虚线） */
-  var LIFT_TOP_POW = 2.2;        /* 起手段的幂：被拽起来（起手快、长尾，到顶端速度归 0） */
-  var LIFT_SINK_POW = 1.5;       /* 顶端之后那段 cos 的幂：越大越"挂"在顶端，慢慢滑下来 */
-  /* 「缓缓下落一点点」的距离与过冲那点缩放（2026-10-28 第十二轮第二版）：
-     第一版把过冲挂在"沿路径冲过头"上，结果缩略图正好在视野中心时（dy≈0）那一下
-     完全看不见 —— 起伏只跟屏幕位置有关就不叫"拉到顶端再落下"了。
-     现在过冲是一条**与位置无关的窗**：顶端 1、两端 0（见 topWindow()），
-     所以不管纸从哪里起飞，顶端都会越过落点 10~20px 再落回来。 */
-  var LIFT_SETTLE_H = 0.024;     /* 下落距离 = 卡片高度 × 这个比例，夹在 10~20px */
-  var LIFT_SCALE_OVER = 0.014;   /* 顶端那一刻比落点大 1.4%（再多读成"胀了一下"） */
-  var LIFT_SWING_DEG = 1;        /* 顶端之后纸朝**主方向的反侧**倾的最大角度（冲过 0 的那一下：
-                                    主方向是负角，所以这一下是 +1°。2026-10-28：先按「减少反向」9 → 2.5，
-                                    再随整条通道 ×0.4 → 1；只留一口余韵） */
+  /* ---- 入场时间线：三条 Hermite 样条（2026-10-30 第十四 → 十五 → 十七轮）----
+     用户的反馈是层层递进的：
+       ① 「0.5秒内要有一种停顿感，比如让证书缩小、微微下移，然后缓缓放大」（起手要有重量）
+       ② 「不连贯啊…而不是让卡片在一个个动画节点卡住」（各段别各停一拍）
+       ③ 「还是不流畅，一顿一顿的——从点击卡片、卡片点击反馈、到飘起，再到弧线放大、
+           到最大值，然后微微缩小，这些是一气呵成的」（整条只许有**一个**速度鼓包）
+       ④ （第十六轮修掉双时钟之后，用户手画了一条曲线）「缺乏速度的变化，参考这个」——
+          那张图画的是：起手先往下一沉（低于基线）、几乎不动；然后猛地加速冲上去；
+          冲过落点、在顶上留一个圆头；再缓下来，停在比起点高一档的位置。
+     第十五轮我只做到"中途没有零速平台"，结果把速度抹成了一条**巡航线**：真机归一化速度
+     在 500~1300ms 里一直是峰值的 0.08~0.12，几乎不变 —— 数学上很"顺"，观感像轨道送过去。
+     第十七轮按那张手绘重排：**起手慢（峰值 6%）→ 中段快（峰值 100%，是均速的 1.9 倍）
+     → 顶端收（0）**。行程的 60% 挤在 0.62~0.84 这 350ms 里走完，起手那 350ms 只走 8%。
+     ⑤ 第十九轮（2026-10-30 晚）：「入场动画不用最后弹那么一下了，直接平滑停止就好」——
+        删掉顶端的 +5% 过冲（以及配套的那一点竖向回落与 1° 回摆），收尾改成**一路减速到 0**：
+        0.80 之后斜率 2.25 → 0.60 → 0.10 → 0，纸在最后一帧静止，没有回弹。
+     整条入场只有三个标量，各由一条三次样条给出
+     （关键帧 = [时刻, 值, d值/d时刻]，接缝处值与斜率都对齐 ⇒ C1）：
+       out  ：离开缩略图多远   0 → 1（单调，末端斜率为 0 ⇒ 平滑停止）
+       press：按住那一下        0 → 1（按到底）→ 0（一边起飞一边化开）
+       tilt ：躺在桌上的包络     0 → 1（躺平 -LIFT_FLAT_DEG）→ 0（被掀起来，同样收在 0）
+     时刻表（旧样条分支 ?cvcurve=1 的 FLIP_MS 基准 1600ms）：145ms 按到底（-7%、下沉 13px、躺平 -27.2°）·
+     290ms 仍几乎没动（行程 5%）· 500ms 行程 8%（用户要的"0.5 秒内"停顿）·
+     1120ms 最快（一个 p 走 2.45 个行程）· 1280ms 行程 90%、开始收 ·
+     1408ms 行程 97%、斜率 0.35 · 1600ms 正好 1.000 且静止。改节奏只改这三条数组，
+     别再加"某一段自己起停"的曲线。数值对账：node .tools/cv-zlift-curve.mjs。 */
+  var HOLD_PRESS_P = 0.09;   /* 按到底的时刻：0.09 × 1600ms ≈ 145ms */
+  var HOLD_P = 0.31;         /* 起手正式起飞的时刻：0.31 × 1600ms ≈ 496ms（用户要的"0.5 秒内"）。
+                                也是弧线窗口的起点（见 FLIP_ARC_*）：纸在桌上收着，不起弧 */
+  var HOLD_SCALE = 0.07;     /* 按到底时以中心缩小 7%。缩略图上那一记是 --paper-press: .965，
+                                这里比它深一档：纸是"被按进桌面"，不只是"被点了一下" */
+  var HOLD_DIP = 13;         /* 同时整体下沉多少 px（"微微下移"：再大就读成"掉下去了"） */
+  /* out：0 = 还在纸堆里，1 = 居中满幅。斜率那一列是"距离/单位 p"（1.0 = p 走满时正好走完
+     一整个行程），所以 1.90 / 2.45 是"中段真的在冲"，不是笔误。
+     第十七轮的关键**不是**"已经在长"，而是**快慢差别**：0.22 处 0.42（慢）、0.62~0.70 处
+     2.40（快，均速的 1.9 倍）、0.88 处 0（顶上一圆头）。这才是那张手绘图要的东西。 */
+  var OUT_KEYS = [
+    [0.00, 0.000, 0.08],
+    [HOLD_PRESS_P, 0.007, 0.16],   /* 按到底：几乎没动（起手是"沉"，不是"长"） */
+    [0.22, 0.035, 0.42],           /* 松手后的头 200ms 还慢：先被抬离桌面 */
+    [0.36, 0.097, 1.05],
+    [0.50, 0.247, 1.90],           /* 800ms：上头了 */
+    [0.62, 0.482, 2.40],
+    [0.70, 0.677, 2.45],           /* 最快（1120ms 附近）：一个 p 走 2.45 个行程 */
+    [0.80, 0.905, 2.25],           /* 1280ms：开始收（斜率已低于 0.70 的峰值，不再往上加） */
+    [0.88, 0.972, 0.60],           /* 1408ms：收到 0.60 —— 只剩"靠上去"那点余速 */
+    [0.95, 0.998, 0.06],
+    [1.00, 1.000, 0.00]            /* 末端斜率为 0：一帧不回头地停住（没有回弹） */
+  ];
+  /* press：1 = 按到底（缩小 + 下沉都乘它）。1 在 HOLD_PRESS_P 那一下到顶，0.09~0.18 之间
+     只化开 2%（这就是"被按住"那一下的重量），之后随冲刺一起迅速释放。
+     **释放的峰值必须和 out 的加速段（0.62~0.70）对上**：手一松纸同时往上抬、往外长，
+     三条通道只有一个鼓包；错开就会在合成速度里读出两个包（第十七轮第一版就是这样，
+     工具里"只踩一脚油门"当场失败）。 */
+  var PRESS_KEYS = [
+    [0.00, 0.000, 3.00],           /* 咬下去的那 145ms 速度极快（点击反馈） */
+    [HOLD_PRESS_P, 1.000, -0.20],
+    [0.18, 0.980, -0.30],          /* 真被按住（290ms 时还压着 98%） */
+    [0.34, 0.870, -1.00],
+    [0.50, 0.640, -1.60],
+    [0.62, 0.310, -2.20],          /* 992ms：释放最快，与 out 的冲刺同拍 */
+    [0.70, 0.090, -1.20],
+    [0.76, 0.000, 0.00],
+    [1.00, 0.000, 0.00]
+  ];
+  /* tilt：1 = 躺平（-LIFT_FLAT_DEG，上沿朝观众）。按到底那一下是**真的转身**，所以 0.09 处
+     只留极小的负斜率（-0.05）而不是 0 —— 纸按到底的同一刻就开始被掀起来，不留一拍。
+     0.09~0.18 几乎不动（纸压在桌上），随后跟着冲刺放开（峰值与 press 释放、out 加速同拍，
+     0.62），0.82（1312ms）摆正到 0°，**此后一直是 0**：第十九轮删掉了原来那记 +1° 回摆
+     （用户：「不用最后弹那么一下了，直接平滑停止就好」）。 */
+  var TILT_KEYS = [
+    [0.00, 0.000, 0.00],
+    [HOLD_PRESS_P, 1.000, -0.05],
+    [0.18, 0.985, -0.20],          /* 290ms：还躺在桌上 */
+    [0.34, 0.900, -0.70],
+    [0.50, 0.680, -1.50],
+    [0.62, 0.360, -2.20],          /* 992ms：掀得最快 */
+    [0.72, 0.130, -1.30],
+    [0.86, 0.000, 0.00],           /* 1376ms：纸面正对观众，**斜率也收到 0** —— 之后一直是 0
+                                      （第十九轮删掉了原来那记 +1° 回摆，也不再带任何回冲） */
+    [1.00, 0.000, 0.00]
+  ];
+  /* 「缓缓下落一点点」：第十九轮（用户「不用最后弹那么一下」）把这道**竖向回落**删了 ——
+     它原来是 settleWin（0.78 起、1.0 归零）把纸再往上提 10~20px 再落回来，与缩放那记
+     +5% 过冲叠在一起，才是"最后弹一下"的来源。现在收尾只剩弧窗自己回到 0（纸顺着
+     弧线落回落点，一路减速），末端没有回头。常量 LIFT_SETTLE_H 与函数 settleWin/settlePx
+     一并删除；要恢复"过冲一点"就把它们加回来。 */
   var LIFT_YAW_DEG = 2.2;        /* 「朝向运动方向」：横向速度让它侧到这个上限（5.5 × 0.4） */
   /* 对角侧倾（2026-10-28 第四次反馈：在截图左上角写「这里按下去一些」、右下角写「这里提起来一些」）。
      绕 Y 轴的**常值**侧倾，与躺平角共用同一条包络（同步长出来、同步归零）：
@@ -168,25 +460,48 @@
   var LIFT_YAW_REF = 900;        /* px/s：横向速度到这个值就侧满 */
   /* 退场：把纸**放**回纸堆时，倾角朝反方向顶一下的最大角度（然后回正到 0°） */
   var LIFT_OUT_TIP_DEG = 5;
-  /* 入场时长（用户 2026-10-26「太短了」→ 900ms；2026-10-28 重画时间线 → 1250ms）：
-     多出来的时间全在**顶端之后**那段（拉起来 ≈850ms + 挂住/下落 ≈400ms）。
-     关键帧是**采样**出来的（easing: linear），速度曲线全在 entryPath() / riseAt() 里 ——
-     不再交给 CSS 的 cubic-bezier 分配时间，这样倾角与位移才能共用同一根时钟。 */
-  var FLIP_MS = 1250;
-  var FLIP_PATH_SAMPLES = 64;    /* 采样段数：1250ms 里每段约 20ms，段内线性看不出来 */
+  /* 入场时长（2026-10-26「太短了」→ 900ms；2026-10-28 重画时间线 → 1250ms；2026-10-30
+     加起手的「按压 + 停顿」→ 1600ms）：多出来的 350ms 全在起手（按住 145ms + 几乎不动的
+     那 150ms），放大段仍是 1000ms 量级 —— 用户要的「缓缓放大」，不能靠压短放大来给停顿腾时间；
+     而"缓缓"不等于匀速：快慢差由上面三条样条给（第十七轮），总时长不必缩短。
+     关键帧是**采样**出来的（easing: linear），速度全由样条给 —— 不交给 CSS 的
+     cubic-bezier 分配时间，倾角与位移才能共用同一根时钟、并且在节点上不各自归零。 */
+  var FLIP_MS = (function () {
+    /* 第九轮（m01292）：默认整段 **2000ms**（原先 1600）。用户"拖尾还不够长"，
+       加总时长是最省心的做法 —— 曲线形状不变，尾段按比例一起拉长。
+       `?cvms=NNN` 仍可现场改（clamp 800~3200）。 */
+    var m = /[?&]cvms=([0-9.]+)/.exec(window.location.search);
+    if (!m) return 2000;
+    var v = parseFloat(m[1]);
+    return isFinite(v) ? clamp(Math.round(v), 800, 3200) : 2000;
+  })();
+  /* 采样段数（第二十轮）。原先 80 段 = 每段 20ms，段与段之间是**折线**：段内速度恒定、
+     到节点突然换挡。60Hz 屏上一段刚好一帧，看不出来；用户那块是 **2560×1600 @180Hz**
+     （实测无头 Chrome 帧间隔 5.6ms），一段要跨 3~4 帧 ⇒ 每帧位移出现"3 个一样的数、
+     然后跳一下"的台阶（实测 180Hz 下逐帧位移 2.84/2.84/2.84→3.13/3.32/3.32/3.32，
+     与理想 C1 曲线最大偏差 9.3%，最大速度台阶 ×1.98）。眼睛读到的就是"一顿一顿/变化不均"。
+     400 段 = 每段 4ms，比一帧（5.6ms）还短 ⇒ 相邻帧落在不同段里，位移每帧都在变
+     （偏差降到 0.4%、台阶 ×1.11，剩下的那点就是曲线本身的快慢差）。 */
+  var FLIP_PATH_SAMPLES = 400;
   var FLIP_EASE = 'cubic-bezier(.4,.08,.25,1)';   /* 只剩「纸自己的斜角摆正」那一条用它 */
   var CLOSE_MS = 520;            /* 退场：比入场短得多 —— 放下比拿起来果断 */
+  /* 退场的关键帧采样（第二十轮同款道理）：520ms / 130 段 = 4ms 一段，比一帧还短。
+     原来 24 段（21.7ms/段）在高刷屏上同样是"一段跨四帧"的台阶 —— 入场修好了、
+     退场还留着，用户就会觉得"放回去的时候又顿了一下"。 */
+  var EXIT_SAMPLES = 130;
+
   /* ---- 入场路径：一条**向下弯折的弧线**（用户 2026-10-27 第五轮原话）----
      「卡片的放大展示的运动路径需要是一个向下弯折的弧线，而不是直线运动」。
      平移本来沿直线；现在另外压一个向下的位移（两端为 0、中段最大）⇒ 路径成了
      「先沉下去、再抬起来到眼前」的弧（纸贴着桌面被拖了一下才离地的感觉）。
-     幅度按行程取比例并夹在 40~150px：手机竖屏纸就在屏幕中间（行程短）时不许弧成画圈，
+     幅度按行程取比例并夹在 28~96px：手机竖屏纸就在屏幕中间（行程短）时不许弧成画圈，
      大屏（行程长）时也不许甩出视口。
-     最低点偏前（p^0.85 把它提到约 44% 处），到「顶端」（LIFT_TOP_P）时弧已经收成 0 ——
-     顶端的姿态只由 L 的过冲决定，两件事不打架。 */
-  var FLIP_ARC_SAG = 0.16;      /* 下坠幅度 = 行程 × 这个比例 */
-  var FLIP_ARC_MIN = 40, FLIP_ARC_MAX = 150;   /* 下坠幅度的上下限（px） */
-  var FLIP_ARC_BIAS = 0.85;     /* <1 = 最低点往起手那边挪（0.85 ⇒ 约 44% 处） */
+     第十五轮把窗收窄到 0.28~0.72（原来是 0.31~0.88），第十七轮再把起点挪到 HOLD_P=0.31：
+     起手那 500ms 纸还压在桌上（弧没有意义），一离桌弧就开始长；第十九轮把窗尾从 0.80
+     拉到 1.0 —— 收尾"顺着弧落回落点"全靠它，一路减速到 0，末端不回头。
+     幅度也从 0.16 降到 0.09：弧太大时，中段的"往下沉"会和放大抢注意力，看起来像第二次起跳。 */
+  var FLIP_ARC_SAG = 0.09;      /* 下坠幅度 = 行程 × 这个比例 */
+  var FLIP_ARC_MIN = 28, FLIP_ARC_MAX = 96;    /* 下坠幅度的上下限（px） */
 
   /* ---- 点击反馈：被按下去，然后浮起来（2026-10-27 用户原话）----
      「压下然后弹起，需要有承重感，像航母在海上受到巨大按压后然后浮起来」
@@ -212,18 +527,303 @@
      只有「上一记还没收回又按一下」才会越压越深，封住它才不会一记比一记狠。 */
   var PRESS_MAX = 46;
 
-  /* 扫光：一次打开只播一次（用户明确「不允许反复触发」）。 */
-  var SWEEP_MS = 820;
-  var SWEEP_DELAY = 620;   /* 等纸基本长到眼前再扫。FLIP 的 dolly 在 68%（850ms）到顶端，
-                              620ms 时已经 ~90% 大小、倾角只剩几度 —— 再早，带子扫的
-                              还是一张正在长大、还在掀起来的纸。 */
+  /* ---------- 0.08b 按下位置的立体倾斜（2026-10-31 第四十一轮 m03567） ----------
+     用户原话：「按住证书某个位置的时候，会让证书发生按下位置的3D旋转」。
+     做法：按下时把指针位置换算成纸面内的归一化坐标 (nx, ny)，按下的那一侧往后倒
+     （rotateX / rotateY 各取一个分量），按住就一直保持这个角度；松手再用慢一点的时间常数
+     回到 0。**与点击回弹（§6b 那条弹簧）完全独立** —— 回弹照旧"压下去再托起来"，这里只管转。
+     中心留一块十字死区：按正中时不做立体倾斜，只留回弹（否则"点一下中间"会莫名歪一下）。
+     ?cvp3d=0 关掉；?cv3d=0 连整条 3D 通道一起关。 */
+  var PRESS3D_ON = !/[?&]cvp3d=0(?:&|$)/.test(window.location.search);
+  var PRESS3D_DEAD = 0.14;   /* 中心死区：以半宽/半高为 1 的半径，0.14 ≈ 中心 14% */
+  var PRESS3D_MAX = (function () {          /* 指到纸边时的最大角度（deg）：?cvp3dmax= 可改 */
+    var m = /[?&]cvp3dmax=([0-9.]+)/.exec(window.location.search);
+    if (!m) return 11;
+    var v = parseFloat(m[1]);
+    return isFinite(v) ? clamp(v, 0, 30) : 11;
+  })();
+  var PRESS3D_TAU = 0.055;   /* 按下的跟随时间常数（秒）：小 = 更跟手 */
+  var PRESS3D_BACK = 0.17;   /* 松手回零的时间常数（秒）：比按下慢，像纸弹回来 */
+
+  /* 扫光：一次打开只播一次（用户明确「不允许反复触发」）。
+     第二十五轮（用户 m02254 在我发的对照图上手绘了一条目标曲线，只说「这样」）：
+     整段按那条红线重建 —— 手绘段 470ms + 续走段 350ms = **820ms**，从点击后 1180ms
+     起播，正好在 2000ms 入场结束时收尾（见 §0.09b）。 */
+  var SWEEP_VIS = 757;     /* 手绘段时长：这一段逐点贴用户那条红线 */
+  var SWEEP_TAIL = 564;    /* 续走段：把亮带从纸右沿（glint 100.5）一路送到整条出纸（146） */
+  var SWEEP_MS = SWEEP_VIS + SWEEP_TAIL;  /* 820 */
+  var SWEEP_DELAY = 380;   /* 第三十九轮（用户 m03502「现在扫光开始的有点早了，往后一点点」）：
+                              180 → 380，只往回挪 200ms（时长一个毫秒没动）
+                              ⇒ 第一条 380+1321=1701ms 收尾、第二条 509+934=1443ms 收尾
+                              （入场 2000ms 结束）。进纸时纸已长到约 45%（原来是 28.7%），
+                              亮带不再是在一张还在猛长的纸上扫。
+                              以下是历史注释：第三十八轮（m03385）680 → 180，起点前移 500ms；
+                              第三十一轮（m02842）1180 → 680，起点前移 500ms。
+                              逐轮代价：1180ms 时纸已长到 ~97%；680ms 只有 ~65%；180ms 才 ~40% 宽。
+                              第十三轮把行程从"−84% → +54%"改成对称的"−96% → +96%"：
+                              原来终点只走到 +54，亮带中心虽然出了纸右沿，但纸的**底边**
+                              那一行比中心落后约 0.3 倍纸宽（斜光），收尾时仍有一道斜光
+                              卡在右下角 —— 用户 m01945 看出来的就是它。两端都退到 ±96
+                              才是零残留（.tools/cv-sweep-geo-probe.mjs 逐像素量的临界是 ±94）。
+                              代价是行程变长（192 而不是 138），所以时长保持 1500。
+                              要更快**不是缩短时长，而是加大曲线幅度**（用户 m02091）：
+                              曲线从 (.2,.7,.5,1) 换成 (.1,.92,.45,1)：8% 的时间就走掉
+                              43% 的路程，横穿纸面从 461ms 压到 316ms，峰值速度 448 → 1169
+                              纸宽%/s（进纸 670 → 出纸 155，4.3×）。
+                              想再调节用 ?sweepdelay=NNN、?sweepms=NNN（200~4000）、?sweepease=…。 */
   /* 扫光的运动曲线：**先快后慢**（用户 2026-10-27「扫光的运动曲线是直线？改成先快后慢」）。
      原来那条 cubic-bezier(.45,.04,.3,1) 是"先慢—中段快—再慢"，中段几乎匀速，看着就是直线。
      现在这条实测（.tools/fx3-check.mjs 把动画暂停、把时间轴钉在 0/25/50/75/99.9% 再读位移）：
      1/4 时间走掉 49% 路程、一半时间 83%、最后 1/4 只走 3% —— 前半程快、后半程收，光一闪而过。
      没直接用 expo-out（.16,1,.3,1）：那条在 1/4 时间里就走掉 83%，整道光合起来只剩 200ms，
-     太快了，看不出"扫"的过程。 */
-  var SWEEP_EASE = 'cubic-bezier(.3, .55, .4, 1)';
+     太快了，看不出"扫"的过程。
+    第二十一轮（用户 m02091「不是缩短时间，而是加大运动曲线的幅度」）在 1500ms 不变的前提下
+    把幅度再加大一档：(.2,.7,.5,1) → (.1,.92,.45,1)。新曲线在前 5% 时间走 31% 路程、
+    8% 走 43%、15% 走 61%，所以横穿纸面从 461ms 缩到 316ms、峰值 448 → 1169 纸宽%/s，
+    而整段仍是 1.5 秒 —— 快的是"光"，不是动画。
+    想逐档比：?sweepease=.15,.8,.4,1（362ms）/ .12,.85,.35,1（310ms）/ .08,.9,.3,1（256ms）。
+    第二十二轮（用户 m02166「更激进的曲线」）再往上推一档到 (.05,.97,.2,1)：前 5% 时间走掉
+    50% 路程，横穿纸面 181ms、峰值 2451 纸宽%/s（进纸 1428 → 出纸 228）。
+    再极端就到 .03,1,.15,1（146ms）—— 那是"闪一下"，用 ?sweepease= 现场看。 */
+  var SWEEP_EASE = 'cubic-bezier(.05, .97, .2, 1)';
+
+  /* 0.09b 扫光的运动剖面：**按用户手绘的那条曲线重建**（第二十五轮，用户 m02254
+     在我发的对照图上用红笔描了一条目标轨迹，只说了两个字「这样」）。
+     坐标系：glint = 亮带中心占纸宽的百分比（0 = 纸左沿，100 = 纸右沿，146 = 整条出纸）；
+     tx 与 glint 的关系是 glint = tx + 50，行程 −96…+96 对应 −46…+146。
+     用户那条线（10ms 分箱取中位、1.49915 倍放大的截图换算回来）：
+       1180ms −42.4 → 1240ms 18.2 → 1300ms 52.6 → 1380ms 77.4 → 1460ms 90.1
+       → 1540ms 94.0 → 1610ms 100.5（刚到纸右沿，此刻速度只剩 ~31 纸宽%/s）
+       → 1640~1670ms 102.1~102.5（基本压平）
+     读图要点：**手绘段是"冲进去然后急刹，最后在右沿收住"**，不是我之前那版
+     "一路淌到整条出纸"的拖尾 —— 所以他画完之后纸面上不该再有斜光在慢慢挪。
+
+     但手绘终点只到 glint 102.5，而逐像素实测（.tools/arc-shots/sweepvis/geo）：
+     glint 108 亮带核心才完全离纸、**144 才是整条零残留**（100 时还留 2.2 级灰度差、
+     116 时 1.2 级、124 时 0.7 级 —— 就是上一轮用户在右下角看见的那道淡影）。
+     所以必须"贴住手绘形状 + 再补一段把它送出去"，两段拼接，且**接缝处速度连续**：
+
+       手绘段（0 ≤ t ≤ VIS）: u = u1 · fhat(t/VIS)
+         fhat(s) = [ w(1−e^(−s/a)) + (1−w)(1−e^(−s/b)) ] / 归一化
+         w = 0.18, a = 0.050, b = 0.300；u1 = (100.5+46)/192 = 0.7630
+       续走段（VIS < t ≤ VIS+TAIL）: 用伯恩斯坦速度包络
+         u = u1 + vn(1−(1−s)³)/3 + 2·vpn(s²−2s³/3)
+         vn  = fhat'(1)·u1·TAIL/VIS  ← 让 du/dt 在接缝处严格相等（不"又踹一脚"）
+         vpn = (1−u1−vn/3)·1.5       ← 让终点严格落在 1（整条出纸）
+         速度 v(s) = v0(1−s)² + 4·vpn·s(1−s)：接手绘末速、中段拱到峰、末端归零。
+
+     实测（.tmp-sweep-final3.py 手算 + .tools/cv-sweep-speed.mjs 真机抓）：
+     VIS=470 / TAIL=350 ⇒ 贴手绘误差 均 2.26px、最 6.1px（最大那点就在起手 1180ms，
+     我模型从 −46 起、他画在 −42.4，属画图误差）；速度 2006 → 660 → 380 → 212 → 120
+     → 68 → 39 → **32（1650ms，glint 100.5）** → 拱到 187（1830ms）→ 0（2000ms）；
+     核心离纸 1730ms、整条（≥120）离开 1801ms、146 出纸 2000ms。
+     采样 49 帧写成 WAAPI 关键帧、段间 linear —— 把入场那套采样法搬过来，
+     形状完全由剖面决定，不靠浏览器插值。
+     现场比：?sweep=0 关掉；?sweepms=900 整体压缩；?swvis=380 手绘段更短；
+     ?swfling=250 续走段更短；?sweepease=… 退回"单条贝塞尔走完 192%"的老行为。 */
+  var SWEEP_FIT_MIX = 0.18;   /* fhat 里"快头"的权重 */
+  var SWEEP_FIT_A = 0.050;    /* 快头时间常数（越小越猛） */
+  var SWEEP_FIT_B = 0.300;    /* 尾巴时间常数（越大收得越缓） */
+  var SWEEP_SAMPLES = 49;     /* 采样帧数 */
+  var SWEEP_GLINT0 = -46;     /* 起手：亮带中心在纸左沿外 46%（±96 里退满） */
+  var SWEEP_GLINT1 = 100.5;   /* 手绘段终点：刚压到纸右沿 */
+  var SWEEP_GLINT_END = 146;  /* 整条零残留（逐像素实测 144 起就干净） */
+  var SWEEP_U1 = (SWEEP_GLINT1 - SWEEP_GLINT0) / (SWEEP_GLINT_END - SWEEP_GLINT0);  /* 0.7630 */
+  var SWEEP_PROFILE_ARG = (function () {
+    var q = window.location.search, o = { vis: SWEEP_VIS, fling: SWEEP_TAIL };
+    function num(name, lo, hi) {
+      var m = new RegExp('[?&]' + name + '=([0-9.]+)').exec(q);
+      if (!m) return null;
+      var v = parseFloat(m[1]);
+      return isFinite(v) ? clamp(v, lo, hi) : null;
+    }
+    var v1 = num('swvis', 250, 700);   if (v1 != null) o.vis = v1;
+    var v2 = num('swfling', 150, 600); if (v2 != null) o.fling = v2;
+    return o;
+  })();
+  var SWEEP_FIT = (function (w, a, b) {
+    var norm = w * (1 - Math.exp(-1 / a)) + (1 - w) * (1 - Math.exp(-1 / b));
+    return {
+      f: function (s) {
+        var q = clamp(s, 0, 1);
+        return (w * (1 - Math.exp(-q / a)) + (1 - w) * (1 - Math.exp(-q / b))) / norm;
+      },
+      /* f'(1)：续走段的起手速度要跟这里严格相等 */
+      d1: (w / a * Math.exp(-1 / a) + (1 - w) / b * Math.exp(-1 / b)) / norm
+    };
+  })(SWEEP_FIT_MIX, SWEEP_FIT_A, SWEEP_FIT_B);
+  /* u(0..1 归一化时间) → 0..1 的行程比例（单调前进，两端接缝速度连续） */
+  var sweepU = (function (vis, tail, u1, d1) {
+    var vn = d1 * u1 * tail / vis;        /* 无量纲，du/ds */
+    var vpn = (1 - u1 - vn / 3) * 1.5;    /* 由"终点必须落在 1"反解 */
+    return function (t) {
+      var ms = clamp(t, 0, 1) * (vis + tail);
+      if (ms <= vis) return u1 * SWEEP_FIT.f(ms / vis);
+      var s = clamp((ms - vis) / tail, 0, 1);
+      var k = 1 - s;
+      return u1 + vn * (1 - k * k * k) / 3 + 2 * vpn * (s * s - 2 * s * s * s / 3);
+    };
+  })(SWEEP_PROFILE_ARG.vis, SWEEP_PROFILE_ARG.fling, SWEEP_U1, SWEEP_FIT.d1);
+
+  /* 第二十六/二十七轮（用户 m02519「两条速度不一致的交替扫光」→ m02624「同时播放，因有
+     速度上的小差异导致分离」）：两条带子**同时起播**，A 走上一轮那条手绘曲线，B 用同族但
+     短一档的剖面 —— 起点完全重合，靠这点速度差在扫的过程中慢慢拉开，像两道光前后错开。
+       A：delay 1180 / 手绘段 470 + 续走段 350 = 820ms → 2000ms 收尾；穿纸 400ms，峰 766
+       B：delay 1260（晚 80ms）/ 手绘段 230 + 续走段 350 = 580ms → 1840ms 收尾
+     ⇒ 第二十八轮定稿（用户 m02717「第二条稍微起步慢一点但是速度比第一条快，大约在
+     75% 的位置超越第一条」）：B 晚 90ms 出发（进纸 1289ms，比 A 晚约 70ms），峰速约
+     1.8×，两条在 **glint 75%** 处交叉 —— 交叉前 B 在后、交叉后 B 在前，1725ms 先出纸。
+     实测交叉点与分离度见 .tools/cv-sweep2-probe.mjs、图 .tools/arc-shots/sweepvis/
+     sweep-two-separation.png。`?sw2=0` 只留一条；`?sw2delay= / ?sw2vis= / ?sw2fling=`
+     分别调起跑差与速度差。 */
+  var SWEEP2_ON = !/[?&]sw2=0(?:&|$)/.test(window.location.search);
+  var SWEEP2_ARG = (function () {
+    /* 第二十七轮（用户 m02624「同时播放，因有速度上的小差异导致分离」）：两条**同时起播**，
+       只靠一点速度差在扫的过程中渐渐分开 —— 不是先 A 后 B 的接力。 */
+    var q = window.location.search, o = { delay: SWEEP_DELAY + 129, vis: 370, fling: 564 };
+    function num(name, lo, hi) {
+      var m = new RegExp('[?&]' + name + '=([0-9.]+)').exec(q);
+      if (!m) return null;
+      var v = parseFloat(m[1]);
+      return isFinite(v) ? clamp(v, lo, hi) : null;
+    }
+    var a = num('sw2delay', 0, 2600);    if (a != null) o.delay = a;
+    var b = num('sw2vis', 80, 600);      if (b != null) o.vis = b;
+    var c = num('sw2fling', 40, 400);    if (c != null) o.fling = c;
+    return o;
+  })();
+  /* 第二条带子的剖面（同族，只是更短更快） */
+  var sweepU2 = (function (vis, tail, u1, d1) {
+    var vn = d1 * u1 * tail / vis;
+    var vpn = (1 - u1 - vn / 3) * 1.5;
+    return function (t) {
+      var ms = clamp(t, 0, 1) * (vis + tail);
+      if (ms <= vis) return u1 * SWEEP_FIT.f(ms / vis);
+      var s = clamp((ms - vis) / tail, 0, 1);
+      var k = 1 - s;
+      return u1 + vn * (1 - k * k * k) / 3 + 2 * vpn * (s * s - 2 * s * s * s / 3);
+    };
+  })(SWEEP2_ARG.vis, SWEEP2_ARG.fling, SWEEP_U1, SWEEP_FIT.d1);
+
+  /* 0.09 扫光总闸（第十一轮 m01493「再试试无3D旋转，但是加上一个扫光效果」）。
+     默认开；`?sweep=0` 关掉整条扫光（纸安静地出现，用来跟"有扫光"对着感受）。
+     强度/宽度可以现场调，便于在真机上挑观感 —— 三个数都是 CSS 变量，写在 band 的
+     inline style 上，只影响这一次打开：
+       ?swcore=0.8    中心亮核的强度（第三十四轮起"亮不亮"全靠它 —— 带子已改成纯白叠加）
+       ?swhalo=0.2    两侧柔光的强度（0 = 只有一条硬核；越大过渡越软）
+       ?sww=12        亮带半宽，按带子宽度的百分比（9 = 默认；越大越像一层白纱） */
+  var SWEEP_ON = !/[?&]sweep=0(?:&|$)/.test(window.location.search);
+  /* 时间也能现场调：?sweepdelay=1200 提前、?sweepms=1100 拉长（默认那 760ms 里，带子
+     真正横穿纸面只有约 190ms —— 想要"慢慢扫过去"就把 sweepms 拉大、把 easing 显式写成
+     ?sweepease=linear）。 */
+  var SWEEP_DELAY_ARG = (function () {
+    var m = /[?&]sweepdelay=([0-9]+)/.exec(window.location.search);
+    var v = m ? parseInt(m[1], 10) : NaN;
+    return isFinite(v) ? clamp(v, 0, FLIP_MS) : SWEEP_DELAY;
+  })();
+  var SWEEP_MS_ARG = (function () {
+    var m = /[?&]sweepms=([0-9]+)/.exec(window.location.search);
+    var v = m ? parseInt(m[1], 10) : NaN;
+    /* 默认就是剖面自己的长度（手绘段 + 续走段）：剖面按归一化时间定义，
+        时长必须跟它对齐，否则整条曲线会被整体拉伸/压缩 */
+    return isFinite(v) ? clamp(v, 200, 4000) : (SWEEP_PROFILE_ARG.vis + SWEEP_PROFILE_ARG.fling);
+  })();
+  var SWEEP_EASE_CUSTOM = /[?&]sweepease=/.test(window.location.search);
+  var SWEEP_EASE_ARG = (function () {
+    var m = /[?&]sweepease=([^&]*)/.exec(window.location.search);
+    if (!m) return SWEEP_EASE;
+    var k = m[1];
+    if (k === 'linear') return 'linear';
+    if (k === 'out') return 'cubic-bezier(.16,.84,.4,1)';
+    if (k === 'inout') return 'cubic-bezier(.42,0,.58,1)';
+    /* 也可以直接写四个数把整条曲线拿去比，例如 ?sweepease=.15,.8,.4,1 */
+    var n = k.split(',').map(function (v) { return parseFloat(v); });
+    if (n.length === 4 && isFinite(n[0]) && isFinite(n[1]) && isFinite(n[2]) && isFinite(n[3])) {
+      return 'cubic-bezier(' + clamp(n[0], 0, 1) + ',' + n[1] + ',' + clamp(n[2], 0, 1) + ',' + n[3] + ')';
+    }
+    return SWEEP_EASE;
+  })();
+  var SWEEP_VARS = (function () {
+    var q = window.location.search, out = { edge: null, core: null, w: null };
+    function num(name, lo, hi) {
+      var m = new RegExp('[?&]' + name + '=([0-9.]+)').exec(q);
+      if (!m) return null;
+      var v = parseFloat(m[1]);
+      return isFinite(v) ? clamp(v, lo, hi) : null;
+    }
+    /* 第三十四轮（用户 m03095「改为局部变亮，而不是靠压低两侧的亮度才凸显中间的高亮」）：
+       带子改成纯白叠加后，"两侧影子"这个概念整个消失了，旋钮换成 halo（柔光）+ core（亮核）。 */
+    out.halo = num('swhalo', 0, 1);
+    out.core = num('swcore', 0, 1);
+    out.w = num('sww', 0.5, 40);
+    /* 颜色也能现场试（第三十二轮试金时留下的旋钮；第三十四轮只剩一束光，所以只有一个）：
+         ?swcorecol=255,205,96   中间那束光的颜色（默认纯白）
+       只影响这一次打开。 */
+    function rgb(name) {
+      var m = new RegExp('[?&]' + name + '=([0-9]{1,3}),([0-9]{1,3}),([0-9]{1,3})').exec(q);
+      if (!m) return null;
+      return clamp(+m[1], 0, 255) + ',' + clamp(+m[2], 0, 255) + ',' + clamp(+m[3], 0, 255);
+    }
+    out.coreCol = rgb('swcorecol');
+    return out;
+  })();
+
+  /* 0.09c 证书变暗（第三十三轮 m03011 → 第三十四轮 m03068 → 第三十六轮 m03208 压到 60%
+     → 第三十七轮 m03331 恢复点挂"扫光停住" → 第三十九轮 m03414 两道渐变拉长、向内收敛）。
+     现行规则（用户 m03414 原话「证书的明暗变化还是有些太刻意，加长渐变时间吧，
+     总时间不变，向内收敛」）：
+       · 总窗口跟着"扫光停住那一刻"走（现在是 380+757＝1137ms 停住，+220 ⇒ **≈1357ms**）；
+       · 变暗占 60.5%（约 821ms），一路缓缓压到 60%，中间不留平台；
+       · 恢复占 39.5%（约 536ms），紧接变暗之后缓缓回到 100%，
+         正好在总窗口收尾 —— 两道渐变在中间交汇，不再是"压住 → 停住 → 弹回"。
+     为什么不再绑"扫光停住那一刻"：那样恢复只剩 220ms，压/弹两个拐点太陡，
+     用户读成"很刻意"。现在两个拐点的斜率都由长渐变摊平，扫光走完时亮度还在回升中途。
+     以后改 ?swvis= / ?swfling= / 扫光延迟，总窗口会跟着"扫光停住 + 220ms"走，
+     两个渐变按同一组比例缩放（60.5% / 39.5%）。
+     压得更暗的连带好处：扫光（§0.09b，纯白、压在黑层之上）可用的亮度空间从
+     181→227 拉开到 136→227，光更立得住 —— 这两层本来就是一对（见 .cv-sweep 里的注释）。
+     做法不是 filter: brightness()，而是在 .cv-face 顶部盖一层黑（CSS 见 .cv-dim）：
+     黑层 opacity a 得到的是 c×(1−a)，与 brightness(1−a) 逐通道等价，但 opacity 是纯
+     合成器动画，不会让这张带照片的纸每帧重新光栅化。
+     旋钮：
+       ?cvdim=0.3         压暗幅度（0 = 关掉整条变暗；默认 0.40 = 亮度 60%）
+       ?cvdimtotal=1357   总窗口毫秒（默认 = 扫光停住 + 220）
+       ?cvdimdown=821     变暗用时（默认 = 总窗口 × 0.605）
+       ?cvdimrms=536      恢复用时（默认 = 总窗口 − 变暗用时） */
+  var DIM_ARG = (function () {
+    var q = window.location.search;
+    function num(name, lo, hi, dft) {
+      var m = new RegExp('[?&]' + name + '=([0-9.]+)').exec(q);
+      if (!m) return dft;
+      var v = parseFloat(m[1]);
+      return isFinite(v) ? clamp(v, lo, hi) : dft;
+    }
+    /* 总窗口（点开 → 完全回到 100%）：沿用第三十七轮"扫光停住 + 220ms"的终点，
+       ?sweep=0 时退化成入场 80% + 220ms。用户 m03414：「总时间不变，向内收敛」。 */
+    var endAt = SWEEP_ON
+      ? (SWEEP_DELAY_ARG + SWEEP_PROFILE_ARG.vis + 220)
+      : (FLIP_MS * 0.80 + 220);
+    var total = num('cvdimtotal', 400, 3200, Math.round(endAt));
+    /* 两道渐变都在窗口内部交汇（不留平台）：变暗占 60.5%，恢复占 39.5%。
+       两个时长都按总窗口的比例给默认值，改总窗口时自动缩放。 */
+    var down = num('cvdimdown', 150, Math.max(160, total - 120), Math.round(total * 0.605));
+    var up = num('cvdimrms', 120, 2400, Math.max(120, total - down));
+    return {
+      depth: num('cvdim', 0, 0.6, 0.40),
+      total: total,
+      down: down,
+      up: up
+    };
+  })();
+  var DIM_ON = DIM_ARG.depth > 0.0005;
+  /* 拐点直接落在毫秒轴上（不再换算成"扫光进度比例"）：变暗走完就开始恢复，
+     恢复结束时总窗口也正好结束 —— 这就是"向内收敛、总时间不变"。 */
+  function dimRestoreAt() {
+    return Math.min(DIM_ARG.down, DIM_ARG.total - 60);
+  }
+  function dimRestoreEnd() {
+    return Math.min(DIM_ARG.down + DIM_ARG.up, DIM_ARG.total);
+  }
 
   var S = {
     open: false, ready: false, reduced: false,
@@ -234,8 +834,12 @@
        渲染时映射成**以中心缩小的比例**（见 §6b 与 render 里的 PRESS_SCALE）。
        这里**没有"一次打开只给一次"的闸门** —— 它跟着手指走：按几次给几次。 */
     press: { y: 0, v: 0, on: false },
+    /* 按下位置的立体倾斜（§0.08b）：tx/ty = 目标角，rx/ry = 当前角（每帧向目标逼近） */
+    press3d: { on: false, rx: 0, ry: 0, tx: 0, ty: 0 },
     /* 扫光：locked 在 open() 置位、closeNow() 解锁 —— 一次打开只扫一次 */
     sweep: { locked: false, anim: null },
+    /* 变暗层那一条动画（§0.09c）；closeNow 里取消并把 opacity 归零 */
+    dimAnim: null,
     hov: { x: 0, y: 0, tx: 0, ty: 0, vx: 0, vy: 0 },
     drag: {
       on: false, id: null, lx: 0, ly: 0, lt: 0, vx: 0, vy: 0, moved: 0, rawX: 0, rawY: 0,
@@ -271,6 +875,12 @@
     poseAnim: null,
     /* 倾角层与影子的退场动画（fill:'both'，closeNow 里 cancel） */
     grabAnim: null, shadowAnim: null,
+    /* 入场期间**由动画自己**驱动的倾角与影子（2026-10-30 第十六轮）。
+       在此之前：位移/缩放走合成器上的 WAAPI，倾角与影子却是每帧由主线程写内联样式 ——
+       两条时间轴在真机上对不齐（主线程一忙，倾角就慢半拍），读起来就是
+       「纸像被一条轨道拖着、一顿一顿」。现在三条动画同时起播、同一条 linear 时钟，
+       入场期间主线程一次样式都不写（见 playFlipIn / render / updateShadow）。 */
+    entGrabAnim: null, entShadowAnim: null,
   };
 
   function clamp(v, a, b) { return v < a ? a : (v > b ? b : v); }
@@ -323,6 +933,28 @@
     e.stopImmediatePropagation();
     open(link, e.target);
   }, true);
+
+  /* ---------- 2b. 预解码大图 ----------
+     点开那一帧才去取 600KB 的 webp：**解码会把主线程按停 200~300ms**
+     （2026-10-30 第十八轮逐帧记账实测 max 帧间隔 294ms，正好卡在点下去的头几帧），
+     入场动画开头那一下就被丢掉了 —— 用户读成"点下去卡一下"。
+     空闲时先把大图取下来解码掉，点击那一刻只是换 src，不触发布局与解码。 */
+  function preloadFull() {
+    var links = document.querySelectorAll(SEL), i, j, items, url, im;
+    for (i = 0; i < links.length; i++) {
+      items = readItems(links[i]);
+      for (j = 0; j < items.length; j++) {
+        url = items[j] && items[j].img;
+        if (!url) continue;
+        im = new Image();
+        im.decoding = 'async';
+        im.src = url;
+        if (im.decode) { try { im.decode().catch(function () { }); } catch (e2) { } }
+      }
+    }
+  }
+  if ('requestIdleCallback' in window) requestIdleCallback(preloadFull, { timeout: 2500 });
+  else setTimeout(preloadFull, 1200);
 
   /* ---------- 2. 打开 ---------- */
   function open(link, tappedEl) {
@@ -377,6 +1009,7 @@
     /* 点击反馈**不在这里**触发，也不挂在入场时间轴上的任何一刻：它只由真实的指针
        按下驱动（onDown → startPress）。挂在入场上的两版用户都判为"自动触发"。 */
     startSweep();
+    startDim();                 /* 整张纸缓到 60% → 扫光 80% 处开始恢复（§0.09c） */
     requestAnimationFrame(function () {
       S.el.root.classList.add('is-open');
       playFlipIn();
@@ -479,9 +1112,15 @@
       '<div class="cv-face">' +
       '<span class="cv-rim" aria-hidden="true"></span>' +
       '<span class="cv-noise" aria-hidden="true"></span>' +
-      /* 扫光：点开时从纸上扫过一次（一次打开只播一次）。带子本身在 .cv-sweep 里被裁，
+      /* 扫光：点开时从纸上扫过（一次打开只播一轮）。两条带子前后交替 —— A 走手绘那条慢曲线，
+         B 用更短更快的同族曲线追上来（§0.09b 末段）。带子本身在 .cv-sweep 里被裁，
          所以纸外面不会漏光。 */
-      '<span class="cv-sweep" aria-hidden="true"><span class="cv-sweep__band"></span></span>' +
+      '<span class="cv-sweep" aria-hidden="true">' +
+      '<span class="cv-sweep__band"></span>' +
+      '<span class="cv-sweep__band cv-sweep__band--b"></span>' +
+      '</span>' +
+      /* 变暗层：把整张纸压暗，扫光（z-index 3）在它之上再把光加回去，opacity 由 startDim 驱动（§0.09c） */
+      '<span class="cv-dim" aria-hidden="true"></span>' +
       '</div>' +
       '</div>' +
       '</div>' +
@@ -509,6 +1148,8 @@
       press: root.querySelector('.cv-press'),
       sweep: root.querySelector('.cv-sweep'),
       sweepBand: root.querySelector('.cv-sweep__band'),
+      sweepBand2: root.querySelector('.cv-sweep__band--b'),
+      dim: root.querySelector('.cv-dim'),
       zoom: root.querySelector('.cv-zoom'),
       persp: root.querySelector('.cv-persp'),
       /* 「捏住右下角」那条曲线专用的独立 3D 层（见顶部常量区） */
@@ -683,53 +1324,199 @@
       a.sx.toFixed(4) + ',' + a.sy.toFixed(4) + ')';
   }
 
-  /* ---- 入场时间线的两个标量（完整推导见 §6c）----
-     rise(p)：沿「缩略图 → 居中满幅」走了多远（0→1；顶端之后恒为 1、不回退）；
-     win(p) ：**顶端那道窗**（0 起、顶端 1、落点 0，两端斜率为 0）——"越过落点多少"
-              与"过冲那点缩放"都由它给。它和缩略图的屏幕位置无关：纸正好从视野中心
-              起飞时（dy≈0），"拉起来 → 挂住 → 落下一点点"照样看得见。 */
-  function riseAt(p) {
-    if (p <= LIFT_TOP_P) return 1 - Math.pow(1 - clamp(p / LIFT_TOP_P, 0, 1), LIFT_TOP_POW);
-    return 1;
+  /* ---- 入场时间线的三个标量（推导与时刻表见 §0 的注释）----
+     2026-10-30 第十四轮：用户看过上一版（按压 → 停顿 → 放大，三**段**各用 smoothstep）之后说
+     「不连贯啊，你得把这一整套动作连贯起来，而不是让卡片在一个个动画节点卡住」。
+     病因正是"三段各自 smoothstep"：smoothstep 两端斜率为 0 ⇒ 每一段都在自己的头尾各刹一脚，
+     三脚叠起来就是"卡在节点上"。现在三个标量各由**一条三次 Hermite 样条**给出
+     （关键帧 [时刻, 值, 斜率]，接缝处值与斜率都对得上 ⇒ 全程 C1）。
+     2026-10-30 第十七轮（用户手绘速度曲线「缺乏速度的变化」）：C1 只保证没有尖角，
+     不保证**有快慢**；现在速度在 0.09（起手，6%）到 0.70（冲刺，100%）之间有 16 倍差。
+     第十九轮（用户「不用最后弹那么一下了，直接平滑停止就好」）：顶端不再冲过 1，
+     0.80 之后斜率一节一节收到 0，纸停住 —— 有快慢，但不回头。
+       out(p)  ：离缩略图多远（0 → 1，单调，末端斜率为 0）
+       press(p)：按住那一下的包络（1 = 按到底：以中心缩小 + 微微下移）
+       tilt(p) ：躺平的包络（1 = 躺平 -LIFT_FLAT_DEG，一路回到 0 并停住）
+     p 超出 [0,1] 时取端点值（不外推）：退场里 entryPath 可能拿到 p0>1，取端点才安全。 */
+  function spline(keys) {
+    var n = keys.length;
+    return function (p) {
+      if (p <= keys[0][0]) return keys[0][1];
+      if (p >= keys[n - 1][0]) return keys[n - 1][1];
+      var i = 0;
+      while (i < n - 2 && p > keys[i + 1][0]) i++;
+      var x0 = keys[i][0], v0 = keys[i][1], m0 = keys[i][2];
+      var x1 = keys[i + 1][0], v1 = keys[i + 1][1], m1 = keys[i + 1][2];
+      var h = x1 - x0;
+      var t = (p - x0) / h;
+      var t2 = t * t, t3 = t2 * t;
+      return (2 * t3 - 3 * t2 + 1) * v0 + (t3 - 2 * t2 + t) * h * m0 +
+        (-2 * t3 + 3 * t2) * v1 + (t3 - t2) * h * m1;
+    };
   }
+  var outAt = spline(OUT_KEYS);
+  var pressAt = spline(PRESS_KEYS);
+  var tiltRel = spline(TILT_KEYS);
 
-  function topWindow(p) {
-    if (p <= LIFT_TOP_P) return Math.sin(Math.PI * 0.5 * clamp(p / LIFT_TOP_P, 0, 1));
-    var q = clamp((p - LIFT_TOP_P) / (1 - LIFT_TOP_P), 0, 1);
-    return Math.pow(Math.cos(Math.PI * 0.5 * q), LIFT_SINK_POW);
+  /* 弧只压在「飞行」那一段上（HOLD_P=0.31 起、1.0 收，两端斜率为 0）：起手那 500ms 纸还
+     压在桌上，弧不为 0 只会让它在桌面里往下钻。窗尾从 0.80 拉到 1.0（第十九轮）——
+     删掉 settleWin 之后，纸"顺着弧线落回落点"这件事就全交给这道窗：它一路收到 0，
+     dy 也就一路减速归零，末端没有回头。 */
+  function arcWin(p) {
+    var q = clamp((p - HOLD_P) / (1 - HOLD_P), 0, 1);
+    var s = Math.sin(Math.PI * q);
+    return s * s;
   }
-
-  /* 「缓缓下落一点点」的距离（px）：按卡片高度取，小屏上也不会夸张 */
-  function settlePx() { return clamp((S.box.h || 600) * LIFT_SETTLE_H, 10, 20); }
 
   /* 入场某一帧的姿态：FLIP 的关键帧与逐帧的倾角**都从这里取**，两条通道因此不会错拍。
-     sx/sy 一起插值：非等比会把纸拉变形（缩略图与布局框的比例本来就差一点点）。 */
+     sx/sy 一起插值：非等比会把纸拉变形（缩略图与布局框的比例本来就差一点点）。
+     放大那一下（press）是**乘**在整条路径上的：它只描述"纸被按进去多少"，
+     与纸此刻多大、从哪里起飞无关（所以拇指大的缩略图和满幅的纸都是同一个 7%）。 */
   function entryPath(p, a) {
+    if (STRAIGHT) {
+      /* 两个节点 + 一道弧：位移 = 直线 + beta 鼓包，时间轴走 easeT()（第五轮：缓入缓出），
+         再按**弧长**把进度换成形状参数（见上面 bowArcLut 的说明：不加这一刀，速率会在
+         弓峰两侧冲高一次，肉眼像"中段又蹿一下"）。
+         弓的方向由 ARC_DEG 决定（默认 0° = 正下方，见 §0.06 的第四轮说明），
+         两端值与斜率都是 0 —— 起手不"往下钻"，落地不"撞"进浮层。
+         换缓动只改快慢，路径形状一个像素不动。 */
+      var s = easeT(clamp(p, 0, 1));                 /* 走过的弧长比例 */
+      var chLen = Math.sqrt(a.dx * a.dx + a.dy * a.dy) || 1;
+      var sag = arcSag(chLen);
+      var live = (ARC && sag > 0);
+      var u = s;
+      if (live) {
+        /* c = 弦方向 · 弓方向。注意 a.dx/a.dy 是**起点相对落点**的偏移，弦方向是它的反向 */
+        var cc = (-(a.dx * ARC_UX + a.dy * ARC_UY) / chLen);
+        u = arcToU(sag / chLen, cc, s);
+      }
+      var dip = live ? sag * bowShape(u) : 0;
+      var su = (SCALE_MODE === 'time') ? s : u;      /* 缩放跟随：time = 纯缓动进度 / arc = 形状参数 */
+      return {
+        L: s, p: p,
+        dx: a.dx * (1 - u) + dip * ARC_UX,   /* ARC_UX < 0 = 往左鼓 */
+        dy: a.dy * (1 - u) + dip * ARC_UY,   /* ARC_UY > 0 = 往下鼓 */
+        sx: a.sx + (1 - a.sx) * su,
+        sy: a.sy + (1 - a.sy) * su
+      };
+    }
     var dist = Math.sqrt(a.dx * a.dx + a.dy * a.dy);
-    var rise = riseAt(p);
-    var win = topWindow(p);
+    var out = outAt(p);
+    var press = pressAt(p);
     var sag = clamp(dist * FLIP_ARC_SAG, FLIP_ARC_MIN, FLIP_ARC_MAX);
-    var dip = sag * Math.sin(Math.PI * Math.pow(clamp(p / LIFT_TOP_P, 0, 1), FLIP_ARC_BIAS));
-    var bloom = 1 + LIFT_SCALE_OVER * win;         /* 顶端胀 1.4%，落回 1 */
+    var dip = sag * arcWin(p);
+    var shrink = 1 - HOLD_SCALE * press;
     return {
-      L: rise, p: p,
-      dx: a.dx * (1 - rise),
-      dy: a.dy * (1 - rise) + dip - settlePx() * win,
-      sx: (a.sx + (1 - a.sx) * rise) * bloom,
-      sy: (a.sy + (1 - a.sy) * rise) * bloom
+      L: out, p: p,
+      dx: a.dx * (1 - out),
+      dy: a.dy * (1 - out) + dip + HOLD_DIP * press,
+      sx: (a.sx + (1 - a.sx) * out) * shrink,
+      sy: (a.sy + (1 - a.sy) * out) * shrink
+    };
+  }
+
+  /* 第二十一轮（用户 m01724「运动的感觉像是折线，而不是平滑曲线」）：
+     采样已经密到 4ms 一段，纸的位移确实是 C1 的 —— 但**加速度在九个结点上跳变**
+     （手拧的关键帧表 = 分段三次：接缝处一阶导对齐，二阶导不管）。于是速度剖面是一条
+     带拐角的折线："每一段都像在直线加速，段与段之间硬转折"，眼睛读成折线。
+     修法：把采样出来的每个通道各做一次**高斯平滑**（σ = SMOOTH_MS ≈ 3 个采样点），
+     平滑完用一次**线性**重标定把首尾钉回原来的值 —— 线性重标定不改平滑度。
+     实测：加速度最大跳变/峰值 53% → 14%；而 145/320/496/800/1280ms 的行程、
+     峰值/均速（2.45）几乎不变 —— 只砍拐角，不动快慢。 */
+  var SMOOTH_MS = 12;
+
+  function smoothSamples(vals, sigma) {
+    var n = vals.length, i, k, j;
+    if (!(sigma > 0) || n < 3) return vals.slice();
+    var R = Math.ceil(sigma * 2.5), w = [], sum = 0;
+    for (k = -R; k <= R; k++) {
+      var ww = Math.exp(-(k * k) / (2 * sigma * sigma));
+      w.push(ww); sum += ww;
+    }
+    var out = new Array(n);
+    for (i = 0; i < n; i++) {
+      var acc = 0;
+      for (k = -R; k <= R; k++) {
+        j = i + k;
+        if (j < 0) j = 0; else if (j > n - 1) j = n - 1;   /* 端点夹取：不外推 */
+        acc += vals[j] * w[k + R];
+      }
+      out[i] = acc / sum;
+    }
+    /* 端点校正：只补一条**线性**坡（不改变平滑度），把首尾精确顶回原值。
+       不能用"按首尾线性重标定"那一招 —— 倾角通道的首尾都是 0（0° → 0°），
+       重标定会把整条倾角抹成 0（第二十一轮踩过：纸不歪了，但也不动了）。 */
+    var e0 = vals[0] - out[0], e1 = vals[n - 1] - out[n - 1];
+    for (i = 0; i < n; i++) out[i] += e0 + (e1 - e0) * (i / (n - 1));
+    out[0] = vals[0]; out[n - 1] = vals[n - 1];
+    return out;
+  }
+
+  /* 入场的四个标量先在 4ms 网格上采一遍，再各自平滑：纸、影子、倾角**全部从这里取**，
+     三条动画共用同一条平滑过的轨迹（不是三份各自算的近似）。 */
+  function pathSamples(a) {
+    var n = FLIP_PATH_SAMPLES, i, t, f;
+    var out = [], dx = [], dy = [], sx = [];
+    for (i = 0; i <= n; i++) {
+      t = i / n;
+      f = entryPath(t, a);
+      out.push(f.L); dx.push(f.dx); dy.push(f.dy); sx.push(f.sx);
+    }
+    var sig = STRAIGHT ? 0 : SMOOTH_MS / (FLIP_MS / n);
+    return {
+      n: n,
+      out: smoothSamples(out, sig),
+      dx: smoothSamples(dx, sig),
+      dy: smoothSamples(dy, sig),
+      sx: smoothSamples(sx, sig)
     };
   }
 
   function flipFrames(a) {
-    var frames = [];
-    for (var i = 0; i <= FLIP_PATH_SAMPLES; i++) {
-      var t = i / FLIP_PATH_SAMPLES;
-      var f = entryPath(t, a);
+    var ps = pathSamples(a), frames = [], i, t;
+    for (i = 0; i <= ps.n; i++) {
+      t = i / ps.n;
       frames.push({
         offset: t,
-        transform: flipTransform(f),
-        opacity: +(0.55 + 0.45 * Math.min(1, f.L)).toFixed(4)
+        transform: flipTransform({ dx: ps.dx[i], dy: ps.dy[i], sx: ps.sx[i], sy: ps.sx[i] }),
+        /* 透明度：**按时间**淡入，不跟 out 走 —— 第十三轮用 0.55+0.45*L，而停顿期 L=0，
+           纸在按住的 500ms 里一直是 55% 透明（用户截图里"发虚"就是它）。
+           现在 0.60 起着色，**按到底那一下（145ms）就完全实了** —— 起手要"沉"，
+           更不能是半透明的。 */
+        opacity: STRAIGHT ? 1 : +(0.60 + 0.40 * interp01(t / 0.09)).toFixed(4)
       });
+    }
+    return frames;
+  }
+
+  /* 入场倾角与影子的关键帧：与 flipFrames() 用**同一个 p**、同一段时长、同一条 linear 曲线，
+     所以三条动画逐帧严格同步（纸长大的每一帧都配着它那一帧的角度与影子）。
+     采样密度跟纸一样（第二十轮：倾斜/影子也一样会被 20ms 折线切成台阶 —— 27° 的转角
+     在 180Hz 上同样能看到"跳"）。 */
+  function tiltFrames() {
+    var n = FLIP_PATH_SAMPLES, i, t, g, rx = [], ry = [], frames = [];
+    for (i = 0; i <= n; i++) {
+      g = entryTilt(i / n);
+      rx.push(g.rx); ry.push(g.ry);
+    }
+    var sig = SMOOTH_MS / (FLIP_MS / n);
+    rx = smoothSamples(rx, sig);
+    ry = smoothSamples(ry, sig);
+    for (i = 0; i <= n; i++) {
+      frames.push({
+        offset: i / n,
+        transform: 'rotateX(' + rx[i].toFixed(3) + 'deg) rotateY(' + ry[i].toFixed(3) + 'deg)'
+      });
+    }
+    return frames;
+  }
+
+  function shadowFrames(a) {
+    var ps = pathSamples(a), frames = [], i, t, v;
+    for (i = 0; i <= ps.n; i++) {
+      t = i / ps.n;
+      v = shadowAt({ L: ps.out[i], p: t, dx: ps.dx[i], dy: ps.dy[i], sx: ps.sx[i], sy: ps.sx[i] });
+      frames.push({ offset: t, transform: v.transform, opacity: v.opacity });
     }
     return frames;
   }
@@ -740,19 +1527,34 @@
     var from = S.flipFrom || layoutOffset(S.origin.rect);
     if (!from) { S.el.flip.style.transform = 'none'; return; }
     if (S.flipAnim) { try { S.flipAnim.cancel(); } catch (e) { } }
+    killEntranceAnims();
     /* 不清成 'none'：open() 已经同步写上了起点姿态（见那里的注释），
        这一帧必须是小的；动画从同一姿态起步，肉眼看不到接缝。
-       easing 必须是 linear：速度曲线已经在 flipFrames() 的采样里了 ——
-       再叠一条 ease 会把顶端那一段压扁、把"挂住"抹掉。 */
+       easing 必须是 linear：速度曲线已经在 flipFrames() 的采样里了（§0.07 的 easeT()）——
+       再叠一条 CSS ease 会连采样一起二次压扁。 */
     try {
-      S.flipAnim = S.el.flip.animate(flipFrames(from),
-        { duration: FLIP_MS, easing: 'linear', fill: 'both' });
+      var opts = { duration: FLIP_MS, easing: 'linear', fill: 'both' };
+      S.flipAnim = S.el.flip.animate(flipFrames(from), opts);
+      /* 倾角与影子**同一帧起播**（2026-10-30 第十六轮）：它们以前是每帧 JS 写内联样式，
+         而缩放是合成器上的动画 —— 两条时间轴，主线程一忙就错拍，真机上读成"一顿一顿"。
+         现在三条动画共用一条 linear 时钟，入场期间主线程不再碰这三个元素。 */
+      if (ROT3D && ENTRY_TILT && S.el.grab && S.el.grab.animate) S.entGrabAnim = S.el.grab.animate(tiltFrames(), opts);
+      if (S.el.shadow && S.el.shadow.animate) S.entShadowAnim = S.el.shadow.animate(shadowFrames(from), opts);
       /* 没有 onfinish 钩子：入场倾角不吃"停稳那一记"，它由 grabProgress() 读这条动画的
-         时钟逐帧算（停稳 = currentTime 走满 FLIP_MS = 倾角回到 0）。 */
+         时钟算（停稳 = currentTime 走满 FLIP_MS = 倾角回到 0，stepGrab 在那里交还控制权）。 */
     } catch (eNoWaapi) {
       /* 没有 WAAPI：纸是一次硬切，倾角改由 grabProgress() 退回 rAF 时间推进 */
       S.flipAnim = null;
     }
+  }
+
+  /* 撤掉入场那两条伴随动画（倾角 / 影子），把两个元素交回主线程的 render()。
+     不在这里补内联值：调用点紧接着就会 render()，那边会按当前状态一次写对。 */
+  function killEntranceAnims() {
+    if (S.entGrabAnim) { try { S.entGrabAnim.cancel(); } catch (e1) { } S.entGrabAnim = null; }
+    if (S.entShadowAnim) { try { S.entShadowAnim.cancel(); } catch (e2) { } S.entShadowAnim = null; }
+    if (S.el.grab) S.el.grab.__cvTr = null;
+    if (S.el.shadow) { S.el.shadow.__cvTr = null; S.el.shadow.__cvOp = null; }
   }
 
   /* ---- 退场：把纸**放**回纸堆（2026-10-28 第十二轮重写）----
@@ -766,6 +1568,31 @@
          改写过的框）。 */
   function exitPath(q, from, to) {
     var e = interp01(q);
+    if (STRAIGHT) {
+      /* 直线 + 同一道弧（见 §0.06）：退场用同一条 beta 鼓包，幅度按 ARC_OUT_RATE
+         缩小，方向取**镜像**（−UX），否则回程会先朝缩略图那侧鼓出去、再折回来，像"冲过头"。
+         时间轴同样走 easeT()，并按弧长推进（第五轮，与入场同一套），落点不变。
+         ?cvline=1 时退场也是纯直线。 */
+      var s2 = easeT(clamp(q, 0, 1));
+      var adx = to.dx - from.dx, ady = to.dy - from.dy;
+      var dist2 = Math.sqrt(adx * adx + ady * ady) || 1;
+      var sag2 = arcSag(dist2) * ARC_OUT_RATE;
+      var live2 = (ARC && sag2 > 0);
+      var e = s2;
+      if (live2) {
+        /* 退场弓方向取镜像（−UX）：c 也要按镜像算 */
+        var cc2 = ((-adx * ARC_UX + ady * ARC_UY) / dist2);
+        e = arcToU(sag2 / dist2, cc2, s2);
+      }
+      var dip2 = live2 ? sag2 * bowShape(e) : 0;
+      var su2 = (SCALE_MODE === 'time') ? s2 : e;
+      return {
+        dx: from.dx + adx * e - dip2 * ARC_UX,
+        dy: from.dy + ady * e + dip2 * ARC_UY,
+        sx: from.sx + (to.sx - from.sx) * su2,
+        sy: from.sy + (to.sy - from.sy) * su2
+      };
+    }
     var dx = from.dx + (to.dx - from.dx) * e;
     var dy = from.dy + (to.dy - from.dy) * e;
     var sx = from.sx + (to.sx - from.sx) * e;
@@ -783,10 +1610,13 @@
     var el = S.el.grab;
     S.grab.on = false; S.grab.ax = 0; S.grab.ay = 0;
     if (!el) return;
-    if (S.reduced || typeof el.animate !== 'function') { el.style.transform = 'none'; return; }
+    /* 总闸关闭（见 §0.05）：退场也不摆那一下，纸平着落回去 */
+    if (!ROT3D || !ENTRY_TILT) { setTr(el, 'none'); return; }
+    if (S.reduced || typeof el.animate !== 'function') { setTr(el, 'none'); return; }
     var frames = [];
-    for (var i = 0; i <= 12; i++) {
-      var q = i / 12, u = interp01(q), s = Math.sin(Math.PI * q);
+    var nx = Math.round(EXIT_SAMPLES / 2);
+    for (var i = 0; i <= nx; i++) {
+      var q = i / nx, u = interp01(q), s = Math.sin(Math.PI * q);
       var tip = s * s;
       frames.push({
         offset: q,
@@ -794,6 +1624,7 @@
           'deg) rotateY(' + (ay0 * (1 - u)).toFixed(2) + 'deg)'
       });
     }
+    el.__cvTr = 'none';
     el.style.transform = 'none';        /* 交回给动画（fill:'both' 会盖住内联样式） */
     try {
       S.grabAnim = el.animate(frames, { duration: CLOSE_MS, easing: 'linear', fill: 'both' });
@@ -823,6 +1654,9 @@
     var from = (p0 < 1 && S.flipFrom) ? entryPath(p0, S.flipFrom) : { dx: 0, dy: 0, sx: 1, sy: 1 };
     playGrabOut(S.grab.on ? S.grab.ax : 0, S.grab.on ? S.grab.ay : 0);
     playShadowOut();
+    /* 入场那两条伴随动画（倾角/影子）在这里退位：下面 playGrabOut/playShadowOut 要接手同样的元素，
+       不 cancel 的话 fill:'both' 会把退场的关键帧整段盖住。 */
+    killEntranceAnims();
     if (S.flipAnim) { try { S.flipAnim.cancel(); } catch (e0) { } S.flipAnim = null; }
 
     /* 卡片自己的斜角也要一起摆回页面里的手角度（转整张卡，理由同 extractSheet）。
@@ -842,8 +1676,8 @@
     var to = layoutOffset(originRectNow());
     if (!to) { S.el.flip.style.transform = 'none'; finish(); return; }
     var frames = [];
-    for (var i = 0; i <= 24; i++) {
-      var q = i / 24;
+    for (var i = 0; i <= EXIT_SAMPLES; i++) {
+      var q = i / EXIT_SAMPLES;
       frames.push({ offset: q, transform: flipTransform(exitPath(q, from, to)) });
     }
     try {
@@ -886,7 +1720,7 @@
   function kickSpin() {
     if (!SPIN_ON || S.reduced) {
       S.spin.on = false; S.spin.caught = false; S.spin.a = 0; S.spin.v = 0;
-      if (S.el.tilt) S.el.tilt.style.transform = 'none';
+      setTr(S.el.tilt, 'none');
       return;
     }
     S.spin.on = true;
@@ -895,53 +1729,117 @@
     S.spin.caught = false;
     S.spin.target = SPIN_TARGET;
     /* 首帧就把姿态钉在背面（否则 DOM 会先按 0° 画一帧正面再跳到 180°） */
-    if (S.el.tilt) S.el.tilt.style.transform = 'rotateX(0deg) rotateY(' + SPIN_START + 'deg)';
+    setTr(S.el.tilt, 'rotateX(0deg) rotateY(' + SPIN_START + 'deg)');
   }
 
-  /* ---------- 6c. 入场/退场的 3D 旋转：风阻（2026-10-28 第十二轮）----------
-     D(p) = 纸面从「躺在桌面」转到「正对观众」的进度：0 = 躺平、1 = 正对、>1 = 转过头。
-       前半段 smoothstep：起手**不转**（纸被空气按在桌面上），中段才猛地翻起来，
-       到顶端（LIFT_TOP_P）正好到 1；
-       后半段 sin²(πq)(1-q)²：冲过 0 到 +LIFT_SWING_DEG（主方向是负角，所以反向侧是正），再回到一个很小的反向角，
-       最后严格落在 0 —— 两端斜率都是 0，接缝处没有折角。
-     振幅不硬编码：SWING_A 由「峰值必须等于 LIFT_SWING_DEG」反解出来（400 点采样求 f 的峰），
-     改 LIFT_SWING_DEG 就是改"冲过头多少度"，不用重算别的东西。 */
-  var SWING_A = (function () {
-    var m = 0;
-    for (var i = 1; i < 400; i++) {
-      var q = i / 400, s = Math.sin(Math.PI * q), v = s * s * (1 - q) * (1 - q);
-      if (v > m) m = v;
-    }
-    return LIFT_SWING_DEG / (LIFT_FLAT_DEG * m);
-  })();
-
-  /* smoothstep，并且**夹在 [0,1]** —— 入场后半段会传进 >1 的参数，不夹会算出负值 */
+  /* ---------- 6c. 入场/退场的 3D 旋转：风阻（2026-10-28 第十二轮，2026-10-30 第十四轮重画）----------
+     T(p) = 纸面从「躺在桌面」转到「正对观众」的进度：0 = 躺平、1 = 正对，一路上单调。
+       整条由 TILT_KEYS 一条样条给出：145ms 内躺平（纸被按到桌面上）→ 停在那儿 →
+       被放大那段掀起来 → 0.82（1312ms）正好 0 = 正对观众，此后一直停在 0
+       （第十九轮删掉了原来那记 +1° 回摆：用户「不用最后弹那么一下」）。
+     与上一版的区别：上一版的翻转是"前半段 smoothstep + 后半段 sin²(πq)(1-q)²"，两段在
+     LIFT_TOP_P 接缝处斜率都是 0 ⇒ 纸翻到一半会**顿一下**再冲过头。现在斜率在接缝处
+     对得上，翻起来是一口气。 */
+  /* smoothstep，并且**夹在 [0,1]** —— 入场的窗会传进 >1 的参数，不夹会算出负值 */
   function interp01(u) { u = clamp(u, 0, 1); return u * u * (3 - 2 * u); }
 
-  function flatRelease(p) {
-    /* 起手那 LIFT_FLAT_IN_P 段纸还没"躺好"，翻转**从躺好那一刻才开始** ——
-       两段因此不重叠：倾角先到满（68°），随后才被风掀起来。这一段平台也是
-       用户能看清"纸是躺在桌面上的"的唯一时间窗（约 140ms）。 */
-    if (p <= LIFT_TOP_P) return interp01((p - LIFT_FLAT_IN_P) / (LIFT_TOP_P - LIFT_FLAT_IN_P));
-    var q = clamp((p - LIFT_TOP_P) / (1 - LIFT_TOP_P), 0, 1);
-    var s = Math.sin(Math.PI * q);
-    return 1 + SWING_A * s * s * (1 - q) * (1 - q);
+  /* ---------- 6d. §0.08 入场倾角的"进度轴"（2026-10-31 第六轮：3D 旋转重新打开）----------
+     为什么要重写这条通道：第一到五轮把**位移**换成了「缓动时间轴 + 弧长参数化」，
+     位移的进度是形状参数 u，而倾角原来跟的是 p（时间）。两条轴在 1600ms 里最多差 10% 以上
+     （ease 起手沉，u 又比 ease 更慢），纸就会"转完了还在飞"或"没转完就落地"——那正是
+     "旋转和位移不跟手"的来源。现在倾角吃**和位移同一个 u**（同一个 sag、同一个方向、
+     同一张弧长表），两条通道随时同拍。
+     包络 = **一条不对称的时间鼓包**（用户 m01118：「3D旋转有点多，减少一些，且延长旋转到最大值的时间
+     （大约处于整个运动的 2/5 的位置才到达最大值）」）：
+       · p 0 → TILT_PEAK_AT(0.40)：0 → 峰值（smoothstep，起手斜率为 0，不"啪"地躺下去）；
+       · p TILT_PEAK_AT → TILT_END：峰值 → 0（smoothstep，两端斜率 0，不会在落地前抖）；
+       · p ≥ TILT_END：恒 0°，最后那一段正对观众、纯粹"蹭"进去。
+     第九轮（用户 m01385「3D旋转的收尾有点晚了，早一些」）：TILT_END 从 0.92 提前到 **0.68**
+     （2000ms → 1360ms）。理由：整段拉到 2 秒后，最后 ~500ms 纸几乎不动（只剩 4px 的拖尾），
+     可旋转却一直转到 1840ms —— 读起来就是"都已经到位了，纸还在慢慢拧"。对齐 95% 位移时刻
+     （1298ms ≈ p 0.649）稍晚一点收，旋转结束正好在"贴上去"那一下之前。`?cvtiltend=0.92` 可回退。
+     峰值角由 TILT_FLAT_DEG 给（默认 **18°**，见第 ⑦ 轮；`?cvtilt=NN` 可改）。
+     旧样条分支（?cvcurve=1）仍走原来的 tiltRel(p)，一个字节不动。 */
+  var TILT_PEAK_AT = 0.40;  /* 最大值出现在整段入场的 2/5 处（2000ms → 800ms） */
+  var TILT_END = (function () {   /* 峰值之后多久回到正对观众：默认 0.68（1360ms），?cvtiltend=NN 可改 */
+    var m = /[?&]cvtiltend=([0-9.]+)/.exec(window.location.search);
+    if (!m) return 0.68;
+    var v = parseFloat(m[1]);
+    return isFinite(v) ? clamp(v, TILT_PEAK_AT + 0.05, 0.99) : 0.68;
+  })();
+  /* 旋转轴（第九轮·用户 m01411：「对角线方向的3D旋转有些奇怪，改成水平方向的旋转试试」，
+     随后 m01455：「纯Y方向的我看看效果」）：
+     · y  （默认）= 只绕**竖直轴**转 rotateY：卡片像门一样左右拧一下（左沿后退、右沿朝观众，
+                    与"从左下往右上飞"的拖尾方向一致）；
+     · x         = 只绕**水平轴**转 rotateX：上／下沿朝观众兜过来，像一页纸躺到桌面上；
+     · xy        = 前几轮的对角叠加（rotateX + 侧倾 rotateY + 横向速度带来的 yaw）——原样保留做 A/B。
+     历史：默认曾是 xy（对角线，用户嫌"歪着头"）→ 短暂用 x → 用户点名要看纯 Y，现默认 y。 */
+  var TILT_AXIS = (function () {
+    var m = /[?&]cvtiltaxis=(x|y|xy)(?:&|$)/.exec(window.location.search);
+    return m ? m[1] : 'y';
+  })();
+  var TILT_FLAT_DEG = (function () {
+    var m = /[?&]cvtilt=([0-9.]+)/.exec(window.location.search);
+    if (!m) return LIFT_FLAT_DEG * 0.66;   /* 27.2 × 0.66 ≈ 18° —— 第七轮用户要求"减少一些" */
+    var v = parseFloat(m[1]);
+    return isFinite(v) ? clamp(v, 0, 60) : LIFT_FLAT_DEG * 0.66;
+  })();
+
+  /* 位移用的形状参数 u —— 与 entryPath() 里那一段**同源**（同 sag / 同方向 / 同弧长表），
+     拿它当倾角的轴，两条通道就不会错拍。 */
+  function straightU(p) {
+    var s = easeT(clamp(p, 0, 1)), a = S.flipFrom;
+    if (!ARC || !a) return s;
+    var ch = Math.sqrt(a.dx * a.dx + a.dy * a.dy);
+    if (!(ch > 0)) return s;
+    var sag = arcSag(ch);
+    if (!(sag > 0)) return s;
+    var cc = -(a.dx * ARC_UX + a.dy * ARC_UY) / ch;
+    return arcToU(sag / ch, cc, s);
+  }
+
+  /* 躺平包络（时间轴）：0 → 峰值（TILT_PEAK_AT 处）→ 0（TILT_END 处），三个端点斜率都为 0。
+     为什么不再挂在 u 上：用户要的是"整段运动的 2/5 处到达最大值"，说的是**时间**位置；
+     而且现在位移是缓动 + 弧长，u 在起手 400ms 里才走到 0.10，挂在 u 上会让"最大旋转"迟到 600ms 之后。 */
+  function tiltBump(p) {
+    var q = clamp(p, 0, 1);
+    if (q <= TILT_PEAK_AT) {
+      var a = q / TILT_PEAK_AT;
+      return a * a * (3 - 2 * a);
+    }
+    var b = clamp((q - TILT_PEAK_AT) / (TILT_END - TILT_PEAK_AT), 0, 1);
+    return 1 - b * b * (3 - 2 * b);
   }
 
   /* 某一帧的两个倾角：rx = 躺平角（上沿朝观众），ry = **对角侧倾**（左上按下去、右下提起来）
-     + 横向速度那一道（卡片朝运动方向侧过去，横向一停就回正）。
-     三者共用 env 之外还各压了一道窗，免得 p=0 那一帧突然侧过去。 */
+     + 横向速度那一道（卡片朝运动方向侧过去，横向一停就回正）。 */
   function entryTilt(p) {
+    /* 总闸关闭（见 §0.05）或入场倾角闸关闭（第四十一轮 m03567：入场保持平的）：
+       整条倾角通道直接不参与，纸全程正对观众 */
+    if (!ROT3D || !ENTRY_TILT) return { rx: 0, ry: 0 };
+    var env, pr;
+    if (STRAIGHT) {
+      pr = straightU(p);        /* 仍需要它：横向速度那一道要看"走过多少" */
+      env = tiltBump(p);        /* 时间轴：0 → 2/5 处峰值 → 0.92 归零（第 ⑦ 轮） */
+    } else {
+      pr = p;
+      env = tiltRel(p);         /* 旧样条时间线（?cvcurve=1）原样 */
+    }
     /* 负号 = 整个倾角通道唯一的方向开关：上沿朝观众兜过来（用户箭头指的那一向） */
-    var env = interp01(p / LIFT_FLAT_IN_P) * (1 - flatRelease(p));
-    var rx = -LIFT_FLAT_DEG * env;
-    /* 对角侧倾与躺平角共用同一根包络：负 ry + 负 rx ⇒ 左上角按下去、右下角提起来 */
-    var ry = -LIFT_ROLL_DEG * env;
-    if (S.flipFrom) {
+    var amt = -TILT_FLAT_DEG * env;
+    var rx = 0, ry = 0;
+    if (TILT_AXIS === 'y') {
+      ry = amt;                 /* 只绕竖直轴：左右拧 */
+    } else {
+      rx = amt;                 /* 只绕水平轴（默认）＝ 上／下沿翻给观众 */
+      /* 旧的对角叠加只在 ?cvtiltaxis=xy 时出现：负 ry + 负 rx ⇒ 左上角按下去、右下角提起来 */
+      if (TILT_AXIS === 'xy') ry = -LIFT_ROLL_DEG * (TILT_FLAT_DEG / LIFT_FLAT_DEG) * env;
+    }
+    if (TILT_AXIS === 'xy' && S.flipFrom) {
       var h = 0.006, lo = Math.max(0, p - h), hi = Math.min(1, p + h);
       var vx = (entryPath(hi, S.flipFrom).dx - entryPath(lo, S.flipFrom).dx) / (hi - lo) / FLIP_MS * 1000;
       /* += ：速度那一道是**叠加**在对角侧倾上的，覆盖掉会把侧倾抹平 */
-      ry += LIFT_YAW_DEG * clamp(vx / LIFT_YAW_REF, -1, 1) * interp01(p / 0.18);
+      ry += LIFT_YAW_DEG * clamp(vx / LIFT_YAW_REF, -1, 1) * interp01(pr / 0.18);
     }
     return { rx: rx, ry: ry };
   }
@@ -958,14 +1856,17 @@
   }
 
   /* 入场起点：清状态。第一帧倾角是 0（纸在页面里就是正着的，不跳），
-     躺平发生在最初的 LIFT_FLAT_IN_P 里 —— 点下去那一下的"按压"。 */
+     躺平在 HOLD_PRESS_P（≈145ms）里走完、随后几乎不动直到 HOLD_P（≈496ms）——
+     点下去那一下的"按住了"，然后才放大（第十七轮：这一段与后面的冲刺共用一条 C1 样条，
+     接缝处不刹停；但**快慢差**由 OUT_KEYS 的斜率列管，不是靠这里调）。 */
   function startGrab() {
     var g = S.grab;
     g.on = !S.reduced;
     g.el = 0; g.p = 0;
     g.ax = 0; g.ay = 0; g.h = 0;
     if (S.grabAnim) { try { S.grabAnim.cancel(); } catch (e) { } S.grabAnim = null; }
-    if (S.el.grab) S.el.grab.style.transform = 'none';
+    killEntranceAnims();
+    setTr(S.el.grab, 'none');
   }
 
   /* 推进器（跑在 stepPhysics 里，和按压一样不受拖拽影响）：每帧按进度**直接算**角度，
@@ -978,7 +1879,11 @@
     g.el += dt;
     var p = grabProgress();
     g.p = p;
-    if (p >= 1) { g.on = false; g.ax = 0; g.ay = 0; g.h = 1; return; }
+    if (p >= 1) {
+      /* 走完了：把倾角与影子的动画撤掉，交回主线程（render 下一帧就会写 'none'） */
+      killEntranceAnims();
+      g.on = false; g.ax = 0; g.ay = 0; g.h = 1; return;
+    }
     var t = entryTilt(p);
     g.ax = t.rx; g.ay = t.ry;
     g.h = clamp(entryPath(p, S.flipFrom || { dx: 0, dy: 0, sx: 1, sy: 1 }).L, 0, 1);
@@ -1052,6 +1957,9 @@
     S.phys.vy = 0;
     g.on = false;
     g.ax = 0; g.ay = 0;
+    /* 入场没走完就被拖：撤掉倾角/影子的伴随动画，把这两层立刻交回 render()。
+       角度已经搬到 phys（上面两行），接过来是连续的，不会跳。 */
+    killEntranceAnims();
     /* 不在这里写 .cv-grab 的 transform：下一次 render() 会把两层一起写出去，
        中间插一帧 'none' 反而会让纸立起来跳一下。 */
   }
@@ -1071,6 +1979,36 @@
     /* 不把 y 归零：上一记可能还没收回，接在当前位置继续压，手指底下才不会跳一下 */
     p.v = PRESS_V0;          /* 向下的冲量：纸被压下去，弹簧再把它托回来 */
     p.on = true;
+  }
+
+  /* 按下位置 → 目标倾角：按在右半边，右侧往后倒（rotateY 正）；按在下半边，下侧往后倒
+     （rotateX 负）。半径方向统一用 smoothstep 从死区边缘 0 长到满幅，越靠边越明显。 */
+  function startPress3d(e) {
+    var p = S.press3d;
+    p.on = true;
+    var el = S.el.flip;
+    if (!el || !el.getBoundingClientRect) { p.tx = 0; p.ty = 0; return; }
+    var b = el.getBoundingClientRect();
+    if (!b.width || !b.height) { p.tx = 0; p.ty = 0; return; }
+    var nx = clamp((e.clientX - (b.left + b.width / 2)) / (b.width / 2), -1, 1);
+    var ny = clamp((e.clientY - (b.top + b.height / 2)) / (b.height / 2), -1, 1);
+    var r = Math.sqrt(nx * nx + ny * ny);
+    if (r <= PRESS3D_DEAD) { p.tx = 0; p.ty = 0; return; }   /* 十字中心：只留点击回弹 */
+    var k = clamp((r - PRESS3D_DEAD) / (1 - PRESS3D_DEAD), 0, 1);
+    k = k * k * (3 - 2 * k);
+    var amp = PRESS3D_MAX * k / r;      /* 除以 r 把方向归一化，再乘幅值 */
+    p.ty = +nx * amp;
+    p.tx = -ny * amp;
+  }
+
+  function stepPress3d(dt) {
+    var p = S.press3d;
+    if (!p.on && p.rx === 0 && p.ry === 0) return;
+    var tau = p.on ? PRESS3D_TAU : PRESS3D_BACK;
+    var k = 1 - Math.exp(-dt / Math.max(tau, 0.001));
+    p.rx += (p.tx - p.rx) * k;
+    p.ry += (p.ty - p.ry) * k;
+    if (!p.on && Math.abs(p.rx) < 0.02 && Math.abs(p.ry) < 0.02) { p.rx = 0; p.ry = 0; }
   }
 
   function stepPress(dt) {
@@ -1101,24 +2039,106 @@
     for (var i = 0; i < list.length; i++) { try { list[i].cancel(); } catch (eCancel) { } }
   }
 
+  function cancelDim() {
+    if (!S.dimAnim) return;
+    try { S.dimAnim.cancel(); } catch (eDim) { }
+    S.dimAnim = null;
+    if (S.el.dim) setOp(S.el.dim, '');
+  }
+
+  function startDim() {
+    var el = S.el.dim;
+    if (S.reduced || !DIM_ON || !el || typeof el.animate !== 'function') return;
+    cancelDim();
+    var tUp = dimRestoreAt();
+    var tEnd = dimRestoreEnd();
+    var total = Math.max(DIM_ARG.total, tEnd + 1);
+    /* 对称缓动：两头都软，压到最深和回到最亮都不"顿" */
+    var EASE = 'cubic-bezier(.42, 0, .58, 1)';
+    var kf;
+    if (tEnd >= total - 1) {
+      /* 常规情形：两道渐变在窗口内部交汇，没有平台 */
+      kf = [
+        { opacity: 0, offset: 0, easing: EASE },
+        { opacity: DIM_ARG.depth, offset: +(tUp / total).toFixed(5), easing: EASE },
+        { opacity: 0, offset: 1 }
+      ];
+    } else {
+      /* 手动把恢复提前（?cvdimrms 很小）时，中间会留一小段平台 */
+      kf = [
+        { opacity: 0, offset: 0, easing: EASE },
+        { opacity: DIM_ARG.depth, offset: +(tUp / total).toFixed(5), easing: 'linear' },
+        { opacity: DIM_ARG.depth, offset: +(tEnd / total).toFixed(5), easing: EASE },
+        { opacity: 0, offset: 1 }
+      ];
+    }
+    try {
+      S.dimAnim = el.animate(kf, { duration: total, easing: 'linear', fill: 'both' });
+    } catch (eDim2) { S.dimAnim = null; }
+  }
+
   function startSweep() {
     var sw = S.sweep;
     if (S.reduced || sw.locked || !S.el.sweepBand) return;
     sw.locked = true;                       /* 这一次打开从此不许再触发 */
     cancelSweep();
     var band = S.el.sweepBand;
+    var band2 = S.el.sweepBand2;
+    if (!SWEEP_ON) {                        /* ?sweep=0 */
+      band.style.display = 'none';
+      if (band2) band2.style.display = 'none';
+      return;
+    }
+    [band, band2].forEach(function (el) {
+      if (!el) return;
+      if (SWEEP_VARS.halo != null) el.style.setProperty('--sw-halo', SWEEP_VARS.halo);
+      if (SWEEP_VARS.core != null) el.style.setProperty('--sw-core', SWEEP_VARS.core);
+      if (SWEEP_VARS.w != null) el.style.setProperty('--sw-w', SWEEP_VARS.w + '%');
+      if (SWEEP_VARS.coreCol != null) el.style.setProperty('--sw-core-col', SWEEP_VARS.coreCol);
+    });
     if (typeof band.animate !== 'function') return;   /* 没有 WAAPI：这张纸就安静地出现 */
     try {
-      var anim = band.animate([
-        { transform: 'translate3d(-108%, 0, 0) skewX(-14deg)' },
-        { transform: 'translate3d(108%, 0, 0) skewX(-14deg)' }
-      ], { duration: SWEEP_MS, delay: SWEEP_DELAY, easing: SWEEP_EASE, fill: 'none' });
-      sw.anim = [anim];
+      /* 两端对称的 ±96%：起手要退这么远，纸的顶边那一行才不会抢先露进左上角；收尾也要
+         退这么远，纸的底边那一行才不会拖在右下角（斜光的固有几何，见 CSS 静止态注释）。
+         实测 ±94 是零残留的临界，留 2% 余量。中间的形状见 §0.09b 的手绘剖面。 */
+      function tx(p) { return 'translate3d(' + p + '%, 0, 0) skewX(-14deg)'; }
+      /* 把一个剖面函数采样成 WAAPI 关键帧：形状完全由剖面决定，不靠浏览器插值 */
+      function framesOf(prof, samples) {
+        var out = [], n = samples - 1;
+        for (var iF = 0; iF <= n; iF++) {
+          var fT = iF / n;
+          out.push({ transform: tx(+( -96 + 192 * prof(fT) ).toFixed(3)), offset: +fT.toFixed(4) });
+        }
+        return out;
+      }
+      var list = [];
+      if (SWEEP_EASE_CUSTOM) {
+        /* 逃生口：地址栏写了 ?sweepease=… 就回到"单条贝塞尔走完 192%"，便于跟旧观感对比 */
+        list.push(band.animate([{ transform: tx(-96) }, { transform: tx(96) }], {
+          duration: SWEEP_MS_ARG, delay: SWEEP_DELAY_ARG, easing: SWEEP_EASE_ARG, fill: 'none'
+        }));
+      } else {
+        /* 第一条：手绘那条慢曲线（478+350=820ms，1180ms 起） */
+        list.push(band.animate(framesOf(sweepU, SWEEP_SAMPLES), {
+          duration: SWEEP_MS_ARG, delay: SWEEP_DELAY_ARG, easing: 'linear', fill: 'none'
+        }));
+        /* 第二条：同族但更短更快（默认 300+140=440ms，1740ms 起）—— 两条交替接力 */
+        if (SWEEP2_ON && band2 && typeof band2.animate === 'function') {
+          list.push(band2.animate(framesOf(sweepU2, SWEEP_SAMPLES), {
+            duration: SWEEP2_ARG.vis + SWEEP2_ARG.fling, delay: SWEEP2_ARG.delay,
+            easing: 'linear', fill: 'none'
+          }));
+        } else if (band2) {
+          band2.style.display = 'none';
+        }
+      }
+      sw.anim = list;
     } catch (eSweep) { sw.anim = null; }
   }
 
   function stepPhysics(dt) {
     stepPress(dt);             /* 点击回弹与拖拽/入场无关，永远先走 */
+    if (ROT3D && PRESS3D_ON) stepPress3d(dt);   /* 按下位置的立体倾斜（§0.08b） */
     stepGrab(dt);              /* 同理：入场倾角那条曲线也不归手管（要能自己走完） */
     if (S.drag.on) return;     /* 拖拽中不让弹簧抢方向盘 */
     if (S.spin.on) {
@@ -1142,41 +2162,59 @@
   }
 
   /* ---------- 7. 渲染 ---------- */
+  /* 只在值真的变了才写 DOM（2026-10-30 第十六轮）。
+     以前每帧无条件写 6 个 transform + 2 个 opacity：主线程每帧都要做一轮样式失效与提交，
+     把在合成器上跑的那条 WAAPI 挤得错拍 —— 真机上就是"纸一顿一顿"。
+     缓存挂在元素上（__cvTr / __cvOp），任何绕开这里的直接赋值都要把缓存清成 null。 */
+  function setTr(el, val) {
+    if (!el || el.__cvTr === val) return;
+    el.__cvTr = val;
+    el.style.transform = val;
+  }
+  function setOp(el, val) {
+    if (!el || el.__cvOp === val) return;
+    el.__cvOp = val;
+    el.style.opacity = val;
+  }
+
   function render() {
-    if (S.reduced) {
-      /* 减少动态：不转、不摆，只保留缩放/平移 */
-      S.el.tilt.style.transform = 'none';
-      S.el.persp.style.transform = 'none';
+    if (S.reduced || !ROT3D) {
+      /* 减少动态 / 3D 旋转总闸关闭（§0.05）：不转、不摆，只保留缩放与平移 */
+      setTr(S.el.tilt, 'none');
+      setTr(S.el.persp, 'none');
     } else {
-      var rx = S.phys.rx;
-      var ry = S.phys.ry + (S.spin.on ? S.spin.a : 0);   /* 入场那圈直接叠加在纵向角度上 */
-      S.el.tilt.style.transform = 'rotateX(' + rx.toFixed(2) + 'deg) rotateY(' + ry.toFixed(2) + 'deg)';
+      /* 按下位置的立体倾斜（§0.08b）与拖动/入场叠加：按在哪一侧，哪一侧就往后倒 */
+      var rx = S.phys.rx + S.press3d.rx;
+      var ry = S.phys.ry + (S.spin.on ? S.spin.a : 0) + S.press3d.ry;   /* 入场那圈直接叠加在纵向角度上 */
+      setTr(S.el.tilt, 'rotateX(' + rx.toFixed(2) + 'deg) rotateY(' + ry.toFixed(2) + 'deg)');
       /* 悬停微倾 4° → 3°：纸一大，4° 的边缘位移就有 40px，扫起来"晃"；
          3° 仍然读得出是立体的，但安静得多。 */
-      S.el.persp.style.transform = 'rotateX(' + (S.hov.y * -3).toFixed(2) + 'deg) rotateY(' + (S.hov.x * 3).toFixed(2) + 'deg)';
+      setTr(S.el.persp, 'rotateX(' + (S.hov.y * -3).toFixed(2) + 'deg) rotateY(' + (S.hov.x * 3).toFixed(2) + 'deg)');
     }
 
     /* 「捏住右下角」那一拍：独立一层、独立 origin（**左上角** —— 被捏的角才有得抬），只写绕两轴的转动。
+       入场期间这一层归 entGrabAnim 所有（见 playFlipIn），主线程一个字都不写；
        收完之后（on = false）显式写 'none'，不留亚像素残角。 */
-    if (S.el.grab) {
+    if (S.el.grab && !S.entGrabAnim) {
       var gb = S.grab;
-      S.el.grab.style.transform = (!S.reduced && gb.on && (gb.ax || gb.ay))
+      setTr(S.el.grab, (ROT3D && !S.reduced && gb.on && (gb.ax || gb.ay))
         ? 'rotateX(' + gb.ax.toFixed(2) + 'deg) rotateY(' + gb.ay.toFixed(2) + 'deg)'
-        : 'none';
+        : 'none');
     }
 
     /* 缩放（滚轮 / 双指 / 双击）：单独一层 .cv-zoom，别和 FLIP、透视、旋转抢同一个 transform */
     var z = S.zoom;
-    S.el.zoom.style.transform = (z.s === 1 && !z.x && !z.y) ? 'none'
-      : 'translate3d(' + z.x.toFixed(2) + 'px,' + z.y.toFixed(2) + 'px,0) scale(' + z.s.toFixed(4) + ')';
-    S.el.root.classList.toggle('is-zoomed', z.s > 1.01);
+    setTr(S.el.zoom, (z.s === 1 && !z.x && !z.y) ? 'none'
+      : 'translate3d(' + z.x.toFixed(2) + 'px,' + z.y.toFixed(2) + 'px,0) scale(' + z.s.toFixed(4) + ')');
+    var zo = z.s > 1.01;
+    if (S.__zoomed !== zo) { S.__zoomed = zo; S.el.root.classList.toggle('is-zoomed', zo); }
 
     /* 点击回弹（俯视）：按下去 = **以中心为准缩小**，压到底 5%；浮过头时 scale > 1（胀一下）。
        这一层现在只有缩放、没有任何位移。只写 transform，不碰布局。 */
     if (!S.reduced && S.el.press) {
       var py = S.press.y;
-      S.el.press.style.transform = py === 0 ? 'none'
-        : 'scale(' + (1 - (py / PRESS_PEAK) * PRESS_SCALE).toFixed(5) + ')';
+      setTr(S.el.press, py === 0 ? 'none'
+        : 'scale(' + (1 - (py / PRESS_PEAK) * PRESS_SCALE).toFixed(5) + ')');
     }
 
     updateShadow();
@@ -1192,23 +2230,33 @@
   function updateShadow() {
     var el = S.el.shadow;
     if (!el) return;
+    /* 入场期间影子归 entShadowAnim（见 playFlipIn），主线程不写：两条时间轴抢同一个
+       transform 是上一版真机"一顿"的来源之一。 */
+    if (S.entShadowAnim) return;
     var running = S.open && (S.flipAnim || S.grab.on);
     var p = running ? grabProgress() : 1;
     var st = (running && S.flipFrom) ? entryPath(p, S.flipFrom) : null;
+    var v = shadowAt(st);
+    setTr(el, v.transform);
+    setOp(el, v.opacity);
+  }
+
+  /* 影子的姿态：入场关键帧与稳态渲染共用这一处，两条路径不会算出两个样子 */
+  function shadowAt(st) {
     var lift = st ? clamp(st.L, 0, 1) : 1;
     var base = S.flipBox || { cx: innerWidth / 2, cy: innerHeight / 2 };
     var w = S.shadowW || 0, h = S.shadowH || 0;
     var cx = base.cx + (st ? st.dx : 0);
     var cy = base.cy + (st ? st.dy : 0);
     var sink = S.reduced ? 0 : S.press.y / PRESS_PEAK;
-    /* 纸还小的时候影子也小：按入场当前的缩放收一下，否则影子会比纸还宽 */
     var sc = (st ? st.sy : 1) * (0.96 + 0.22 * lift) * (1 - sink * PRESS_SCALE);
     var tx = cx - innerWidth / 2 - w / 2;
     var ty = cy - innerHeight / 2 - h / 2 + 10 + lift * 14;
-    el.style.transform = 'translate(' + tx.toFixed(1) + 'px,' + ty.toFixed(1) + 'px) scale(' +
-      sc.toFixed(3) + ')';
-    /* 放大后影子跟着卡片一起放大就不对了（它在 .cv-zoom 外面），索性收掉 */
-    el.style.opacity = S.zoom.s > 1.01 ? '0' : (0.30 + 0.10 * lift - sink * 0.04).toFixed(3);
+    return {
+      transform: 'translate(' + tx.toFixed(1) + 'px,' + ty.toFixed(1) + 'px) scale(' + sc.toFixed(3) + ')',
+      /* 放大后影子跟着卡片一起放大就不对了（它在 .cv-zoom 外面），索性收掉 */
+      opacity: +(S.zoom.s > 1.01 ? 0 : (0.30 + 0.10 * lift - sink * 0.04)).toFixed(3)
+    };
   }
 
   /* ---------- 8. 主循环 ---------- */
@@ -1368,7 +2416,9 @@
        2026-10-28 第十一轮曾给入场期间加过闸门（"入场那 900ms 不认这一记"），用户随即反馈
        「貌似并没有点击效果，直接放大了」—— 闸门已撤，这一记不再被任何时间轴吞掉。 */
     startPress();
-    if (e.pointerType === 'mouse') pointerToTilt(e);
+    /* 按下位置的立体倾斜（§0.08b）：鼠标/触控笔按在纸上就按位置转过去，按住保持 */
+    if (ROT3D && PRESS3D_ON && e.pointerType !== 'touch') startPress3d(e);
+    if (ROT3D && e.pointerType === 'mouse') pointerToTilt(e);
     /* 入场**随时可以打断**（2026-10-27 用户要求）。参考的就是惯性滑动引擎的做法：
         谁动手就把运动放下，而不是等它自己播完。handOverSpin / handOverLift 保证同一帧不变。 */
     if (S.spin.on) handOverSpin();
@@ -1410,7 +2460,7 @@
     }
     if (S.pinch.on) { pinchMove(); return; }
     if (!S.drag.on || e.pointerId !== S.drag.id) {
-      if (e.pointerType === 'mouse') pointerToTilt(e);
+      if (ROT3D && e.pointerType === 'mouse') pointerToTilt(e);
       return;
     }
     var now = performance.now();
@@ -1428,6 +2478,7 @@
     }
 
     /* 转动：橡皮筋。raw 累计指针位移，显示角度由 rubber() 压缩，越靠边越费劲 */
+    if (!ROT3D) return;    /* 总闸关闭（§0.05）：拖动不转纸，放大后的平移看上面那条 */
     var prevX = S.phys.rx, prevY = S.phys.ry;
     S.drag.rawY = clampRaw(S.drag.rawY + dx * DRAG_GAIN, S.drag.softY, S.drag.hardY);
     S.drag.rawX = clampRaw(S.drag.rawX - dy * DRAG_GAIN, S.drag.softX, S.drag.hardX);
@@ -1442,6 +2493,10 @@
   function onUp(e) {
     var p = S.ptrs[e.pointerId];
     delete S.ptrs[e.pointerId];
+
+    /* 松手：按下位置的立体倾斜先回零（目标清零，当前角由 stepPress3d 慢慢追回去）。
+       放在这里是因为它跟"点一下"的其它判定无关 —— 哪怕后面走进了拖拽分支，也要松。 */
+    if (S.press3d.on) { S.press3d.on = false; S.press3d.tx = 0; S.press3d.ty = 0; }
 
     /* 触屏双击放大：两次轻点，间隔 < 320ms、两次落点 < 28px */
     if (p && e.pointerType !== 'mouse' && p.moved < 10 && performance.now() - p.t < 260) {
@@ -1491,8 +2546,8 @@
     insertBack();
     /* 旋转/微倾也清干净：早关（翻转途中 Esc）会把 --ry 停在半路，
        虽然下次 open() 的 kickSpin / render 都会重写，但让关着的 DOM 回到中性更省心。 */
-    if (S.el.tilt) S.el.tilt.style.transform = 'none';
-    if (S.el.persp) S.el.persp.style.transform = 'none';
+    setTr(S.el.tilt, 'none');
+    setTr(S.el.persp, 'none');
     /* 入场旋转的状态一并清干净：下次 open() 的 kickSpin 会重新钉首帧，
        但这里不清的话，探针/调试里会看到"已经关了还在转"的假象。 */
     S.spin.on = false; S.spin.caught = false; S.spin.a = 0; S.spin.v = 0;
@@ -1500,15 +2555,20 @@
        不 cancel 的话下一次打开的第一帧就是上次退场的残留姿态）。 */
     S.grab.on = false; S.grab.el = 0;
     S.grab.ax = 0; S.grab.ay = 0; S.grab.h = 0;
+    killEntranceAnims();
     if (S.grabAnim) { try { S.grabAnim.cancel(); } catch (e) { } S.grabAnim = null; }
     if (S.shadowAnim) { try { S.shadowAnim.cancel(); } catch (e) { } S.shadowAnim = null; }
-    if (S.el.grab) S.el.grab.style.transform = 'none';
-    if (S.el.shadow) S.el.shadow.style.opacity = '';
+    setTr(S.el.grab, 'none');
+    /* 影子回到中性：清 inline 值（'' = 让 CSS 决定），缓存也一并清掉 */
+    setTr(S.el.shadow, '');
+    setOp(S.el.shadow, '');
     /* 扫光与按压也归零：下一次打开必须是全新的一次（locked 在这里解锁） */
     cancelSweep();
+    cancelDim();
     S.sweep.locked = false;
     S.press.y = 0; S.press.v = 0; S.press.on = false;
-    if (S.el.press) S.el.press.style.transform = 'none';
+    S.press3d.on = false; S.press3d.rx = 0; S.press3d.ry = 0; S.press3d.tx = 0; S.press3d.ty = 0;
+    setTr(S.el.press, 'none');
     if (S.flipAnim) { try { S.flipAnim.cancel(); } catch (e) { } S.flipAnim = null; }
     S.flipFrom = null;
     resetZoom();
@@ -1600,8 +2660,72 @@
         grabOn: S.grab.on, grabP: +S.grab.p.toFixed(3),
         grabX: +S.grab.ax.toFixed(2), grabY: +S.grab.ay.toFixed(2),
         grabH: +S.grab.h.toFixed(3),
-        box: [S.box.w, S.box.h], reduced: S.reduced
+        box: [S.box.w, S.box.h], reduced: S.reduced,
+        /* §0.05 的总闸现场：false = 本次（按 URL ?cv3d=0）关掉了 3D 旋转 */
+        rot3d: ROT3D,
+        /* §0.05b 入场倾角闸（默认关：入场保持平的，只有 ?cventilt=1 才歪） */
+        entryTilt: ENTRY_TILT,
+        /* §0.08b 按下位置的立体倾斜：目标角 / 当前角 / 是否按住 */
+        press3d: {
+          on: S.press3d.on,
+          rx: +S.press3d.rx.toFixed(2), ry: +S.press3d.ry.toFixed(2),
+          tx: +S.press3d.tx.toFixed(2), ty: +S.press3d.ty.toFixed(2)
+        },
+        /* §0.08 入场倾角：峰值角（?cvtilt= 可改）、峰值出现在时间的哪一段、归零时刻 */
+        tiltDeg: TILT_FLAT_DEG,
+        tiltPeakAt: TILT_PEAK_AT,
+        tiltEnd: TILT_END,
+        /* §0.06：true = 入场/退场时间轴线性（匀速）；arc = 路径是否带那道下弯弧；
+           arcPx = 弧高（px，null = 按距离取 FLIP_ARC_SAG 并夹在 MIN~MAX） */
+        straight: STRAIGHT,
+        arc: ARC,
+        arcPx: ARC_PX,
+        /* §0.07 补充：缩放跟随哪条进度（arc = 形状参数 u，time = 纯缓动进度 s） */
+        scale: SCALE_MODE,
+        arcDeg: ARC_DEG,
+        /* §0.07：速度曲线。null = 匀速（?cvease=linear）；否则是 cubic-bezier 四点，
+           验收脚本拿它复算"期望位置"，好把"缓动"和"路径走偏"分开判 */
+        ease: EASE_ON ? EASE_BEZ.slice() : null,
+        /* §0.07 收尾拖尾指数（1 = 无拖尾）与入场总时长（?cvms= 可改） */
+        easeTail: EASE_TAIL,
+        sweep: SWEEP_ON,
+        /* 第二十五轮：扫光剖面 = 手绘段 vis + 续走段 fling（ms）；custom=true 表示
+           ?sweepease= 走了老的单条贝塞尔逃生口 */
+        sweepMs: SWEEP_MS_ARG,
+        sweepVis: SWEEP_PROFILE_ARG.vis,
+        sweepFling: SWEEP_PROFILE_ARG.fling,
+        sweepCustom: SWEEP_EASE_CUSTOM,
+        /* 第二十六条带子：默认开，delay/两段时长见 §0.09b 末段 */
+        sweep2: SWEEP2_ON,
+        sweep2Delay: SWEEP2_ARG.delay,
+        sweep2Ms: SWEEP2_ARG.vis + SWEEP2_ARG.fling,
+        /* 第三十三轮：整张纸变暗（扫光 90% 处开始恢复） */
+        dim: DIM_ON ? { depth: DIM_ARG.depth, total: DIM_ARG.total, down: DIM_ARG.down, up: DIM_ARG.up, restoreAt: +dimRestoreAt().toFixed(0), restoreEnd: +dimRestoreEnd().toFixed(0) } : null,
+        tiltAxis: TILT_AXIS,
+        flipMs: FLIP_MS,
+        /* 第十六轮：入场是三条动画（纸/倾角/影子）共用一条时钟；这三项给验收脚本核对同步 */
+        ent: [!!S.flipAnim, !!S.entGrabAnim, !!S.entShadowAnim],
+        entT: S.flipAnim ? +Math.min(S.flipAnim.currentTime || 0, FLIP_MS).toFixed(1) : null
       };
+    },
+    /* 验收脚本用：把入场那三条动画一起暂停并停在同一个时刻（ms）。
+       一条条设 currentTime 会各自停在不同的帧上，量出来的同步是假的。 */
+    pin: function (ms) {
+      var list = [S.flipAnim, S.entGrabAnim, S.entShadowAnim], i, a;
+      for (i = 0; i < list.length; i++) {
+        a = list[i];
+        if (!a) continue;
+        try { a.pause(); a.currentTime = Math.max(0, Math.min(ms, FLIP_MS)); } catch (e) { }
+      }
+      return !!S.flipAnim;
+    },
+    unpin: function () {
+      var list = [S.flipAnim, S.entGrabAnim, S.entShadowAnim], i, a;
+      for (i = 0; i < list.length; i++) {
+        a = list[i];
+        if (!a) continue;
+        try { a.play(); } catch (e) { }
+      }
     }
   };
 })();

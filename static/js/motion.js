@@ -460,6 +460,10 @@
    * ------------------------------------------------------------------------ */
   function initSmoothScroll() {
     if (reduceMotion()) return;
+    /* 动态效果面板里的「平滑滚动」开关（2026-10-27 用户要求纳入特效管理）：
+       关着就**根本不建** Lenis —— 滚轮直接归浏览器，连一次实例创建都不做。
+       运行时切换走文件末尾的 applySmoothPref()。 */
+    if (window.__hnFx && !window.__hnFx.enabled('smooth')) return;
     if (typeof window.Lenis !== 'function') return;
     if (window.__hnLenis) return;
     /* 搜索页不持有 Lenis（见文件末尾 syncSmoothScroll 的说明）：
@@ -760,6 +764,32 @@
     window.__hnLenisTeardown = teardownLenis;
     window.__hnSyncSmoothScroll = syncSmoothScroll;
     document.addEventListener('pjax:done', syncSmoothScroll);
+
+    /* ------------------------------------------------------------------------
+     * 动态效果面板：平滑滚动引擎本身也是一个开关（2026-10-27 用户要求）
+     * 为什么它值得单列：其它特效全关之后，页面上**唯一还在每帧跑的**就是它
+     * （2026-10-25 实测 181 帧/秒，全是这条常驻 rAF），低配机想彻底安静下来，
+     * 只关液态/拖尾是不够的。
+     * 关 = teardownLenis()：掐断滚轮派发 + destroy + 摘掉 html 上的 lenis-* 类，
+     *     滚动立刻交回浏览器（位置不变，因为 Lenis 驱动的本来就是真实滚动）。
+     * 开 = 按当前页重建：搜索页与「减少动态」下依然不建（syncSmoothScroll 的职责），
+     *     被外部脚本写坏过的实例也不再强开（__hnLenisDegraded 是永久闸门）。
+     * 「全部关闭 / 全部开启」会以 key=null 通知一次，这里按全量状态重算即可。
+     * ------------------------------------------------------------------------ */
+    function applySmoothPref() {
+      var on = !(window.__hnFx && !window.__hnFx.enabled('smooth'));
+      if (!on) { teardownLenis(); return; }
+      /* 重新开启时不需要复位位置：新实例的 targetScroll 取的就是当前实际滚动位置。 */
+      syncSmoothScroll();
+    }
+
+    if (window.__hnFx && typeof window.__hnFx.onChange === 'function') {
+      window.__hnFx.onChange(function (key) {
+        if (key && key !== 'smooth') return;   /* 别的特效与滚动引擎无关 */
+        applySmoothPref();
+      });
+    }
+
 
   /* 注意：搜索页隔离必须放在**模块级**，不能放进 initSmoothScroll() 内部——
      那个函数在搜索页会第一行就 return（这正是它的职责），放里面等于

@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 HN Space 一键发布脚本：新建文章 / 本地预览 / 构建 / 部署到服务器
 不依赖 GitHub Actions：本地构建 -> scp 上传 -> 服务器全量替换。

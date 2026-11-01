@@ -3,6 +3,29 @@ title: "更新日志"
 description: "网站与内容更新记录"
 ---
 
+## 2026-11-01
+
+- **移动端双击缩放：从「一帧到位」改成 340ms / 300ms 的自然过渡**（用户：「移动端中，双击放大没有动画，加一下放大和缩小的自然变化」）
+  - 原因不是 CSS 少了 transition，而是双击分支调的就是 `zoomAt()`：它直接写 `S.zoom.s/x/y`，下一帧 `render()` 就落终值 —— 0 帧过渡，观感是硬切；`resetZoom()` 连这一下都没有
+  - 也没往 CSS 上加 transition（`.cv-zoom` 每帧被 JS 写 transform，加了会和 render 打架），改成自建 tween：`animateZoomTo(target, px, py)` + `stepZoomTween(dt)`，挂进 `stepPhysics()`，位置必须放在 `if (S.drag.on) return;` 之前，否则每次都被早退吞掉
+  - 倍率在**对数空间**插值 `s = s0·(s1/s0)^e`（easeOutCubic）：相对放大率恒定，2.6 倍的过程前段快后段慢，末端不会「顶」一下；平移不是插出来的，是每帧按锚点反解 `z.x = px − c.x − s·q`，所以手指按住的那个点在整段动画里钉在纸上不动，末尾再 `clampPan()` 收边
+  - 放大 340ms、复原 300ms（复原略快，收起来更利落）；双击方向按**目标**判（`S.zoomAnim.on ? S.zoomAnim.s1 : S.zoom.s`），动画半路再双击能立刻缩回，不会被吃掉
+  - 抢占规则：滚轮、双指捏合、按下、`resetZoom()` 一律先清 `S.zoomAnim.on`，手到即到、从当前值续接；`prefers-reduced-motion` 下仍旧一帧到位
+  - 实测（CDP 真实触屏 + 页面内 rAF 自记，CDP 往返 10~20ms 采不到真实曲线）：放大中间帧 9 个不同取值（1.143 → 2.43 → 2.600）、首帧 1.143 证明不是硬切、时长 340ms；复原中间帧 6 个取值、终点 1.000、时长 300ms、pan 回 [0,0]、`.cv-zoom` 复原成 `none`；捏合与滚轮仍保持跟手 / 一帧到位
+
+- **触屏按下不再被漏掉：`e.pointerType !== 'touch'` 这一行把手机挡在门外**（用户：「移动端触屏点击和按住和鼠标不一致，移动端点击、长按证书没有触发3D旋转」）
+  - `onDown()` 里 `startPress3d(e)` 的闸门写成 `ROT3D && PRESS3D_ON && e.pointerType !== 'touch'` —— 桌面按在纸面哪一侧就哪一侧往后倒，手机却完全没反应。删掉触屏排除后 touch / pen / mouse 一视同仁（悬停微倾 `pointerToTilt` 仍留作鼠标专属，触屏没有 hover 语义，不该在手指离开后还挂着倾角）
+  - 长按还得多挡两道系统手势：根节点补 `contextmenu` 的 `preventDefault()`（长按弹出的系统菜单会先一步 pointercancel 掉手势），`.cv-root` 加 `-webkit-touch-callout / -webkit-user-select / user-select / -webkit-user-drag: none`（`user-select` 在 iOS 上尤其必要，否则拖纸会顺手选中文字）
+  - 实测（`Input.dispatchTouchEvent` 走真实触屏路径）：按右半边 rotateY **5.15°**、rotateX 1.48°，按住 400ms 保持 5.51°，松手 700ms 内回到 0.03°/0.09°；探针记到的 `pointerType` 确为 `touch`
+
+- **退场动画途中点证书，会把浮层「关」成一张缩略图**（用户：「当我在证书播放退场动画的时候触发双击，会导致证书显示状态发生冲突，证书直接不见了」）
+  - 根因不在退场曲线，在状态机少一档：`close()` 一进来就把 `S.open` 置 false，可退场要跑 520ms，这段窗口里纸还在 `.cv-face` 里、仍是 `a[data-cert-viewer]` 的点击目标 ⇒ 点一下就走 document 捕获阶段的 click 重新 `open()`，而 `open()` 只挡 `if (S.open)` —— 此刻它恰好是 false，拦不住。重开之后 `playFlipOut` 的收尾 `if (S.open) return;` 又会跳过 `closeNow()`，纸就停在退场末帧（缩成页面缩略图那么大），浮层却仍是 is-open —— 用户看到的就是「证书直接不见了」
+  - 补一档显式状态 `S.closing`：`close()` 置 true、`closeNow()` 与「被打断」分支复位；`open()` 改成 `if (S.open || S.closing) return;`；`onDown / onUp / animateZoomTo` 也各加 `if (!S.open) return;` —— 退场窗口里不再起 press3d、不再拖拽、不再起缩放 tween（原来双击还能在这 520ms 里和 flip 动画抢同一张纸，正是用户说的「状态冲突」）
+  - 行为定调：退场中点到纸**什么都不发生**，退场照常走完（不是「取消关闭」），收干净后仍能正常再开
+  - 先复现再改：探针在退场 80ms 时对纸打一次合成 `sheet.click()`，修复前 `open` 真的被翻回 true、纸卡在浮层；修复后同一场景 open 全程不再变 true。注意 Chrome/Blink 的触屏路径里 `pointerdown` 的 `defaultPrevented` 会吞掉随后的 click，本地根本复现不出来 —— 得用合成 click 模拟「不吞 click」的 WebKit/iOS
+  - 新增回归 `.tools/cv-exit-verify.mjs` 22 项：退场 80ms 点纸、连点两下、真实触屏双击（三次 tap）、退场中按 Esc，四种都要求抢不回浮层、无 tween、`root.hidden`、页面 2 张纸 / 浮层 0 张、结构完好、能再开再关、无 console 报错
+  - 回归：`.tools/cv-touch-verify.mjs` 38 项、`.tools/cv-press3d-verify.mjs` 10 项全过
+
 ## 2026-10-31
 
 - **证书入场动画：一条曲线改到第 9 轮 —— 3D 关掉 → 直线匀速 → 下弯弧 → 按手绘轨迹 → 缓入缓出 + 增长尾**（用户逐轮给方向：「把证书卡片的3D旋转效果全程关闭」「将运动简化为直线运动、速度恒定」「改为弧线，弧线向下弯折」「继续向左下角弯折」→ 在我画的对照图上手绘一条红线 +「我希望轨迹是这样的」「下一步来把运动的速度改为缓入缓出」「将运动曲线最后阶段继续延长，让运动有较长的微小位移拖尾」「拖尾不够长，加长一下总时间到两秒吧」）

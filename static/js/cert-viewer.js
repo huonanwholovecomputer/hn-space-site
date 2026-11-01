@@ -827,6 +827,14 @@
 
   var S = {
     open: false, ready: false, reduced: false,
+    /* 退场进行中（2026-11-01 用户 m00271 报「退场动画里双击 → 证书直接不见了」）。
+       close() 一进来就把 open 置 false，可是退场那 520ms 浮层还挂在屏幕上、纸也还在
+       .cv-face 里 ⇒ 这时的点击仍能命中 <a data-cert-viewer>，再走一遍 open()：
+       open() 里只挡 `if (S.open)`，挡不住"关到一半"，于是 S.open 又变 true，
+       而 playFlipOut 的收尾 `if (S.open) return;` 就把 closeNow() 跳过了 ——
+       纸永远停在退场末帧（缩成页面缩略图那么大），用户看到的就是"证书直接不见了"。
+       所以关闭过程要有一个显式的 closing 闸门：关着的时候谁都不许再开。 */
+    closing: false,
     items: [], index: 0,
     el: {}, box: { w: 0, h: 0 },
     phys: { rx: 0, ry: 0, vx: 0, vy: 0 },
@@ -850,6 +858,10 @@
     },
     /* 缩放：s = 倍数，x/y = 相对卡片中心的平移（px）。滚轮 / 双指 / 双击都写这三个数。 */
     zoom: { s: 1, x: 0, y: 0 },
+    /* 双击缩放的自然过渡（2026-11-01 用户 m00001 第①条）。t = 已走 ms，dur = 总时长，
+       s0/s1 = 起止倍率，px/py = 屏幕上的锚点，qx/qy = 锚点在**纸自己的坐标**里的位置。
+       只有双击放大/复原走这条 tween；滚轮与双指永远是"手到即到"，一落手就把 on 清掉。 */
+    zoomAnim: { on: false, t: 0, dur: 0, s0: 1, s1: 1, qx: 0, qy: 0, px: 0, py: 0 },
     /* 双指捏合：d0/cx0/cy0/s0/x0/y0 是捏合开始那一刻的快照 */
     pinch: { on: false, d0: 0, cx0: 0, cy0: 0, s0: 1, x0: 0, y0: 0 },
     ptrs: {},                 /* 当前按在浮层上的指针（捏合要两根） */
@@ -958,7 +970,9 @@
 
   /* ---------- 2. 打开 ---------- */
   function open(link, tappedEl) {
-    if (S.open) return;
+    /* closing：正在退场（见 S.closing 的注释）。这段窗口里纸还在浮层里、仍是点击目标，
+       必须在这里挡住 —— 否则退场会被"重新打开"打断，纸停在退场末帧不回来。 */
+    if (S.open || S.closing) return;
     endThumbPress();                   /* 抬手时已经摘过一次；这里兜底，别把按下态带进浮层 */
     var items = readItems(link);
     if (!items.length) return;         /* 解析失败：交回浏览器（href 是原图） */
@@ -1175,6 +1189,12 @@
     root.addEventListener('pointermove', onMove, { passive: true });
     root.addEventListener('pointerup', onUp);
     root.addEventListener('pointercancel', onUp);
+    /* 触屏长按的兼容性（2026-11-01 用户 m00001 第②条）：在 iOS 上长按会弹 callout
+       （「拷贝/存储图像」那张气泡），安卓长按图片/链接弹系统菜单 —— 两个都会把
+       「按住」这段时间变成系统手势，浏览器随即发 pointercancel，3D 倾斜刚起来就断。
+       浮层里没有任何需要系统长按菜单的东西，直接一律吃掉。（CSS 侧还有
+       -webkit-touch-callout:none / user-select:none 做双保险，见 cert-viewer.css） */
+    root.addEventListener('contextmenu', function (e) { e.preventDefault(); });
     /* 滚轮：passive:false 才能 preventDefault（既不让页面滚，也不让 Lenis 接管）。
        触控板的捏合手势浏览器会以 ctrlKey=true 的 wheel 事件送进来。 */
     root.addEventListener('wheel', onWheel, { passive: false });
@@ -2139,6 +2159,7 @@
   function stepPhysics(dt) {
     stepPress(dt);             /* 点击回弹与拖拽/入场无关，永远先走 */
     if (ROT3D && PRESS3D_ON) stepPress3d(dt);   /* 按下位置的立体倾斜（§0.08b） */
+    stepZoomTween(dt);         /* 双击缩放的自然过渡（也不能被下面那条 drag 早退吞掉） */
     stepGrab(dt);              /* 同理：入场倾角那条曲线也不归手管（要能自己走完） */
     if (S.drag.on) return;     /* 拖拽中不让弹簧抢方向盘 */
     if (S.spin.on) {
@@ -2347,12 +2368,71 @@
     z.s = ns;
     clampPan();
   }
-  function resetZoom() { S.zoom.s = 1; S.zoom.x = 0; S.zoom.y = 0; }
+  function resetZoom() {
+    S.zoomAnim.on = false;             /* 复位也取消 tween：否则下一步会被"还在路上"的动画写回来 */
+    S.zoom.s = 1; S.zoom.x = 0; S.zoom.y = 0;
+  }
+
+  /* ---------- 缩放：双击的自然过渡（2026-11-01 用户 m00001 第①条）----------
+     用户原话：「移动端中，双击放大没有动画，加一下放大和缩小的自然变化」。
+     以前双击 → zoomAt() 直接把 s/x/y 写成终值，下一帧 render() 就落到终点 = 硬切（0 帧过渡），
+     在手机上尤其明显：纸是"啪"地变大的，看不出是同一个动作的延续。
+
+     现在给「一次完整的缩放」配一条 tween，两处都是自然的来源：
+       ① 倍率在**对数空间**插值（s = s0 · (s1/s0)^e）：1→2.6 的每一步放大率相同，
+          眼睛读到的是匀速地"走近"，而不是线性插值那种"一开始猛长、后半段磨蹭"；
+       ② 平移不另插值，而是每帧由**锚点公式反解**：双击那一点下面压着的内容全程钉在原处
+          （放大时盯着的那行字不会漂），纸心的位置也在每帧重新量 —— 就算纸本身还在
+          入场动画里缩放（纸心在动），锚点依然是对的。
+     时长：放大 340ms、复原 300ms（iOS 双击放大约 0.3s；复原略快，读起来是"收回"）。
+     优先级：滚轮 / 双指 / 再次按下都会**立刻取消 tween**，从当前倍率接着算 ——
+     任何时候手都比动画高。减少动态（S.reduced）⇒ 退回老行为，一帧到位。 */
+  var ZOOM_TWEEN_IN = 340, ZOOM_TWEEN_OUT = 300;
+
+  function animateZoomTo(next, px, py) {
+    /* 退场中不许起缩放过渡（2026-11-01 用户 m00271 的"状态冲突"）：
+       浮层已经在往页面里缩，这时再叠一条把纸放大的 tween，两条动画一起写同一张纸。 */
+    if (!S.open) return;
+    var z = S.zoom;
+    var ns = clamp(next, 1, ZOOM_MAX);
+    if (ns <= 1.01) ns = 1;
+    if (S.reduced) { S.zoomAnim.on = false; zoomAt(ns, px, py); return; }
+    var a = S.zoomAnim, c = flipCenter();
+    a.on = true; a.t = 0;
+    a.dur = ns >= z.s ? ZOOM_TWEEN_IN : ZOOM_TWEEN_OUT;
+    a.s0 = z.s; a.s1 = ns;
+    a.px = px; a.py = py;
+    /* 锚点换算到纸自己的坐标：q = (屏幕点 − 纸心 − 平移) / 倍率。
+       动画途中再从 q 反解平移，那个点就钉在屏幕上了。 */
+    a.qx = (px - c.x - z.x) / z.s;
+    a.qy = (py - c.y - z.y) / z.s;
+  }
+
+  function stepZoomTween(dt) {
+    var a = S.zoomAnim;
+    if (!a.on) return;
+    a.t += dt * 1000;
+    var u = a.dur > 0 ? clamp(a.t / a.dur, 0, 1) : 1;
+    var e = 1 - Math.pow(1 - u, 3);                    /* easeOutCubic：起步快、收尾软 */
+    var s = a.s0 * Math.pow(a.s1 / a.s0, e);           /* 对数空间：相对放大率恒定 */
+    var c = flipCenter(), z = S.zoom;
+    z.s = s;
+    z.x = a.px - c.x - s * a.qx;
+    z.y = a.py - c.y - s * a.qy;
+    clampPan();
+    if (u >= 1) {
+      a.on = false;
+      /* 收尾钉死在终值：浮点误差和 clampPan 都不许留下 2.5999 / 0.4px 这种尾巴 */
+      z.s = a.s1;
+      if (a.s1 === 1) { z.x = 0; z.y = 0; }
+    }
+  }
 
   function onWheel(e) {
     if (!S.open) return;
     if (e.target.closest && e.target.closest('[data-act]')) return;
     e.preventDefault();                       /* 页面不滚、Lenis 也别接管 */
+    S.zoomAnim.on = false;                    /* 滚轮永远优先：从 tween 的当前倍率接着算，不跳 */
     /* deltaMode 1 = 按行滚（Firefox 常见），先换算成像素 */
     var dy = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
     /* 触控板捏合（浏览器以 ctrlKey=true 的 wheel 送来）delta 很小，步长要放大 */
@@ -2364,6 +2444,7 @@
   function startPinch() {
     var ids = Object.keys(S.ptrs);
     var a = S.ptrs[ids[0]], b = S.ptrs[ids[1]];
+    S.zoomAnim.on = false;      /* 双指落下就接管双击那条 tween（快照的 s0/x0/y0 取当前值） */
     S.pinch.on = true;
     S.pinch.d0 = Math.max(1, Math.hypot(b.x - a.x, b.y - a.y));
     S.pinch.cx0 = (a.x + b.x) / 2;
@@ -2394,7 +2475,15 @@
 
   function onDown(e) {
     if (e.button !== 0 && e.pointerType === 'mouse') return;
+    /* 退场中不理任何按压（2026-11-01 用户 m00271）：这段窗口里纸还在浮层里，
+       onCard 依然成立，会顺手把 press3d / 拖拽 / 指针捕获全打开，
+       跟退场那条 flip 动画抢同一张纸 —— 而且双击分支还会起 zoom tween。
+       浮层已经在关了，这些手势一个都不该存在。 */
+    if (!S.open) return;
     if (e.target.closest('[data-act]')) return;      /* 按钮不参与 */
+    /* 手一落下就接管双击那条缩放过渡：手指 / 鼠标是最高优先级，动画不许跟它抢方向盘。
+       此刻倍率就是 tween 已经走到的那一帧，所以接手时不会跳。 */
+    S.zoomAnim.on = false;
     var onCard = !!e.target.closest('.cv-flip');
     S.ptrs[e.pointerId] = { x: e.clientX, y: e.clientY, t: performance.now(), moved: 0 };
 
@@ -2416,8 +2505,13 @@
        2026-10-28 第十一轮曾给入场期间加过闸门（"入场那 900ms 不认这一记"），用户随即反馈
        「貌似并没有点击效果，直接放大了」—— 闸门已撤，这一记不再被任何时间轴吞掉。 */
     startPress();
-    /* 按下位置的立体倾斜（§0.08b）：鼠标/触控笔按在纸上就按位置转过去，按住保持 */
-    if (ROT3D && PRESS3D_ON && e.pointerType !== 'touch') startPress3d(e);
+    /* 按下位置的立体倾斜（§0.08b）：按在纸上就按位置转过去，按住保持。
+       **鼠标 / 触控笔 / 手指一视同仁**（2026-11-01 用户 m00001 第②条）。
+       这里以前写着 `e.pointerType !== 'touch'`，触屏按下去只剩中心缩小、纸一点不转 ——
+       同一个手势在鼠标上转、在手机上不转，用户读到的就是「移动端点击、长按证书没有触发
+       3D 旋转」。触摸已经由 CSS 的 touch-action/callout 和 root 上的 contextmenu 兜住，
+       不需要在这里区别对待指针类型。 */
+    if (ROT3D && PRESS3D_ON) startPress3d(e);
     if (ROT3D && e.pointerType === 'mouse') pointerToTilt(e);
     /* 入场**随时可以打断**（2026-10-27 用户要求）。参考的就是惯性滑动引擎的做法：
         谁动手就把运动放下，而不是等它自己播完。handOverSpin / handOverLift 保证同一帧不变。 */
@@ -2493,6 +2587,10 @@
   function onUp(e) {
     var p = S.ptrs[e.pointerId];
     delete S.ptrs[e.pointerId];
+    /* 退场中（open 已 false）：这一记的按下根本没被 onDown 接手过，p 通常是空的；
+       即便退场是"拖到一半被关掉"的，close() 也把 S.drag 清了。这里只负责把
+       指针表擦干净，不再往下走手势收尾 —— 否则会对着正在退场的纸起缩放 tween。 */
+    if (!S.open) return;
 
     /* 松手：按下位置的立体倾斜先回零（目标清零，当前角由 stepPress3d 慢慢追回去）。
        放在这里是因为它跟"点一下"的其它判定无关 —— 哪怕后面走进了拖拽分支，也要松。 */
@@ -2504,7 +2602,18 @@
       var dbl = nowT - S.tap.t < 320 && Math.hypot(e.clientX - S.tap.x, e.clientY - S.tap.y) < 28;
       if (dbl) {
         S.tap.t = 0;
-        if (S.zoom.s > 1.05) resetZoom(); else zoomAt(2.6, e.clientX, e.clientY);
+        /* 顺手把这一记的"拖拽闸门"关掉：这条分支原来直接 return，S.drag.on 会一直停在 true，
+           而 stepPhysics 见到 drag.on 就早退 —— 双击放大之后纸的回弹/悬停弹簧会被冻住，
+           直到下一次按下才恢复（探针里看就是 dragging:true 关不掉）。 */
+        if (S.drag.on && e.pointerId === S.drag.id) {
+          S.drag.on = false;
+          try { S.el.root.releasePointerCapture(e.pointerId); } catch (eR0) { }
+          S.el.root.classList.remove('is-dragging');
+        }
+        /* 方向按**目标**判：上一次缩放的过渡还没走完时再双击，不会把 1.9 倍当成"还没放大"
+           而再放大一次（那会变成永远只放大、缩不回去）。 */
+        var aim = S.zoomAnim.on ? S.zoomAnim.s1 : S.zoom.s;
+        animateZoomTo(aim > 1.05 ? 1 : 2.6, e.clientX, e.clientY);
         return;
       }
       S.tap.t = nowT; S.tap.x = e.clientX; S.tap.y = e.clientY;
@@ -2539,6 +2648,7 @@
      再从"原来的位置"缩回去，看到的就是一张白纸飞向虚空。 */
   function closeNow() {
     if (!S.el.root) return;
+    S.closing = false;                  /* 收干净了，闸门放下（退场被打断的极端路径也要复位） */
     S.el.root.hidden = true;
     S.el.root.classList.remove('is-open', 'is-running', 'is-dragging', 'is-zoomed', 'is-zooming');
     S.el.flip.style.transform = 'none';
@@ -2578,11 +2688,12 @@
   function close() {
     if (!S.open) return;
     S.open = false;
+    S.closing = true;                        /* 退场窗口开启：这段时间里不许再 open()（见 S.closing） */
     stop();
     S.el.root.classList.remove('is-open', 'is-dragging');
     if (S.drag.on) { S.drag.on = false; }
     playFlipOut(function () {
-      if (S.open) return;                 /* 关的过程中又点开了：别把新的收掉 */
+      if (S.open) { S.closing = false; return; }   /* 有人抢先打开了：收手，别把新的收掉 */
       closeNow();
       if (S.lastFocus && S.lastFocus.focus) { try { S.lastFocus.focus({ preventScroll: true }); } catch (e2) { } }
     });
@@ -2644,13 +2755,19 @@
     isOpen: function () { return S.open; },
     state: function () {
       return {
-        open: S.open, index: S.index, n: S.items.length,
+        open: S.open, closing: S.closing, index: S.index, n: S.items.length,
         rx: +S.phys.rx.toFixed(2), ry: +S.phys.ry.toFixed(2),
         vx: +S.phys.vx.toFixed(2), vy: +S.phys.vy.toFixed(2),
         /* 入场旋转的现场：spinning = 还在转；spin = 当前角度（180 = 背面，360 = 正向） */
         spinning: S.spin.on, spin: S.spin.on ? +S.spin.a.toFixed(2) : null,
         spinV: S.spin.on ? +S.spin.v.toFixed(1) : null,
         dragging: S.drag.on, zoom: +S.zoom.s.toFixed(3), pan: [+S.zoom.x.toFixed(1), +S.zoom.y.toFixed(1)],
+        /* 双击缩放那条 tween 的现场（2026-11-01 验收用）：on = 正在过渡，
+           t/dur = 已走 ms / 总时长，to = 目标倍率（复原时 = 1） */
+        zoomTween: {
+          on: S.zoomAnim.on, t: Math.round(S.zoomAnim.t),
+          dur: S.zoomAnim.dur, to: S.zoomAnim.s1
+        },
         hov: [+S.hov.x.toFixed(3), +S.hov.y.toFixed(3)],
         /* 点击反馈与扫光的现场（验收脚本用）：press = 当前下沉像素，sweep = 这一打开的带子是否已播过 */
         press: +S.press.y.toFixed(2), pressing: S.press.on, swept: S.sweep.locked,

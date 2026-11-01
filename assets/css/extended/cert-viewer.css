@@ -33,6 +33,16 @@
      证书就"抓不起来"——而且桌面鼠标路径完全测不出来（2026-10-26 实测）。 */
   touch-action: none;
   -webkit-tap-highlight-color: transparent;
+  /* 触屏长按（2026-11-01 用户报「移动端点击、长按证书没有触发 3D 旋转」）：
+     光靠 JS 不够 —— iOS 长按会举起 callout 气泡、安卓长按图片/链接会弹系统菜单、
+     还会顺手把文字选中出现选择柄；这三件事一发生，浏览器就发 pointercancel，
+     「按住」这段时间直接断掉，按下位置的 3D 倾斜刚起来就被收回去。
+     浮层里没有任何需要系统长按菜单的内容（纸是证书图片，文字也不该被选走），
+     所以长按整套能力一并关掉。 */
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-user-drag: none;
 }
 
 .cv-root[hidden] { display: none; }

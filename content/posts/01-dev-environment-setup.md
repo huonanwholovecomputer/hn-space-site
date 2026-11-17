@@ -1,7 +1,7 @@
 ---
 title: "开发环境安装与配置指南"
 date: 2026-03-18
-lastmod: 2026-10-24
+lastmod: 2026-11-17
 description: "Visual Studio Code、Visual Studio、Dev-C++、Python 和 PyCharm 的安装与配置指南。"
 tags: ["开发环境", "VS Code", "Visual Studio", "Dev-C++", "Python", "PyCharm", "Windows"]
 series: ["技术教程"]
@@ -62,7 +62,7 @@ draft: false
 
 - 集成MinGW编译器：通常捆绑了MinGW编译器，可以方便地在Windows上编译C/C++代码。
 
-适用场景：主要适用于C/C++语言的入门教学。由于其开发停滞已久，功能和调试能力相对较弱，不建议用于大型或复杂的项目开发。
+适用场景：主要适用于C/C++语言的入门教学。原版已长期停更，功能和调试能力相对较弱，不建议用于大型或复杂的项目开发；如需使用，请选其活跃分支“小熊猫 C++”（见第六章）。
 
 ### 4. Python
 
@@ -92,7 +92,7 @@ draft: false
 
 - 框架支持：对Django, Flask, Pyramid等主流Web框架提供了出色的支持。
 
-- 版本选择：提供功能丰富的专业版（收费，但对学生免费）和轻量快速的社区版（免费且开源）。
+- 版本选择：自 2025.1 起，社区版与专业版已合并为统一产品，核心功能永久免费；AI 编码、远程开发、数据库深度管理等高级功能需订阅 Pro（30 天试用，学生可免费申请）。
 
 适用场景：专业Python开发的标杆工具。特别适合进行大型Python项目、Web开发、数据科学和人工智能领域的开发工作。对于追求高效和深度集成的Python开发者来说是首选。
 
@@ -100,7 +100,7 @@ draft: false
 
 1\. 对于初学者：
 
-如果主要学习C/C++，可以从 **Dev-C++** 入手，因为它能让你快速专注于语言本身，避免被复杂工具分散注意力。但入门后，强烈建议迁移到更现代的工具。
+如果主要学习C/C++，可以从 Dev-C++ 的活跃分支 **“小熊猫 C++”** 入手（见第六章），因为它能让你快速专注于语言本身，避免被复杂工具分散注意力。但入门后，强烈建议迁移到更现代的工具。
 
 如果学习Python或其他多种语言，**Visual Studio Code** 是最佳起点。它既能满足初学需求，其强大的扩展性也能伴随你一路成长。
 
@@ -126,7 +126,7 @@ Visual Studio Code的官方网站：[https://code.visualstudio.com/](https://cod
 
 ### 2. 安装Visual Studio Code
 
-打开安装程序，按照安装步骤进行安装（注意其中第 2 张图里被框选的选项必须勾选！）；
+然后，打开安装程序，按照安装步骤进行安装（注意下图第 2 张里被框选的选项必须勾选！）；
 
 ![](/posts/01-dev-environment-setup/media/image4.webp)
 
@@ -158,7 +158,7 @@ Visual Studio Code的官方网站：[https://code.visualstudio.com/](https://cod
 
 ![](/posts/01-dev-environment-setup/media/image12.webp)
 
-然后点击右下角的“**Change Language and Restart**”按钮重新启动，对语言进行切换（如下图）；
+然后点击右下角的“**Change Language and Restart**”按钮重新启动，对语言进行切换（如下图）；若没有弹出提示，也可以按 Ctrl+Shift+P 输入 Configure Display Language，选“中文(简体)”后重启。
 
 ![](/posts/01-dev-environment-setup/media/image13.webp)
 
@@ -166,7 +166,7 @@ Visual Studio Code的官方网站：[https://code.visualstudio.com/](https://cod
 
 ### 4. MinGW的配置
 
-你需要下载并配置**MinGW**（MinGW，是Minimalist GNU for Windows的缩写。它是一个可自由使用和自由发布的Windows特定头文件和使用GNU工具集导入库的集合，允许你在GNU/Linux和Windows平台生成本地的Windows程序而不需要第三方C运行时（C Runtime）库。）
+你需要下载并配置**MinGW**（MinGW 是 Minimalist GNU for Windows 的缩写，它是一个可自由使用和自由发布的 Windows 特定头文件与 GNU 工具集导入库的集合，允许你在 GNU/Linux 和 Windows 平台生成本地的 Windows 程序，而不需要第三方 C 运行时（C Runtime）库。）
 
 你可以通过官方渠道下载：
 
@@ -198,7 +198,7 @@ Visual Studio Code的官方网站：[https://code.visualstudio.com/](https://cod
 
 ![](/posts/01-dev-environment-setup/media/image16.webp)
 
-下载完成之后，将这个7z压缩文件解压到一个文件夹，并将这个文件夹放到一个基本上不会动的地方，我的建议是放到**C:\Program Files**
+下载完成之后，将这个7z压缩文件解压到一个文件夹，放到一个以后不会移动、路径中不含空格的目录，例如 **C:\mingw64**（放 **C:\Program Files** 也可以，但解压时需要管理员权限，以后升级也容易踩权限问题）。本节解压截图用的是旧版 8.1.0 包，操作完全相同，只是文件名不同。
 
 ![](/posts/01-dev-environment-setup/media/image15.webp)
 
@@ -208,13 +208,13 @@ Visual Studio Code的官方网站：[https://code.visualstudio.com/](https://cod
 
 ![](/posts/01-dev-environment-setup/media/image17.png)
 
-点击“**高级系统设置**”；
+点击“**高级系统设置**”（如下图）；
 
 ![](/posts/01-dev-environment-setup/media/image20.webp)
 
-点击“**环境变量**”（如下图1）；
+点击“**环境变量**”，打开环境变量窗口（如下图）；
 
-双击“**Path**”；（如下图2）
+双击“**Path**”（同一张图里红框标出的那一行）；
 
 ![](/posts/01-dev-environment-setup/media/image19.png)
 
@@ -222,7 +222,7 @@ Visual Studio Code的官方网站：[https://code.visualstudio.com/](https://cod
 
 ![](/posts/01-dev-environment-setup/media/image22.webp)
 
-单击上方路径栏，复制这个路径（如上图）；
+单击上方路径栏，复制这个路径（如下图）；
 
 ![](/posts/01-dev-environment-setup/media/image21.webp)
 
@@ -256,7 +256,7 @@ Visual Studio Code的官方网站：[https://code.visualstudio.com/](https://cod
 
 ![](/posts/01-dev-environment-setup/media/image29.webp)
 
-比如，点击这个按钮来新建文件，并其命名为你想命名的文件名，比如“**test.c**”；
+比如，点击这个按钮新建文件，并把它命名为你想要的文件名，例如“**test.c**”；
 
 ![](/posts/01-dev-environment-setup/media/image30.png)
 
@@ -280,13 +280,13 @@ Visual Studio Code的官方网站：[https://code.visualstudio.com/](https://cod
 
 ![](/posts/01-dev-environment-setup/media/image35.webp)
 
-然后，下拉，找到“**IntelliSense 模式**”（如下图）；
+然后，下拉，找到“**IntelliSense 模式**”（如下图第 1 张）；
 
 ![](/posts/01-dev-environment-setup/media/image36.webp)
 
 ![](/posts/01-dev-environment-setup/media/image37.png)
 
-点击小三角展开并选择“**windows-gcc-x64**”（如上图）；
+点击小三角展开并选择“**windows-gcc-x64**”（如上图第 2 张）；
 
 如下图，依次点击：“**<u>… - 终端 - 配置任务</u>**”；
 
@@ -318,7 +318,7 @@ Visual Studio Code的官方网站：[https://code.visualstudio.com/](https://cod
 
 ![](/posts/01-dev-environment-setup/media/image45.webp)
 
-在这里输入“**./tset.exe**”（你的程序的名字）并按下回车(Enter)；
+在这里输入“**./test.exe**”（你的程序的名字）并按下回车(Enter)；
 
 这样，程序成功输出了Hello World（如上图）。
 
@@ -352,7 +352,7 @@ Visual Studio Code的官方网站：[https://code.visualstudio.com/](https://cod
 
 ![](/posts/01-dev-environment-setup/media/image51.webp)
 
-你可以直接点击右上角的复制按钮复制配置信息，将光标放在需要加逗号的位置（如下图），直接粘贴后保存即可。
+你可以直接复制下面的代码，将光标放在需要加逗号的位置（如上图），直接粘贴后保存即可。
 
 ```json
 ,
@@ -390,7 +390,7 @@ Visual Studio Code的官方网站：[https://code.visualstudio.com/](https://cod
 
 ## 五、Visual Studio的下载与安装
 
-Visual Studio 2022的官方网站：
+Visual Studio 2026的官方网站：
 
 [https://visualstudio.microsoft.com/zh-hans/](https://visualstudio.microsoft.com/zh-hans/)
 
@@ -420,7 +420,9 @@ Visual Studio 2022的官方网站：
 
 ![](/posts/01-dev-environment-setup/media/image60.webp)
 
-项目名称和位置任选，建议勾选“**将解决方案和项目放在同一目录中**”（如下图）；
+项目名称和位置任选；
+
+建议勾选“**将解决方案和项目放在同一目录中**”（如下图）；
 
 ![](/posts/01-dev-environment-setup/media/image61.webp)
 
@@ -458,11 +460,11 @@ Visual Studio 2022的官方网站：
 
 ![](/posts/01-dev-environment-setup/media/devcpp-versions-4.webp)
 
-Dev C++作为经典的轻量级C/C++集成开发环境（IDE），在原开发团队停止维护后，衍生出多个分支版本。其中，Red Panda Dev-C++（现主要以“小熊猫C++”品牌活跃）与Embarcadero Dev-C++是目前国内用户较常接触的。
+Dev-C++ 作为经典的轻量级 C/C++ 集成开发环境（IDE），在原开发团队停止维护后衍生出多个分支，目前国内常见的有小熊猫 C++、Red Panda Dev-C++ 2020 和 Embarcadero Dev-C++ 三支；其中前两支出自同一位作者。
 
-简单介绍，小熊猫C++和Red Panda Dev-C++的作者是同一个，其中Red Panda Dev-C++在2022年6月24日更新最后版本之后，停止了更新，作者转向了小熊猫C++的开发。
+简单介绍：小熊猫 C++ 和 Red Panda Dev-C++ 出自同一位作者。Red Panda Dev-C++（SourceForge 项目 dev-cpp-2020）的最后一个版本是 2021 年 8 月发布的 6.7.5，项目页的“最近更新”停在 2022 年 6 月 24 日；作者已于 2022 年 1 月在项目页公告迁移到小熊猫 C++，此后不再更新。
 
-经测试以及收集大众的意见，我在这里推荐**小熊猫C++**，因为其默认支持输出中文、支持关键字补全、默认深色模式等。
+经综合测试和大家的反馈，我在这里推荐**小熊猫 C++**：它默认支持中文输出与关键字补全，自带深色模式，装完即用。
 
 ![](/posts/01-dev-environment-setup/media/devcpp-xiaoxiong-run.webp)
 
@@ -476,9 +478,9 @@ Dev C++作为经典的轻量级C/C++集成开发环境（IDE），在原开发�
 
 <p style="text-align:center"><em>各版本Dev-C++概述图</em></p>
 
-### 2. 下载Dev C++
+### 2. 下载Dev-C++
 
-#### (1) 小熊猫Dev-C++下载
+#### (1) 小熊猫 C++下载
 
 [https://sourceforge.net/projects/redpanda-cpp/](https://sourceforge.net/projects/redpanda-cpp/)
 
@@ -500,7 +502,7 @@ Dev C++作为经典的轻量级C/C++集成开发环境（IDE），在原开发�
 
 ![](/posts/01-dev-environment-setup/media/devcpp-xiaoxiong-setup6.webp)
 
-#### (2) Red Panda Dev-C++ 2020下载
+#### (2) Red Panda Dev-C++ 2020下载（仅作了解，不推荐）
 
 [https://sourceforge.net/projects/dev-cpp-2020/](https://sourceforge.net/projects/dev-cpp-2020/)
 
@@ -508,7 +510,7 @@ Dev C++作为经典的轻量级C/C++集成开发环境（IDE），在原开发�
 
 ![](/posts/01-dev-environment-setup/media/image72.webp)
 
-如下图，下载并安装打开就可以开始使用了，不需要做过多的设置。安装过程也不需要做任何调整，一直继续就好。（程序的创建和运行见本文“4. 编写代码、编译和运行程序”一节）
+如下图，下载并安装打开就可以开始使用了，不需要做过多的设置。安装过程也不需要做任何调整，一直继续就好。该项目主要面向 Windows XP 用户，作者本人建议 Win7/8/10/11 用户改用上面的小熊猫 C++；除非你的机器确实只能跑 XP，否则可以直接跳过本节。（程序的创建和运行见本文“4. 编写代码、编译和运行程序”一节）
 
 ![](/posts/01-dev-environment-setup/media/image73.webp)
 
@@ -540,7 +542,7 @@ Embarcadero官方网站的Dev-C++下载地址：
 
 ![](/posts/01-dev-environment-setup/media/image82.webp)
 
-如上图，官方要求先填写信息（即注册和登录账号），然后才能开始下载。如果你觉得上述方法过于复杂，可以前往：
+如上图第 1 张（注册表单），官方要求先填写信息（即注册和登录账号），然后才能开始下载。如果你觉得上述方法过于复杂，可以前往：
 
 [https://www.embarcadero.com/free-tools](https://www.embarcadero.com/free-tools)
 
@@ -552,9 +554,11 @@ Embarcadero官方网站的Dev-C++下载地址：
 
 ![](/posts/01-dev-environment-setup/media/image85.webp)
 
-建议下载倒数第二个，即下图中用红框框选的一个。它们之间具体有什么区别，可以自行查询资料。
+建议下载倒数第二个，即下图中用红框框选的那个（Embarcadero_Dev-Cpp_6.3_TDM-GCC_9.2_Setup.exe）。这里提供的是 6.3 版，2021 年 1 月发布，此后未再更新，自带 TDM-GCC 9.2.0。
 
-### 3. 安装Dev C++
+### 3. 安装Dev-C++
+
+（本节以 Embarcadero 版为例：小熊猫 C++ 的安装已在 2(1) 讲完，可直接跳到第 4 节；Red Panda 2020 的安装流程与本节相同。）
 
 ![](/posts/01-dev-environment-setup/media/image86.webp)
 
@@ -592,7 +596,7 @@ Embarcadero官方网站的Dev-C++下载地址：
 
 - 可以点击<u>菜单栏的“文件”-“新建”-“源代码”</u>
 
-\(2\) 在编写窗口中编写程序（如下图）
+\(2\) 在编写窗口中编写程序（如下图第 1 张）
 
 \(3\) 保存你的代码
 
@@ -600,7 +604,7 @@ Embarcadero官方网站的Dev-C++下载地址：
 
 - 可以点击<u>菜单栏的“文件”-“保存”</u>
 
-会弹出一个名为“保存为”的窗口（如下图），你可以将其保存至任意位置，我的建议是先在某个你觉得合适的地方新建一个文件夹，只用来存放这个项目，以免出现多个项目的文件发生冲突的问题。
+会弹出一个名为“保存为”的窗口（如下图第 2 张），你可以将其保存至任意位置，我的建议是先在某个你觉得合适的地方新建一个文件夹，只用来存放这个项目，以免出现多个项目的文件发生冲突的问题。
 
 比如我的存放文件的目录为：<u>D:\CODE\Dev-C++\项目1</u>；
 
@@ -640,7 +644,7 @@ Embarcadero官方网站的Dev-C++下载地址：
 
 ![](/posts/01-dev-environment-setup/media/image106.webp)
 
-如下图，打开“<u>工具-编译器选项-显示</u>”取消勾选“\<ID 27071 translation missing\>”，确定之后，中文字符即可显示。
+如上图 3 张，打开“<u>工具-编辑器选项</u>”的“显示”页，取消勾选“\<ID 27071 translation missing\>”，确定之后，中文字符即可显示。
 
 ![](/posts/01-dev-environment-setup/media/image100.webp)
 
@@ -666,13 +670,13 @@ Embarcadero官方网站的Dev-C++下载地址：
 
 注：GB18030为国家标准编码字符集，选择该字符集可以一劳永逸解决所有字符显示问题。
 
-综上，我推荐初学者使用**小熊猫Dev-C++**，因为它有持续更新、默认支持中文、编译器较新等优点。
+综上，我推荐初学者使用**小熊猫 C++**，因为它有持续更新、默认支持中文、编译器较新等优点。
 
 ## 七、Python的下载与安装
 
 ### 1. 概念的构建
 
-Python的安装一般分为两步，第一步是安装Python环境，第二部是安装代码编辑器(IDE)，可以这样来形象地理解：Python环境就像是一个厨房，代码编辑器就像是厨房里的种种烹饪器具，而你是厨师，你需要烹饪器具才能更好地进行烹饪。
+Python的安装一般分为两步，第一步是安装Python环境，第二步是安装代码编辑器(IDE)，可以这样来形象地理解：Python环境就像是一个厨房，代码编辑器就像是厨房里的种种烹饪器具，而你是厨师，你需要烹饪器具才能更好地进行烹饪。
 
 ### 2. Python环境的构建
 
@@ -682,23 +686,29 @@ Python官网：
 
 [https://www.python.org/](https://www.python.org/)
 
-![](/posts/01-dev-environment-setup/media/python-home-3151.webp)
+![](/posts/01-dev-environment-setup/media/python-home-31210.webp)
 
-将鼠标移动到“Downloads”（如下图，**注意是移动，悬浮在选项卡上即可，不是点击**），然后点击“Python 3.15.1”，下载会在几秒后开始；
+![](/posts/01-dev-environment-setup/media/python-version-31210.webp)
 
-![](/posts/01-dev-environment-setup/media/python-downloads-3151.webp)
+Python处于活跃更新之中，最新的版本不一定是最好的，我们需要考虑稳定性和兼容性，我推荐使用3.12.10版本。
+
+[https://www.python.org/downloads/release/python-31210/](https://www.python.org/downloads/release/python-31210/)
+
+如下图，下滑界面到“Files”，然后点击“Windows installer (64-bit)”，下载将会在几秒钟后开始。
+
+![](/posts/01-dev-environment-setup/media/python-downloads-31210.webp)
 
 #### (2) 安装Python
 
 如下图，一定要先勾选下面的两个选项，然后点击“Install Now”开始安装，等待安装完成即可。
 
-![](/posts/01-dev-environment-setup/media/python-install-3151.webp)
+![](/posts/01-dev-environment-setup/media/python-install-31210.webp)
 
 ### 3. 代码编辑器(IDE)的选择
 
-我推荐的编辑器是Visual Studio Code、Visual Studio和Pycharm，我主推前两个，因为前两个编辑器同时支持C/C++和Python语言；但是如果你只需要学习Python，那么PyCharm是更好的选择。
+我推荐的编辑器是Visual Studio Code、Visual Studio和PyCharm，我主推前两个，因为前两个编辑器同时支持C/C++和Python语言；但是如果你只需要学习Python，那么PyCharm是更好的选择（见第八章）。
 
-**关于PyCharm**：从2025年1月发布的PyCharm 2025.1版本开始，JetBrains将原有的“社区版（Community Edition）”和“专业版（Professional Edition）”合并为统一的PyCharm产品。所有用户均可永久免费使用核心功能（如基础Python开发、调试、Git集成、Jupyter Notebook基础支持等）；若需使用高级功能（如AI编码辅助、云端运行、数据库深度管理、远程开发等），则需通过订阅Pro版本（付费）或免费试用（30天）获取。
+**关于PyCharm**：从2025年4月发布的PyCharm 2025.1版本开始，JetBrains将原有的“社区版（Community Edition）”和“专业版（Professional Edition）”合并为统一的PyCharm产品。所有用户均可永久免费使用核心功能（如基础Python开发、调试、Git集成、Jupyter Notebook基础支持等）；若需使用高级功能（如AI编码辅助、云端运行、数据库深度管理、远程开发等），则需通过订阅Pro版本（付费）或免费试用（30天）获取。
 
 #### (1) Visual Studio Code
 
@@ -721,11 +731,11 @@ Python官网：
 
 ![](/posts/01-dev-environment-setup/media/image123.webp)
 
-选择你的代码的保存位置，如下图，我将此Python文件保存到了<u>D:\CODE\Python</u>目录，名为“test.py”；
+如上图第 1 张，选择你的代码的保存位置（我将此Python文件保存到了<u>D:\CODE\Python</u>目录）；然后如下图，把“文件名”填成“test.py”；
 
 ![](/posts/01-dev-environment-setup/media/image124.webp)
 
-这里需要注意的是，如果你没有在Windows文件资源管理器中打开“显示文件扩展名”的话（如下图），你必须展开“保存类型”，然后下滑，找到“Python”类型的文件（如下图）。否则，你得到的文件名可能会是“test.py.txt”；
+这里需要注意的是，如果你没有在文件资源管理器中打开“显示文件扩展名”（查看 → 显示 → 文件扩展名），就必须展开“保存类型”，然后下滑，找到“Python”类型的文件（如下图第 1 张）。否则，你得到的文件名可能会是“test.py.txt”；
 
 ![](/posts/01-dev-environment-setup/media/image125.png)
 
@@ -741,7 +751,7 @@ Python官网：
 
 ![](/posts/01-dev-environment-setup/media/image129.webp)
 
-如下图，你也可以安装扩展来快速运行Python程序，安装此扩展后，点击右上角的三角就可以直接运行代码了（如下图）。
+如下图第 1 张，你也可以安装扩展来快速运行Python程序；安装此扩展后，点击编辑器右上角的三角就可以直接运行代码了（如下图第 2 张）。
 
 ![](/posts/01-dev-environment-setup/media/image130.png)
 
@@ -762,11 +772,11 @@ Python官网：
 
 ![](/posts/01-dev-environment-setup/media/image135.webp)
 
-编写程序；
+如下图，编写程序；
 
 ![](/posts/01-dev-environment-setup/media/image136.webp)
 
-运行程序（不调试）；
+如下图，运行程序（不调试）；
 
 ![](/posts/01-dev-environment-setup/media/image137.webp)
 
@@ -802,11 +812,11 @@ Python官网：
 
 ![](/posts/01-dev-environment-setup/media/image145.webp)
 
-如上图，在到“**安装选项**”这一步骤时，一定要勾选“**更新PATH**”变量！
+在到“**安装选项**”这一步骤时，可勾选“**将 bin 文件夹添加到 PATH**”（非必需；勾选后可直接在命令行运行 pycharm）。
 
 点击“安装”后，程序会进入安装阶段，安装过程同样需要些许时间，请耐心等待；
 
-安装完成后，点击“完成”；
+安装完成之后，点击“完成”；
 
 ### 3. 创建Python项目
 
@@ -818,7 +828,9 @@ Python官网：
 
 ![](/posts/01-dev-environment-setup/media/image147.webp)
 
-### 4. 重启并应用中文语言（注：从PyCharm 2025.3.3开始，默认的应用语言为中文，此步骤可跳过）
+### 4. 重启并应用中文语言
+
+注：若系统语言是中文，PyCharm 通常会在右下角主动提示你切换成中文，点一下即可；也可以随时在“设置 → 外观与行为 → 系统设置 → 语言与区域”手动指定。首次启动还会让你选“区域”，按所在地区选即可。
 
 如下图，不出意外的话，右下角会有这样的弹窗。点击“ Enable Chinese and Restart ”按钮，再点击中间的Exit，软件将自动重启；
 

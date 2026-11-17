@@ -879,3 +879,7 @@ Python处于活跃更新之中，最新的版本不一定是最好的，我们�
 打开设置，在“<u>编辑器-字体-大小</u>”调整代码和终端的字体大小（如下图）。
 
 ![](/posts/01-dev-environment-setup/media/image158.webp)
+---
+
+**下载 PDF 版**：这篇教程也有 PDF 版本 —— [开发环境安装与配置指南（PDF）](https://wwbok.lanzouq.com/iz32T4gc2puf)。PDF 接近纸质书的排版，目录可跳转、图注更紧凑，**下载 PDF 观感更佳**。
+
